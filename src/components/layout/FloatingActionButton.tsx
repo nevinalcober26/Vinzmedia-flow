@@ -87,7 +87,7 @@ export function FloatingActionButton() {
 
   return (
     <>
-      <div ref={containerRef} className="fixed bottom-5 right-5 md:bottom-7 md:right-7 z-50 flex flex-col items-end">
+      <div ref={containerRef} className="workspace-quick-actions fixed bottom-5 right-5 md:bottom-7 md:right-7 z-50 flex flex-col items-end">
         {/* Backdrop scrim overlay when open */}
         <AnimatePresence>
           {isOpen && (
