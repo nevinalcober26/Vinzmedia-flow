@@ -57,6 +57,7 @@ export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'a
 export type PriorityLevel = 'urgent' | 'high' | 'medium' | 'low';
 
 export type ProjectBillingType = "fixed" | "hourly";
+export type PaymentSchedule = "weekly" | "15_days" | "30_days" | "custom";
 
 export interface ProjectPaymentInstallment {
   id: string;
@@ -92,6 +93,8 @@ export interface Project {
   client?: Client;
   // Pricing & Billing
   billing_type?: ProjectBillingType;
+  payment_schedule?: PaymentSchedule;
+  payment_terms_days?: number;
   fixed_price_amount?: number;
   payment_installments_count?: number;
   installments?: ProjectPaymentInstallment[];
@@ -111,25 +114,52 @@ export interface Project {
   updated_at: string;
 }
 
+export interface ProjectInvoiceItem {
+  id?: string;
+  description: string;
+  quantity?: number;
+  rate?: number;
+  amount: number;
+}
+
 export interface ProjectInvoice {
   id: string;
   project_id: string;
   invoice_number: string;
   billing_type: ProjectBillingType;
+  payment_schedule?: PaymentSchedule;
+  payment_terms_days?: number;
   issue_date: string;
   due_date?: string;
+  subtotal?: number;
+  tax_rate?: number;
+  tax_amount?: number;
+  discount_rate?: number;
+  discount_amount?: number;
   total_amount: number;
-  status: "draft" | "sent" | "paid";
+  status: "draft" | "sent" | "paid" | "overdue";
   enable_currency_conversion?: boolean;
   converted_currency?: string;
   conversion_rate?: number;
   converted_total_amount?: number;
-  items?: Array<{
-    description: string;
-    quantity?: number;
-    rate?: number;
-    amount: number;
-  }>;
+  client_id?: string;
+  client_name?: string;
+  client_company?: string;
+  client_email?: string;
+  client_address?: string;
+  client_tax_id?: string;
+  provider_name?: string;
+  provider_company?: string;
+  provider_email?: string;
+  provider_address?: string;
+  bank_name?: string;
+  account_name?: string;
+  account_number?: string;
+  swift_bic?: string;
+  routing_number?: string;
+  notes?: string;
+  payment_instructions?: string;
+  items?: ProjectInvoiceItem[];
 }
 
 export interface Milestone {
@@ -171,6 +201,8 @@ export interface Client {
   company: string;
   email: string;
   avatar_url?: string;
+  address?: string;
+  tax_id?: string;
   status: "active" | "lead" | "past";
   project_ids: string[];
   created_at: string;

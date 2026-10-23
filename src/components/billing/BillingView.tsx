@@ -683,17 +683,29 @@ export function BillingView() {
 
                             {/* Billing Model */}
                             <td className="py-3.5 px-4">
-                              {isHourly ? (
-                                <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                                  <Clock className="w-3 h-3" />
-                                  <span>Hourly Labor</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                  <DollarSign className="w-3 h-3" />
-                                  <span>Fixed Milestone</span>
-                                </span>
-                              )}
+                              <div className="space-y-1">
+                                {isHourly ? (
+                                  <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                    <Clock className="w-3 h-3" />
+                                    <span>Hourly Labor</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                    <DollarSign className="w-3 h-3" />
+                                    <span>Fixed Milestone</span>
+                                  </span>
+                                )}
+                                <div className="flex items-center space-x-1 text-[10px] text-muted-foreground font-medium">
+                                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/70" />
+                                  <span>
+                                    {project.payment_schedule === "weekly"
+                                      ? "Weekly (Net 7)"
+                                      : project.payment_schedule === "15_days"
+                                      ? "Every 15 Days (Net 15)"
+                                      : "30 Days (Net 30)"}
+                                  </span>
+                                </div>
+                              </div>
                             </td>
 
                             {/* Contract Price / Rate */}
@@ -947,7 +959,16 @@ export function BillingView() {
                           </div>
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="capitalize">{item.project.billing_type || "fixed"}</span>
+                          <div className="flex flex-col space-y-0.5">
+                            <span className="capitalize font-medium text-foreground">{item.project.billing_type || "fixed"}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {item.project.payment_schedule === "weekly"
+                                ? "Net 7 Days"
+                                : item.project.payment_schedule === "15_days"
+                                ? "Net 15 Days"
+                                : "Net 30 Days"}
+                            </span>
+                          </div>
                         </td>
                         <td className="py-3.5 px-4">
                           <div className="font-semibold">

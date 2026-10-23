@@ -879,6 +879,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         member_ids: data.member_ids?.length ? data.member_ids : [currentUser.id],
         client_id: data.client_id || undefined,
         billing_type: data.billing_type || "fixed",
+        payment_schedule: data.payment_schedule || "30_days",
+        payment_terms_days: data.payment_terms_days || (data.payment_schedule === "weekly" ? 7 : data.payment_schedule === "15_days" ? 15 : 30),
         fixed_price_amount: data.fixed_price_amount || 0,
         payment_installments_count: data.payment_installments_count || 1,
         installments: data.installments || [],

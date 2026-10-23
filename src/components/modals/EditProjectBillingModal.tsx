@@ -22,8 +22,9 @@ import {
   Building2,
   UserPlus,
   RefreshCw,
+  CalendarDays,
 } from "lucide-react";
-import { Project, ProjectBillingType, ProjectPaymentInstallment } from "@/types";
+import { Project, ProjectBillingType, ProjectPaymentInstallment, PaymentSchedule } from "@/types";
 import { useStore } from "@/context/StoreContext";
 import { useToast } from "@/context/ToastContext";
 import {
@@ -60,6 +61,12 @@ export function EditProjectBillingModal({
 
   const [billingType, setBillingType] = useState<ProjectBillingType>(
     project.billing_type || "fixed"
+  );
+  const [paymentSchedule, setPaymentSchedule] = useState<PaymentSchedule>(
+    project.payment_schedule || "30_days"
+  );
+  const [paymentTermsDays, setPaymentTermsDays] = useState<number>(
+    project.payment_terms_days || (project.payment_schedule === "weekly" ? 7 : project.payment_schedule === "15_days" ? 15 : 30)
   );
   const [fixedAmount, setFixedAmount] = useState<string>(
     String(project.fixed_price_amount || "5000")
@@ -140,6 +147,12 @@ export function EditProjectBillingModal({
   useEffect(() => {
     if (isOpen) {
       setBillingType(project.billing_type || "fixed");
+      const sched = project.payment_schedule || "30_days";
+      setPaymentSchedule(sched);
+      setPaymentTermsDays(
+        project.payment_terms_days ||
+          (sched === "weekly" ? 7 : sched === "15_days" ? 15 : 30)
+      );
       const currentFixed = project.fixed_price_amount || 5000;
       setFixedAmount(String(currentFixed));
       const currentCount = project.payment_installments_count || 3;
@@ -352,6 +365,15 @@ export function EditProjectBillingModal({
     try {
       const updates: Partial<Project> = {
         billing_type: billingType,
+        payment_schedule: paymentSchedule,
+        payment_terms_days:
+          paymentSchedule === "weekly"
+            ? 7
+            : paymentSchedule === "15_days"
+            ? 15
+            : paymentSchedule === "30_days"
+            ? 30
+            : paymentTermsDays,
         currency,
       };
 
@@ -655,6 +677,138 @@ export function EditProjectBillingModal({
                       Rate per hour & estimated weekly commitment
                     </div>
                   </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Payment Schedule & Remittance Terms */}
+            <div className="space-y-2.5 p-3.5 rounded-2xl bg-secondary/20 border border-border/80">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-foreground flex items-center space-x-1.5">
+                  <CalendarDays className="w-3.5 h-3.5 text-primary" />
+                  <span>Payment Schedule & Remittance Terms</span>
+                </label>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {paymentSchedule === "weekly"
+                    ? "Net 7 Days"
+                    : paymentSchedule === "15_days"
+                    ? "Net 15 Days"
+                    : paymentSchedule === "30_days"
+                    ? "Net 30 Days"
+                    : `Net ${paymentTermsDays} Days`}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Define the recurring invoicing frequency and client settlement cycle. Due dates on invoices will automatically adjust to this schedule.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                {/* Weekly */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentSchedule("weekly");
+                    setPaymentTermsDays(7);
+                  }}
+                  className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
+                    paymentSchedule === "weekly"
+                      ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
+                      : "bg-background/60 border-border/70 text-muted-foreground hover:bg-secondary/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-base">🗓️</span>
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                        paymentSchedule === "weekly"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      Net 7
+                    </span>
+                  </div>
+                  <div className="font-bold text-xs text-foreground">Weekly Payment</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                    Billed every 7 days; rapid turnarounds & sprint retainer
+                  </div>
+                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 && (
+                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
+                      ~{currency}{weeklyAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} / wk
+                    </div>
+                  )}
+                </button>
+
+                {/* Every 15 Days */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentSchedule("15_days");
+                    setPaymentTermsDays(15);
+                  }}
+                  className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
+                    paymentSchedule === "15_days"
+                      ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
+                      : "bg-background/60 border-border/70 text-muted-foreground hover:bg-secondary/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-base">🌓</span>
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                        paymentSchedule === "15_days"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      Net 15
+                    </span>
+                  </div>
+                  <div className="font-bold text-xs text-foreground">Every 15 Days</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                    Semi-monthly billing (1st & 15th); balanced cashflow
+                  </div>
+                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 && (
+                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
+                      ~{currency}{Math.round(weeklyAmount * (15 / 7)).toLocaleString()} / cycle
+                    </div>
+                  )}
+                </button>
+
+                {/* 30 Days */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentSchedule("30_days");
+                    setPaymentTermsDays(30);
+                  }}
+                  className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
+                    paymentSchedule === "30_days"
+                      ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
+                      : "bg-background/60 border-border/70 text-muted-foreground hover:bg-secondary/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-base">🌕</span>
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                        paymentSchedule === "30_days"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      Net 30
+                    </span>
+                  </div>
+                  <div className="font-bold text-xs text-foreground">30 Days Payment</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                    Standard monthly cycle; enterprise retainers & contracts
+                  </div>
+                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 && (
+                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
+                      ~{currency}{Math.round(weeklyAmount * (30 / 7)).toLocaleString()} / mo
+                    </div>
+                  )}
                 </button>
               </div>
             </div>

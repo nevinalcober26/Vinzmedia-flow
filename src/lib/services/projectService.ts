@@ -68,6 +68,8 @@ export const projectService = {
         all_members: row.all_members !== undefined ? row.all_members : true,
         member_ids: row.member_ids || [row.owner_id],
         billing_type: row.billing_type || "fixed",
+        payment_schedule: row.payment_schedule || "30_days",
+        payment_terms_days: row.payment_terms_days || (row.payment_schedule === "weekly" ? 7 : row.payment_schedule === "15_days" ? 15 : 30),
         fixed_price_amount: Number(row.fixed_price_amount) || 0,
         payment_installments_count: Number(row.payment_installments_count) || 1,
         hourly_rate: Number(row.hourly_rate) || 0,
@@ -115,6 +117,8 @@ export const projectService = {
       }
       if (project.client_id !== undefined) payload.client_id = project.client_id || null;
       if (project.billing_type !== undefined) payload.billing_type = project.billing_type;
+      if (project.payment_schedule !== undefined) payload.payment_schedule = project.payment_schedule;
+      if (project.payment_terms_days !== undefined) payload.payment_terms_days = project.payment_terms_days;
       if (project.fixed_price_amount !== undefined) payload.fixed_price_amount = project.fixed_price_amount;
       if (project.payment_installments_count !== undefined) payload.payment_installments_count = project.payment_installments_count;
       if (project.hourly_rate !== undefined) payload.hourly_rate = project.hourly_rate;
@@ -212,6 +216,8 @@ export const projectService = {
       if (updates.all_members !== undefined) payload.all_members = updates.all_members;
       if (updates.client_id !== undefined) payload.client_id = updates.client_id || null;
       if (updates.billing_type !== undefined) payload.billing_type = updates.billing_type;
+      if (updates.payment_schedule !== undefined) payload.payment_schedule = updates.payment_schedule;
+      if (updates.payment_terms_days !== undefined) payload.payment_terms_days = updates.payment_terms_days;
       if (updates.fixed_price_amount !== undefined) payload.fixed_price_amount = updates.fixed_price_amount;
       if (updates.payment_installments_count !== undefined) payload.payment_installments_count = updates.payment_installments_count;
       if (updates.hourly_rate !== undefined) payload.hourly_rate = updates.hourly_rate;

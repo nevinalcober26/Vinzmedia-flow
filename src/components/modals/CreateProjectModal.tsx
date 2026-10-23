@@ -5,7 +5,7 @@ import { useStore } from "@/context/StoreContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, FolderKanban, Calendar, AlertCircle, Palette, Check, Globe, Lock, Users, Info, DollarSign, Clock, Coins, Building2, UserPlus } from "lucide-react";
-import { PriorityLevel, ProjectStatus, ProjectBillingType } from "@/types";
+import { PriorityLevel, ProjectStatus, ProjectBillingType, PaymentSchedule } from "@/types";
 import { DEFAULT_TASK_TYPES, DEFAULT_DEPARTMENTS } from "@/lib/taskTypes";
 import { ClientAvatar } from "@/components/common/ClientAvatar";
 
@@ -39,6 +39,7 @@ export function CreateProjectModal() {
 
   // Pricing & Billing
   const [billingType, setBillingType] = useState<ProjectBillingType>("fixed");
+  const [paymentSchedule, setPaymentSchedule] = useState<PaymentSchedule>("30_days");
   const [fixedAmount, setFixedAmount] = useState<string>("5000");
   const [installmentsCount, setInstallmentsCount] = useState<number>(3);
   const [hourlyRate, setHourlyRate] = useState<string>("75");
@@ -113,6 +114,13 @@ export function CreateProjectModal() {
       member_ids: accessScope === "all" ? users.map((u) => u.id) : memberIds,
       client_id: selectedClientId || undefined,
       billing_type: billingType,
+      payment_schedule: paymentSchedule,
+      payment_terms_days:
+        paymentSchedule === "weekly"
+          ? 7
+          : paymentSchedule === "15_days"
+          ? 15
+          : 30,
       fixed_price_amount: billingType === "fixed" ? parsedFixed : 0,
       payment_installments_count: billingType === "fixed" ? installmentsCount : 1,
       installments: generatedInstallments,
@@ -462,6 +470,54 @@ export function CreateProjectModal() {
                       <div className="text-[10px] text-muted-foreground leading-snug">Bill based on tracked hours</div>
                     </div>
                   </button>
+                </div>
+
+                {/* Payment Schedule Option */}
+                <div className="p-2.5 rounded-xl bg-secondary/20 border border-border/70 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-foreground">Payment Remittance Schedule</span>
+                    <span className="text-[10px] font-mono text-primary font-bold">
+                      {paymentSchedule === "weekly" ? "Net 7" : paymentSchedule === "15_days" ? "Net 15" : "Net 30"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentSchedule("weekly")}
+                      className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
+                        paymentSchedule === "weekly"
+                          ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/30"
+                          : "bg-background/60 border-border/60 text-muted-foreground hover:bg-secondary/40"
+                      }`}
+                    >
+                      <div className="font-bold text-[11px] text-foreground">🗓️ Weekly</div>
+                      <div className="text-[9px] text-muted-foreground">Every 7 days</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentSchedule("15_days")}
+                      className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
+                        paymentSchedule === "15_days"
+                          ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/30"
+                          : "bg-background/60 border-border/60 text-muted-foreground hover:bg-secondary/40"
+                      }`}
+                    >
+                      <div className="font-bold text-[11px] text-foreground">🌓 15 Days</div>
+                      <div className="text-[9px] text-muted-foreground">Semi-monthly</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentSchedule("30_days")}
+                      className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
+                        paymentSchedule === "30_days"
+                          ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/30"
+                          : "bg-background/60 border-border/60 text-muted-foreground hover:bg-secondary/40"
+                      }`}
+                    >
+                      <div className="font-bold text-[11px] text-foreground">🌕 30 Days</div>
+                      <div className="text-[9px] text-muted-foreground">Monthly cycle</div>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Fixed Price Configuration */}
