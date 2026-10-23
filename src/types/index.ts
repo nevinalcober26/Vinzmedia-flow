@@ -365,6 +365,7 @@ export type ActiveView =
   | 'workload'
   | 'clients'
   | 'billing'
+  | 'timelogs'
   | 'settings';
 
 export type ProjectSubTab =

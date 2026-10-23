@@ -19,6 +19,8 @@ import {
   Sparkles,
   X,
   Receipt,
+  Clock,
+  Timer,
 } from "lucide-react";
 import { ActiveView } from "@/types";
 
@@ -124,6 +126,18 @@ export function CommandPalette() {
       action: () => {
         setSelectedProjectId(null);
         setActiveView("billing");
+        handleClose();
+      },
+    },
+    {
+      id: "cmd_timelogs",
+      category: "Navigation",
+      title: "Go to Time Logs",
+      subtitle: "Track labor hours, project columns & active timers",
+      icon: Clock,
+      action: () => {
+        setSelectedProjectId(null);
+        setActiveView("timelogs");
         handleClose();
       },
     },

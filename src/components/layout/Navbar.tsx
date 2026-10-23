@@ -125,6 +125,7 @@ export function Navbar() {
       projects: "All Projects",
       clients: "Clients & Files",
       billing: "Billing & Invoices",
+      timelogs: "Time Logs & Labor Tracking",
       calendar: "Master Calendar",
       notes: "Quick Notes & Docs",
       announcements: "Team Announcements",

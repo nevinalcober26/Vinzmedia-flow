@@ -25,6 +25,8 @@ import {
   Compass,
   FolderArchive,
   Receipt,
+  Clock,
+  Timer,
 } from "lucide-react";
 import { ActiveView } from "@/types";
 
@@ -42,6 +44,7 @@ export function Sidebar() {
     tasks,
     currentUser,
     files,
+    activeTimer,
     unreadNotificationCount,
     setIsCreateProjectModalOpen,
     setIsProfileModalOpen,
@@ -91,6 +94,12 @@ export function Sidebar() {
       label: "Billing & Invoices",
       icon: Receipt,
       badge: null,
+    },
+    {
+      id: "timelogs" as ActiveView,
+      label: "Time Logs",
+      icon: Clock,
+      badge: activeTimer ? "LIVE" : null,
     },
     {
       id: "calendar" as ActiveView,
