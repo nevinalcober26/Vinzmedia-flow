@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useStore } from "@/context/StoreContext";
 import { useConfirm } from "@/context/ToastContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
@@ -129,11 +129,23 @@ export function TaskSlideOver() {
 
   const priorityStyles = editingTask ? getPriorityBadgeColor(editingTask.priority) : { bg: "", text: "", border: "" };
 
+  // Keyboard shortcut: Escape to close slideover
+  useEffect(() => {
+    if (!editingTask) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setEditingTask(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editingTask, setEditingTask]);
+
   return (
     <AnimatePresence>
       {editingTask && (
         <div
-          className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-xs flex justify-end"
+          className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-xs flex justify-end cursor-pointer"
           onClick={() => setEditingTask(null)}
         >
           <motion.div
@@ -141,7 +153,7 @@ export function TaskSlideOver() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 0.5 }}
             transition={{ type: "spring", damping: 30, stiffness: 350 }}
-            className="w-full max-w-2xl bg-card border-l border-border h-full flex flex-col shadow-2xl text-card-foreground"
+            className="w-full max-w-2xl bg-card border-l border-border h-full flex flex-col shadow-2xl text-card-foreground cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
         {/* Top Header Bar */}

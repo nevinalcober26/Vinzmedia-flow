@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -122,11 +122,23 @@ export function UploadDocumentModal({ isOpen, onClose }: UploadDocumentModalProp
     return <FileText className="w-4 h-4 text-primary" />;
   };
 
+  // Keyboard shortcut: Escape to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   return (
     <AnimatePresence>
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs cursor-pointer"
           onClick={onClose}
         >
           <motion.div
@@ -134,7 +146,7 @@ export function UploadDocumentModal({ isOpen, onClose }: UploadDocumentModalProp
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.94, opacity: 0, y: 12 }}
             transition={{ type: "spring", damping: 28, stiffness: 420 }}
-            className="w-full max-w-lg bg-card border border-border/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-card-foreground"
+            className="w-full max-w-lg bg-card border border-border/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-card-foreground cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}

@@ -704,7 +704,7 @@ export function TimeLogsView() {
       <AnimatePresence>
         {isLogTimeModalOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs cursor-pointer"
             onClick={() => setIsLogTimeModalOpen(false)}
           >
             <motion.div
@@ -712,7 +712,7 @@ export function TimeLogsView() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.94, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 28, stiffness: 420 }}
-              className="w-full max-w-md bg-card border border-border/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-card-foreground"
+              className="w-full max-w-md bg-card border border-border/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-card-foreground cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-6 py-4 border-b border-border/60 bg-muted/30">

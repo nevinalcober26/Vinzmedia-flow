@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useStore } from "@/context/StoreContext";
 import { useConfirm, useToast } from "@/context/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -58,11 +58,23 @@ export function QuickNoteDrawer() {
     toast.success("Converted to Task", `Note "${currentNote.title}" converted to task!`);
   };
 
+  // Keyboard shortcut: Escape to close drawer
+  useEffect(() => {
+    if (!isQuickNoteOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsQuickNoteOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isQuickNoteOpen, setIsQuickNoteOpen]);
+
   return (
     <AnimatePresence>
       {isQuickNoteOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex justify-end"
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex justify-end cursor-pointer"
           onClick={() => setIsQuickNoteOpen(false)}
         >
           <motion.div
@@ -70,7 +82,7 @@ export function QuickNoteDrawer() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 0.5 }}
             transition={{ type: "spring", damping: 30, stiffness: 350 }}
-            className="w-full max-w-xl bg-card border-l border-border h-full flex flex-col shadow-2xl text-card-foreground"
+            className="w-full max-w-xl bg-card border-l border-border h-full flex flex-col shadow-2xl text-card-foreground cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
         {/* Header */}

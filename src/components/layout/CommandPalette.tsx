@@ -266,7 +266,7 @@ export function CommandPalette() {
     <AnimatePresence>
       {isCommandPaletteOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/60 backdrop-blur-md"
+          className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/60 backdrop-blur-md cursor-pointer"
           onClick={handleClose}
         >
           <motion.div
@@ -274,7 +274,7 @@ export function CommandPalette() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: -10 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="w-full max-w-xl bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground"
+            className="w-full max-w-xl bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
         {/* Search Input bar */}

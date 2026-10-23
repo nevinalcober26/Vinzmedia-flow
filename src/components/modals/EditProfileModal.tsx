@@ -102,11 +102,23 @@ export function EditProfileModal() {
     }
   };
 
+  // Keyboard shortcut: Escape to close modal
+  useEffect(() => {
+    if (!isProfileModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsProfileModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isProfileModalOpen, setIsProfileModalOpen]);
+
   return (
     <AnimatePresence>
       {isProfileModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md cursor-pointer"
           onClick={() => setIsProfileModalOpen(false)}
         >
           <motion.div
@@ -114,7 +126,7 @@ export function EditProfileModal() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground"
+            className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}

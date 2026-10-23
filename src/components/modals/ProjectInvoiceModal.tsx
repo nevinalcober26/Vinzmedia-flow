@@ -87,6 +87,18 @@ export function ProjectInvoiceModal({
   // Find linked client
   const linkedClient = clients.find((c) => c.id === project.client_id);
 
+  // Keyboard shortcut: Escape to close modal
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const projectTasks = tasks.filter((t) => t.project_id === project.id);
@@ -140,13 +152,17 @@ export function ProjectInvoiceModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-xs overflow-y-auto">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-xs overflow-y-auto cursor-pointer"
+        onClick={onClose}
+      >
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 15 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[94vh] overflow-hidden flex flex-col my-auto"
+          className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[94vh] overflow-hidden flex flex-col my-auto cursor-default"
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Action Bar (Screen Only - Hidden in Print) */}
           <div className="no-print flex items-center justify-between px-4 sm:px-6 py-2.5 border-b border-border/80 bg-secondary/30 shrink-0">

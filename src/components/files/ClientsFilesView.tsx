@@ -608,7 +608,7 @@ export function ClientsFilesView({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md cursor-pointer"
             onClick={() => setIsDocTypeModalOpen(false)}
           >
             <motion.div
@@ -616,7 +616,7 @@ export function ClientsFilesView({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
               transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
-              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground p-6 space-y-4"
+              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground p-6 space-y-4 cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between pb-3 border-b border-border/60">
@@ -733,7 +733,7 @@ export function ClientsFilesView({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs cursor-pointer"
             onClick={() => setIsUploadModalOpen(false)}
           >
             <motion.div
@@ -741,7 +741,7 @@ export function ClientsFilesView({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
               transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
-              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground"
+              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-secondary/30">
@@ -834,7 +834,7 @@ export function ClientsFilesView({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs cursor-pointer"
             onClick={() => setIsClientModalOpen(false)}
           >
             <motion.div
@@ -842,7 +842,7 @@ export function ClientsFilesView({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
               transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
-              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground"
+              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-secondary/30">
@@ -924,7 +924,7 @@ export function ClientsFilesView({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
             onClick={() => setPreviewFile(null)}
           >
             <motion.div
@@ -932,7 +932,7 @@ export function ClientsFilesView({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
               transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
-              className="w-full max-w-3xl bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground flex flex-col max-h-[85vh]"
+              className="w-full max-w-3xl bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground flex flex-col max-h-[85vh] cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-secondary/40">

@@ -71,6 +71,18 @@ export function CreateTaskModal() {
     }
   }, [isCreateTaskModalOpen, defaultNewTaskStatus, defaultNewTaskDueDate, selectedProjectId]);
 
+  // Keyboard shortcut: Escape to close modal
+  useEffect(() => {
+    if (!isCreateTaskModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isCreateTaskModalOpen]);
+
   const currentProject = projects.find((p) => p.id === projectId);
   const projectDepartments = useMemo(() => {
     if (currentProject?.departments && currentProject.departments.length > 0) {
@@ -133,7 +145,7 @@ export function CreateTaskModal() {
     <AnimatePresence>
       {isCreateTaskModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md cursor-pointer"
           onClick={handleClose}
         >
           <motion.div
@@ -141,7 +153,7 @@ export function CreateTaskModal() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground"
+            className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-secondary/30">
