@@ -34,6 +34,14 @@ import {
   initialTimeEntries,
 } from "@/lib/initialData";
 import { generateId } from "@/lib/utils";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  syncTaskToSupabase,
+  syncProjectToSupabase,
+  syncNoteToSupabase,
+  syncAnnouncementToSupabase,
+} from "@/lib/databaseSync";
+import { hasPermission } from "@/lib/permissions";
 
 interface ActiveTimer {
   taskId: string;
@@ -43,9 +51,25 @@ interface ActiveTimer {
 }
 
 interface StoreContextType {
+  // Auth & RBAC
+  isAuthenticated: boolean;
+  currentUser: User;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+  login: (email: string, password: string) => Promise<boolean>;
+  signup: (data: {
+    email: string;
+    password: string;
+    full_name: string;
+    role: Role;
+    title?: string;
+    department?: string;
+  }) => Promise<boolean>;
+  logout: () => void;
+  demoLogin: (role: Role) => void;
+
   // Data
   users: User[];
-  currentUser: User;
   workspaces: Workspace[];
   activeWorkspace: Workspace;
   activeWorkspaceId: string;
@@ -97,14 +121,14 @@ interface StoreContextType {
   removeMember: (userId: string) => void;
 
   // Actions - Projects
-  createProject: (projectData: Partial<Project>) => Project;
+  createProject: (projectData: Partial<Project>) => Project | null;
   updateProject: (id: string, updates: Partial<Project>) => void;
   deleteProject: (id: string) => void;
   archiveProject: (id: string) => void;
   duplicateProject: (id: string) => void;
 
   // Actions - Tasks & Kanban
-  createTask: (taskData: Partial<Task>) => Task;
+  createTask: (taskData: Partial<Task>) => Task | null;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   moveTask: (taskId: string, targetStatus: string, newIndex?: number) => void;
@@ -157,9 +181,13 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 const STORAGE_KEY = "vinzflow_pm_v2";
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  // Load state from local storage or fallback to initial seed data
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
+  // Core collections
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [currentUserId, setCurrentUserIdState] = useState<string>("user_alex");
   const [workspaces, setWorkspaces] = useState<Workspace[]>(initialWorkspaces);
@@ -189,7 +217,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [defaultNewTaskStatus, setDefaultNewTaskStatus] = useState<string | undefined>(undefined);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
 
-  // Initialize from LocalStorage
+  // Initialize from LocalStorage and listen to Supabase Auth
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -209,6 +237,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (parsed.widgets) setWidgets(parsed.widgets);
         if (parsed.timeEntries) setTimeEntries(parsed.timeEntries);
         if (parsed.theme) setTheme(parsed.theme);
+        if (parsed.isAuthenticated !== undefined) setIsAuthenticated(parsed.isAuthenticated);
       }
       const savedTheme = localStorage.getItem("vinzflow_theme") as "light" | "dark" | null;
       if (savedTheme) {
@@ -225,6 +254,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to load state from localStorage:", e);
     }
     setIsInitialized(true);
+
+    // Supabase Auth listener
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          setIsAuthenticated(true);
+        }
+      });
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          setIsAuthenticated(true);
+        }
+      });
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
   }, []);
 
   // Save changes to LocalStorage
@@ -246,6 +292,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         widgets,
         timeEntries,
         theme,
+        isAuthenticated,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (e) {
@@ -267,6 +314,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     widgets,
     timeEntries,
     theme,
+    isAuthenticated,
   ]);
 
   // Real-time multi-tab synchronization using BroadcastChannel
@@ -283,6 +331,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (d.activityLogs) setActivityLogs(d.activityLogs);
         if (d.notifications) setNotifications(d.notifications);
         if (d.timeEntries) setTimeEntries(d.timeEntries);
+        if (d.users) setUsers(d.users);
       }
     };
     return () => {
@@ -357,10 +406,133 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const progressPercent = Math.round((doneCount / projectTasks.length) * 100);
 
       setProjects((prev) =>
-        prev.map((p) => (p.id === projectId ? { ...p, progress: progressPercent, updated_at: new Date().toISOString() } : p))
+        prev.map((p) => {
+          if (p.id === projectId) {
+            const updated = { ...p, progress: progressPercent, updated_at: new Date().toISOString() };
+            syncProjectToSupabase(updated);
+            return updated;
+          }
+          return p;
+        })
       );
     },
     []
+  );
+
+  // --- Auth & RBAC Actions ---
+  const login = useCallback(
+    async (email: string, password: string): Promise<boolean> => {
+      // 1. Try Supabase Auth if configured
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (!error && data.user) {
+            setIsAuthenticated(true);
+            const matchedUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+            if (matchedUser) {
+              setCurrentUserIdState(matchedUser.id);
+            }
+            return true;
+          }
+        } catch {
+          // fall through to local check
+        }
+      }
+
+      // 2. Local fallback verification
+      const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      if (existing) {
+        setCurrentUserIdState(existing.id);
+        setIsAuthenticated(true);
+        logActivity("user_login", `${existing.full_name} signed in`);
+        return true;
+      }
+
+      // Create new user if not found
+      const name = email.split("@")[0];
+      const newUser: User = {
+        id: generateId("user"),
+        email,
+        full_name: name.charAt(0).toUpperCase() + name.slice(1),
+        role: "member",
+        status: "online",
+        created_at: new Date().toISOString(),
+      };
+      setUsers((prev) => [...prev, newUser]);
+      setCurrentUserIdState(newUser.id);
+      setIsAuthenticated(true);
+      return true;
+    },
+    [users, logActivity]
+  );
+
+  const signup = useCallback(
+    async (data: {
+      email: string;
+      password: string;
+      full_name: string;
+      role: Role;
+      title?: string;
+      department?: string;
+    }): Promise<boolean> => {
+      // Supabase signup if configured
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase.auth.signUp({
+            email: data.email,
+            password: data.password,
+            options: {
+              data: {
+                full_name: data.full_name,
+                role: data.role,
+              },
+            },
+          });
+        } catch {
+          // non-blocking
+        }
+      }
+
+      const newUser: User = {
+        id: generateId("user"),
+        email: data.email,
+        full_name: data.full_name,
+        role: data.role,
+        title: data.title || "Team Member",
+        department: data.department || "Engineering",
+        status: "online",
+        created_at: new Date().toISOString(),
+      };
+
+      setUsers((prev) => [...prev, newUser]);
+      setCurrentUserIdState(newUser.id);
+      setIsAuthenticated(true);
+      logActivity("user_registered", `${newUser.full_name} joined workspace as ${newUser.role}`);
+      broadcastSync({ users: [...users, newUser] });
+      return true;
+    },
+    [users, logActivity, broadcastSync]
+  );
+
+  const logout = useCallback(() => {
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.signOut().catch(() => {});
+    }
+    setIsAuthenticated(false);
+    setIsAuthModalOpen(true);
+  }, []);
+
+  const demoLogin = useCallback(
+    (role: Role) => {
+      const targetUser = users.find((u) => u.role === role) || users[0];
+      setCurrentUserIdState(targetUser.id);
+      setIsAuthenticated(true);
+      logActivity("demo_switch", `Switched persona to ${targetUser.full_name} (${role})`);
+    },
+    [users, logActivity]
   );
 
   // Theme Toggle
@@ -398,9 +570,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setIsCreateTaskModalOpen(open);
   }, []);
 
-  // --- Project Management ---
+  // --- Project Management with RBAC & Supabase Sync ---
   const createProject = useCallback(
-    (data: Partial<Project>): Project => {
+    (data: Partial<Project>): Project | null => {
+      if (!hasPermission(currentUser.role, "project:create")) {
+        alert(`Permission Denied: Users with role "${currentUser.role}" cannot create projects.`);
+        return null;
+      }
+
       const newProj: Project = {
         id: generateId("proj"),
         workspace_id: activeWorkspaceId,
@@ -421,30 +598,40 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       setProjects((prev) => [newProj, ...prev]);
       logActivity("project_created", `Created new project "${newProj.name}"`, newProj.id);
+      syncProjectToSupabase(newProj);
       broadcastSync({ projects: [newProj, ...projects] });
       return newProj;
     },
-    [activeWorkspaceId, currentUser, logActivity, broadcastSync, projects]
+    [currentUser.role, activeWorkspaceId, currentUser.id, logActivity, broadcastSync, projects]
   );
 
   const updateProject = useCallback(
     (id: string, updates: Partial<Project>) => {
+      if (!hasPermission(currentUser.role, "project:edit")) {
+        alert("Permission Denied: Your role does not allow editing project properties.");
+        return;
+      }
       setProjects((prev) =>
         prev.map((p) => {
           if (p.id === id) {
             const updated = { ...p, ...updates, updated_at: new Date().toISOString() };
             logActivity("project_updated", `Updated project "${updated.name}"`, id);
+            syncProjectToSupabase(updated);
             return updated;
           }
           return p;
         })
       );
     },
-    [logActivity]
+    [currentUser.role, logActivity]
   );
 
   const deleteProject = useCallback(
     (id: string) => {
+      if (!hasPermission(currentUser.role, "project:delete")) {
+        alert("Permission Denied: Only Workspace Owners and Admins can delete projects.");
+        return;
+      }
       const proj = projects.find((p) => p.id === id);
       setProjects((prev) => prev.filter((p) => p.id !== id));
       setTasks((prev) => prev.filter((t) => t.project_id !== id));
@@ -454,7 +641,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       logActivity("project_deleted", `Deleted project "${proj?.name || id}"`);
     },
-    [projects, selectedProjectId, logActivity]
+    [currentUser.role, projects, selectedProjectId, logActivity]
   );
 
   const archiveProject = useCallback(
@@ -477,13 +664,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       setProjects((prev) => [duplicated, ...prev]);
       logActivity("project_duplicated", `Duplicated project "${source.name}"`, duplicated.id);
+      syncProjectToSupabase(duplicated);
     },
     [projects, logActivity]
   );
 
-  // --- Task & Kanban Management ---
+  // --- Task & Kanban Management with RBAC & Supabase Sync ---
   const createTask = useCallback(
-    (data: Partial<Task>): Task => {
+    (data: Partial<Task>): Task | null => {
+      if (!hasPermission(currentUser.role, "task:create")) {
+        alert("Permission Denied: Guests cannot create tasks.");
+        return null;
+      }
+
       const projectTargetId = data.project_id || selectedProjectId || projects[0]?.id || "proj_mobile";
       const newTask: Task = {
         id: generateId("task"),
@@ -517,6 +710,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return nextTasks;
       });
 
+      syncTaskToSupabase(newTask);
       logActivity("task_created", `Created task "${newTask.title}"`, projectTargetId, newTask.id);
 
       // Create notification for assignees
@@ -540,6 +734,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return newTask;
     },
     [
+      currentUser.role,
       selectedProjectId,
       projects,
       activeWorkspaceId,
@@ -553,10 +748,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const updateTask = useCallback(
     (id: string, updates: Partial<Task>) => {
+      if (!hasPermission(currentUser.role, "task:edit")) {
+        alert("Permission Denied: Guests cannot modify task fields.");
+        return;
+      }
+
       setTasks((prev) => {
         const nextTasks = prev.map((t) => {
           if (t.id === id) {
             const updated = { ...t, ...updates, updated_at: new Date().toISOString() };
+            syncTaskToSupabase(updated);
             return updated;
           }
           return t;
@@ -574,11 +775,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
       logActivity("task_updated", `Updated task properties`, undefined, id);
     },
-    [recalculateProjectProgress, editingTask, broadcastSync, logActivity]
+    [currentUser.role, recalculateProjectProgress, editingTask, broadcastSync, logActivity]
   );
 
   const deleteTask = useCallback(
     (id: string) => {
+      if (!hasPermission(currentUser.role, "task:delete")) {
+        alert("Permission Denied: Your role does not permit deleting tasks.");
+        return;
+      }
+
       const task = tasks.find((t) => t.id === id);
       setTasks((prev) => {
         const next = prev.filter((t) => t.id !== id);
@@ -593,11 +799,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       logActivity("task_deleted", `Deleted task "${task?.title || id}"`);
     },
-    [tasks, editingTask, recalculateProjectProgress, broadcastSync, logActivity]
+    [currentUser.role, tasks, editingTask, recalculateProjectProgress, broadcastSync, logActivity]
   );
 
   const moveTask = useCallback(
     (taskId: string, targetStatus: string, newIndex?: number) => {
+      if (!hasPermission(currentUser.role, "task:move")) {
+        alert("Permission Denied: Guests cannot move board columns.");
+        return;
+      }
+
       setTasks((prev) => {
         const taskToMove = prev.find((t) => t.id === taskId);
         if (!taskToMove) return prev;
@@ -612,13 +823,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             ? Math.min(newIndex, columnTasks.length)
             : columnTasks.length;
 
-        columnTasks.splice(insertIndex, 0, {
+        const updatedMovedTask = {
           ...taskToMove,
           status: targetStatus,
           updated_at: new Date().toISOString(),
-        });
+        };
 
-        // Re-index column tasks
+        columnTasks.splice(insertIndex, 0, updatedMovedTask);
+
         const reindexedColumnTasks = columnTasks.map((t, idx) => ({
           ...t,
           order_index: idx,
@@ -635,13 +847,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           setEditingTask({ ...editingTask, status: targetStatus });
         }
 
+        syncTaskToSupabase(updatedMovedTask);
         broadcastSync({ tasks: nextTasks });
         return nextTasks;
       });
 
       logActivity("task_moved", `Moved task status to "${targetStatus}"`, undefined, taskId);
     },
-    [recalculateProjectProgress, editingTask, broadcastSync, logActivity]
+    [currentUser.role, recalculateProjectProgress, editingTask, broadcastSync, logActivity]
   );
 
   const reorderTasksInColumn = useCallback(
@@ -675,6 +888,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         updated_at: new Date().toISOString(),
       };
       setTasks((prev) => [duplicated, ...prev]);
+      syncTaskToSupabase(duplicated);
       logActivity("task_duplicated", `Duplicated task "${source.title}"`, source.project_id, duplicated.id);
     },
     [tasks, logActivity]
@@ -692,10 +906,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const bulkDeleteTasks = useCallback(
     (taskIds: string[]) => {
+      if (!hasPermission(currentUser.role, "task:delete")) {
+        alert("Permission Denied: Your role does not allow bulk deletion.");
+        return;
+      }
       setTasks((prev) => prev.filter((t) => !taskIds.includes(t.id)));
       logActivity("bulk_task_delete", `Deleted ${taskIds.length} tasks`);
     },
-    [logActivity]
+    [currentUser.role, logActivity]
   );
 
   // --- Subtasks ---
@@ -816,7 +1034,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [columns, logActivity]
   );
 
-  // --- Notes ---
+  // --- Notes with Supabase Sync ---
   const createNote = useCallback(
     (data: Partial<Note>): Note => {
       const newNote: Note = {
@@ -835,6 +1053,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       setNotes((prev) => [newNote, ...prev]);
       logActivity("note_created", `Created note "${newNote.title}"`);
+      syncNoteToSupabase(newNote);
       return newNote;
     },
     [activeWorkspaceId, selectedProjectId, currentUser, logActivity]
@@ -842,7 +1061,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const updateNote = useCallback((id: string, updates: Partial<Note>) => {
     setNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, ...updates, updated_at: new Date().toISOString() } : n))
+      prev.map((n) => {
+        if (n.id === id) {
+          const updated = { ...n, ...updates, updated_at: new Date().toISOString() };
+          syncNoteToSupabase(updated);
+          return updated;
+        }
+        return n;
+      })
     );
   }, []);
 
@@ -873,9 +1099,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [notes, createTask, logActivity]
   );
 
-  // --- Announcements ---
+  // --- Announcements with RBAC & Supabase Sync ---
   const createAnnouncement = useCallback(
     (title: string, content: string, priority: "urgent" | "important" | "general", isPinned?: boolean) => {
+      if (!hasPermission(currentUser.role, "announcement:create")) {
+        alert("Permission Denied: Only Admins, Owners, and Project Managers can post announcements.");
+        return;
+      }
+
       const newAnn: Announcement = {
         id: generateId("ann"),
         workspace_id: activeWorkspaceId,
@@ -891,8 +1122,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       setAnnouncements((prev) => [newAnn, ...prev]);
       logActivity("announcement_posted", `Posted announcement: "${title}"`);
+      syncAnnouncementToSupabase(newAnn);
 
-      // Notify all other users in workspace
+      // Notify other users
       users.forEach((u) => {
         if (u.id !== currentUser.id) {
           const notif: Notification = {
@@ -910,7 +1142,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       });
     },
-    [activeWorkspaceId, currentUser, logActivity, users]
+    [currentUser.role, activeWorkspaceId, currentUser, logActivity, users]
   );
 
   const markAnnouncementRead = useCallback(
@@ -1113,8 +1345,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
     <StoreContext.Provider
       value={{
-        users,
+        // Auth & RBAC
+        isAuthenticated,
         currentUser,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        login,
+        signup,
+        logout,
+        demoLogin,
+
+        // Data
+        users,
         workspaces,
         activeWorkspace,
         activeWorkspaceId,

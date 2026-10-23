@@ -43,8 +43,10 @@ export function CreateProjectModal() {
       member_ids: memberIds,
     });
 
-    setSelectedProjectId(newProj.id);
-    handleClose();
+    if (newProj) {
+      setSelectedProjectId(newProj.id);
+      handleClose();
+    }
   };
 
   const toggleMember = (id: string) => {

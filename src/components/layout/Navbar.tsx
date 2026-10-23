@@ -19,11 +19,15 @@ import {
   Command as CommandIcon,
   HelpCircle,
   LogOut,
+  LogIn,
   UserCheck,
+  Shield,
 } from "lucide-react";
 import { formatTimerDisplay, getPriorityBadgeColor } from "@/lib/utils";
+import { getRoleBadge } from "@/lib/permissions";
 import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
 import { KeyboardShortcutsModal } from "@/components/modals/KeyboardShortcutsModal";
+import { AuthModal } from "@/components/auth/AuthModal";
 
 export function Navbar() {
   const {
@@ -42,6 +46,10 @@ export function Navbar() {
     activeTimer,
     stopTimer,
     setActiveView,
+    isAuthenticated,
+    logout,
+    isAuthModalOpen,
+    setIsAuthModalOpen,
   } = useStore();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -106,6 +114,8 @@ export function Navbar() {
       </div>
     );
   };
+
+  const roleBadge = getRoleBadge(currentUser.role);
 
   return (
     <>
@@ -222,28 +232,44 @@ export function Navbar() {
                 )}
                 <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-background" />
               </div>
+
+              {/* Role badge pill */}
+              <span className={`hidden xl:inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full border ${roleBadge.className}`}>
+                {roleBadge.label}
+              </span>
             </button>
 
             {/* Profile & Switcher Menu */}
             {isProfileMenuOpen && (
               <div
-                className="absolute right-0 mt-2 w-64 rounded-xl bg-card border border-border shadow-xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
+                className="absolute right-0 mt-2 w-72 rounded-2xl bg-card border border-border shadow-2xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
                 onClick={() => setIsProfileMenuOpen(false)}
               >
-                <div className="px-3 py-2 border-b border-border/60">
+                <div className="px-4 py-2.5 border-b border-border/60">
                   <p className="font-semibold text-foreground text-sm">{currentUser.full_name}</p>
-                  <p className="text-muted-foreground truncate">{currentUser.email}</p>
-                  <div className="mt-1.5 flex items-center gap-1.5">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary capitalize">
-                      {currentUser.role.replace("_", " ")}
+                  <p className="text-muted-foreground truncate text-[11px]">{currentUser.email}</p>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${roleBadge.className}`}>
+                      {roleBadge.label}
                     </span>
                     <span className="text-[10px] text-muted-foreground">{currentUser.department}</span>
                   </div>
                 </div>
 
+                {/* Login / Register Option */}
+                <div className="px-2 py-1.5 border-b border-border/60">
+                  <button
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-secondary transition-colors text-left text-primary font-medium"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    <span>Sign In or Create Account</span>
+                  </button>
+                </div>
+
                 <div className="px-3 py-2 border-b border-border/60">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                    Switch Test User Persona
+                    Switch Test User Persona (RBAC)
                   </p>
                   <div className="space-y-1">
                     {users.map((u) => (
@@ -258,33 +284,40 @@ export function Navbar() {
                           u.id === currentUser.id ? "bg-secondary font-medium" : ""
                         }`}
                       >
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 min-w-0">
                           <img
                             src={u.avatar_url}
                             alt=""
-                            className="w-5 h-5 rounded-full object-cover"
+                            className="w-5 h-5 rounded-full object-cover flex-shrink-0"
                           />
-                          <div>
-                            <p className="text-xs text-foreground leading-none">{u.full_name}</p>
+                          <div className="min-w-0">
+                            <p className="text-xs text-foreground leading-none truncate">{u.full_name}</p>
                             <p className="text-[10px] text-muted-foreground capitalize leading-tight">
                               {u.role.replace("_", " ")}
                             </p>
                           </div>
                         </div>
                         {u.id === currentUser.id && (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                         )}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="pt-1">
+                <div className="p-1 space-y-0.5">
                   <button
                     onClick={() => setActiveView("settings")}
-                    className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
                   >
-                    Workspace Settings
+                    Workspace Settings & Database
+                  </button>
+                  <button
+                    onClick={logout}
+                    className="w-full text-left px-3 py-1.5 text-red-500 hover:bg-red-500/10 rounded-md transition-colors flex items-center space-x-2"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
                   </button>
                 </div>
               </div>
@@ -295,6 +328,9 @@ export function Navbar() {
 
       {/* Shortcuts Modal */}
       {isShortcutsOpen && <KeyboardShortcutsModal onClose={() => setIsShortcutsOpen(false)} />}
+
+      {/* Auth & RBAC Modal */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </>
   );
 }
