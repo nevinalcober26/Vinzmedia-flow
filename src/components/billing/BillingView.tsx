@@ -815,16 +815,27 @@ export function BillingView() {
                                     <span>Fixed Milestone</span>
                                   </span>
                                 )}
-                                <div className="flex items-center space-x-1 text-[10px] text-muted-foreground font-medium">
-                                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/70" />
-                                  <span>
-                                    {project.payment_schedule === "weekly"
-                                      ? "Weekly (Net 7)"
-                                      : project.payment_schedule === "15_days"
-                                      ? "Every 15 Days (Net 15)"
-                                      : "30 Days (Net 30)"}
-                                  </span>
-                                </div>
+                                {isHourly ? (
+                                  <div className="flex items-center space-x-1 text-[10px] text-muted-foreground font-medium">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/70" />
+                                    <span>
+                                      {project.payment_schedule === "weekly"
+                                        ? "Weekly (Net 7)"
+                                        : project.payment_schedule === "15_days"
+                                        ? "Every 15 Days (Net 15)"
+                                        : "30 Days (Net 30)"}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center space-x-1 text-[10px] text-muted-foreground font-medium">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500/70" />
+                                    <span>
+                                      {project.installments && project.installments.length > 0
+                                        ? `${project.installments.length} Milestones`
+                                        : "Full Contract"}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </td>
 
@@ -1118,11 +1129,15 @@ export function BillingView() {
                           <div className="flex flex-col space-y-0.5">
                             <span className="capitalize font-medium text-foreground">{item.project.billing_type || "fixed"}</span>
                             <span className="text-[10px] text-muted-foreground">
-                              {item.project.payment_schedule === "weekly"
-                                ? "Net 7 Days"
-                                : item.project.payment_schedule === "15_days"
-                                ? "Net 15 Days"
-                                : "Net 30 Days"}
+                              {item.project.billing_type === "hourly"
+                                ? item.project.payment_schedule === "weekly"
+                                  ? "Net 7 Days"
+                                  : item.project.payment_schedule === "15_days"
+                                  ? "Net 15 Days"
+                                  : "Net 30 Days"
+                                : item.project.installments && item.project.installments.length > 0
+                                ? `${item.project.installments.length} Milestones`
+                                : "Contract Delivery"}
                             </span>
                           </div>
                         </td>

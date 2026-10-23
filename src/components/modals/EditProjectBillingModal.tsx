@@ -372,6 +372,22 @@ export function EditProjectBillingModal({
         "Payment Schedule & Subtotal Updated",
         `Split into ${newCount} ${sched === "weekly" ? "weekly" : sched === "15_days" ? "15-day" : "monthly"} installments of ${currency}${(Math.round((parsedFixed / newCount) * 100) / 100).toLocaleString()}`
       );
+    } else if (billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0) {
+      let cycleAmt = weeklyAmount;
+      let label = "Weekly";
+      if (sched === "15_days") {
+        const hrs = Math.round(((parsedHoursPerWeek * 15) / 7) * 10) / 10;
+        cycleAmt = Math.round(hrs * parsedRate * 100) / 100;
+        label = "Every 15 Days";
+      } else if (sched === "30_days") {
+        const hrs = Math.round(((parsedHoursPerWeek * 30) / 7) * 10) / 10;
+        cycleAmt = Math.round(hrs * parsedRate * 100) / 100;
+        label = "30 Days (Monthly)";
+      }
+      toast?.success(
+        "Payment Schedule Updated",
+        `${label} subtotal: ${currency}${cycleAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+      );
     }
   };
 
@@ -448,6 +464,24 @@ export function EditProjectBillingModal({
     milestones.reduce((acc, m) => acc + (m.percentage || 0), 0) * 10
   ) / 10;
   const is100Percent = totalPercentage === 100;
+
+  // Hourly cycle calculation dynamically linked to payment schedule
+  let hourlyCycleHours = parsedHoursPerWeek;
+  let hourlyCycleAmount = weeklyAmount;
+  let hourlyCycleLabel = "Total Amount Per Week:";
+  let hourlyCycleUnit = "/ week";
+
+  if (paymentSchedule === "15_days") {
+    hourlyCycleHours = Math.round(((parsedHoursPerWeek * 15) / 7) * 10) / 10;
+    hourlyCycleAmount = Math.round(hourlyCycleHours * parsedRate * 100) / 100;
+    hourlyCycleLabel = "Total Amount Every 15 Days:";
+    hourlyCycleUnit = "/ 15-days";
+  } else if (paymentSchedule === "30_days") {
+    hourlyCycleHours = Math.round(((parsedHoursPerWeek * 30) / 7) * 10) / 10;
+    hourlyCycleAmount = Math.round(hourlyCycleHours * parsedRate * 100) / 100;
+    hourlyCycleLabel = "Total Amount (30 Days Monthly):";
+    hourlyCycleUnit = "/ month";
+  }
 
   let weeksToDeadline: number | null = null;
   let deadlineProjectedAmount: number | null = null;
@@ -837,140 +871,130 @@ export function EditProjectBillingModal({
               </div>
             </div>
 
-            {/* Payment Schedule & Remittance Terms */}
-            <div className="space-y-2.5 p-3.5 rounded-2xl bg-secondary/20 border border-border/80">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-foreground flex items-center space-x-1.5">
-                  <CalendarDays className="w-3.5 h-3.5 text-primary" />
-                  <span>Payment Schedule & Remittance Terms</span>
-                </label>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                  {paymentSchedule === "weekly"
-                    ? "Net 7 Days"
-                    : paymentSchedule === "15_days"
-                    ? "Net 15 Days"
-                    : paymentSchedule === "30_days"
-                    ? "Net 30 Days"
-                    : `Net ${paymentTermsDays} Days`}
-                </span>
+            {/* Payment Schedule & Remittance Terms - Hourly Only */}
+            {billingType === "hourly" && (
+              <div className="space-y-2.5 p-3.5 rounded-2xl bg-secondary/20 border border-border/80 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground flex items-center space-x-1.5">
+                    <CalendarDays className="w-3.5 h-3.5 text-primary" />
+                    <span>Payment Schedule & Remittance Terms</span>
+                  </label>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    {paymentSchedule === "weekly"
+                      ? "Net 7 Days"
+                      : paymentSchedule === "15_days"
+                      ? "Net 15 Days"
+                      : paymentSchedule === "30_days"
+                      ? "Net 30 Days"
+                      : `Net ${paymentTermsDays} Days`}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Define the recurring invoicing frequency and client settlement cycle. Due dates on invoices will automatically adjust to this schedule.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  {/* Weekly */}
+                  <button
+                    type="button"
+                    onClick={() => handleScheduleSelect("weekly")}
+                    className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
+                      paymentSchedule === "weekly"
+                        ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
+                        : "bg-background/60 border-border/70 text-muted-foreground hover:bg-secondary/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-base">🗓️</span>
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                          paymentSchedule === "weekly"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        Net 7
+                      </span>
+                    </div>
+                    <div className="font-bold text-xs text-foreground">Weekly Payment</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                      Billed every 7 days; rapid turnarounds & sprint retainer
+                    </div>
+                    {parsedRate > 0 && parsedHoursPerWeek > 0 ? (
+                      <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
+                        ~{currency}{(Number(weeklyAmount) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} / wk
+                      </div>
+                    ) : null}
+                  </button>
+
+                  {/* Every 15 Days */}
+                  <button
+                    type="button"
+                    onClick={() => handleScheduleSelect("15_days")}
+                    className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
+                      paymentSchedule === "15_days"
+                        ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
+                        : "bg-background/60 border-border/70 text-muted-foreground hover:bg-secondary/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-base">🌓</span>
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                          paymentSchedule === "15_days"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        Net 15
+                      </span>
+                    </div>
+                    <div className="font-bold text-xs text-foreground">Every 15 Days</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                      Semi-monthly billing (1st & 15th); balanced cashflow
+                    </div>
+                    {parsedRate > 0 && parsedHoursPerWeek > 0 ? (
+                      <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
+                        ~{currency}{(Math.round((Math.round(((parsedHoursPerWeek * 15) / 7) * 10) / 10) * parsedRate) || 0).toLocaleString()} / 15-days
+                      </div>
+                    ) : null}
+                  </button>
+
+                  {/* 30 Days */}
+                  <button
+                    type="button"
+                    onClick={() => handleScheduleSelect("30_days")}
+                    className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
+                      paymentSchedule === "30_days"
+                        ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
+                        : "bg-background/60 border-border/70 text-muted-foreground hover:bg-secondary/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-base">🌕</span>
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                          paymentSchedule === "30_days"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        Net 30
+                      </span>
+                    </div>
+                    <div className="font-bold text-xs text-foreground">30 Days Payment</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                      Standard monthly cycle; enterprise retainers & contracts
+                    </div>
+                    {parsedRate > 0 && parsedHoursPerWeek > 0 ? (
+                      <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
+                        ~{currency}{(Math.round((Math.round(((parsedHoursPerWeek * 30) / 7) * 10) / 10) * parsedRate) || 0).toLocaleString()} / mo
+                      </div>
+                    ) : null}
+                  </button>
+                </div>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Define the recurring invoicing frequency and client settlement cycle. Due dates on invoices will automatically adjust to this schedule.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-                {/* Weekly */}
-                <button
-                  type="button"
-                  onClick={() => handleScheduleSelect("weekly")}
-                  className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
-                    paymentSchedule === "weekly"
-                      ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
-                      : "bg-background/60 border-border/70 text-muted-foreground hover:bg-secondary/40"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-base">🗓️</span>
-                    <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
-                        paymentSchedule === "weekly"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
-                    >
-                      Net 7
-                    </span>
-                  </div>
-                  <div className="font-bold text-xs text-foreground">Weekly Payment</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
-                    Billed every 7 days; rapid turnarounds & sprint retainer
-                  </div>
-                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 ? (
-                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
-                      ~{currency}{(Number(weeklyAmount) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} / wk
-                    </div>
-                  ) : billingType === "fixed" && parsedFixed > 0 ? (
-                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
-                      ~{currency}{(Math.round((parsedFixed / (weeksToDeadline ? Math.max(2, Math.min(12, Math.round(weeksToDeadline))) : 4)) * 100) / 100).toLocaleString()} / wk
-                    </div>
-                  ) : null}
-                </button>
-
-                {/* Every 15 Days */}
-                <button
-                  type="button"
-                  onClick={() => handleScheduleSelect("15_days")}
-                  className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
-                    paymentSchedule === "15_days"
-                      ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
-                      : "bg-background/60 border-border/70 text-muted-foreground hover:bg-secondary/40"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-base">🌓</span>
-                    <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
-                        paymentSchedule === "15_days"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
-                    >
-                      Net 15
-                    </span>
-                  </div>
-                  <div className="font-bold text-xs text-foreground">Every 15 Days</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
-                    Semi-monthly billing (1st & 15th); balanced cashflow
-                  </div>
-                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 ? (
-                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
-                      ~{currency}{(Math.round((Number(weeklyAmount) || 0) * (15 / 7)) || 0).toLocaleString()} / cycle
-                    </div>
-                  ) : billingType === "fixed" && parsedFixed > 0 ? (
-                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
-                      ~{currency}{(Math.round((parsedFixed / 2) * 100) / 100).toLocaleString()} / 15-days
-                    </div>
-                  ) : null}
-                </button>
-
-                {/* 30 Days */}
-                <button
-                  type="button"
-                  onClick={() => handleScheduleSelect("30_days")}
-                  className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
-                    paymentSchedule === "30_days"
-                      ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
-                      : "bg-background/60 border-border/70 text-muted-foreground hover:bg-secondary/40"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-base">🌕</span>
-                    <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
-                        paymentSchedule === "30_days"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
-                    >
-                      Net 30
-                    </span>
-                  </div>
-                  <div className="font-bold text-xs text-foreground">30 Days Payment</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
-                    Standard monthly cycle; enterprise retainers & contracts
-                  </div>
-                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 ? (
-                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
-                      ~{currency}{(Math.round((Number(weeklyAmount) || 0) * (30 / 7)) || 0).toLocaleString()} / mo
-                    </div>
-                  ) : billingType === "fixed" && parsedFixed > 0 ? (
-                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
-                      ~{currency}{parsedFixed.toLocaleString()} / month
-                    </div>
-                  ) : null}
-                </button>
-              </div>
-            </div>
+            )}
 
             {/* Fixed Price Form with Percentage & Amount Breakdown */}
             {billingType === "fixed" ? (
@@ -1213,14 +1237,21 @@ export function EditProjectBillingModal({
                 {parsedRate > 0 && parsedHoursPerWeek > 0 && (
                   <div className="space-y-2">
                     <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs flex items-center justify-between text-blue-600 dark:text-blue-400">
-                      <span className="font-medium">Total Amount Per Week:</span>
+                      <div className="flex flex-col">
+                        <span className="font-semibold">{hourlyCycleLabel}</span>
+                        {paymentSchedule !== "weekly" && (
+                          <span className="text-[10px] opacity-75 font-mono">
+                            ~{hourlyCycleHours} hrs {hourlyCycleUnit} @ {currency}{parsedRate}/hr
+                          </span>
+                        )}
+                      </div>
                       <span className="font-mono font-bold">
                         {currency}
-                        {(Number(weeklyAmount) || 0).toLocaleString(undefined, {
+                        {(Number(hourlyCycleAmount) || 0).toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}{" "}
-                        / week
+                        {hourlyCycleUnit}
                       </span>
                     </div>
 
@@ -1355,18 +1386,18 @@ export function EditProjectBillingModal({
                       </span>
                       <span className="text-[11px] text-muted-foreground font-mono">
                         Base: {currency}
-                        {(Number(billingType === "fixed" ? parsedFixed : weeklyAmount) || 0).toLocaleString(undefined, {
+                        {(Number(billingType === "fixed" ? parsedFixed : hourlyCycleAmount) || 0).toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}{" "}
-                        {billingType === "hourly" ? "/ week" : "total"}
+                        {billingType === "hourly" ? hourlyCycleUnit : "total"}
                       </span>
                     </div>
                     <div className="text-right">
                       <span className="font-mono text-sm font-bold text-primary">
                         {getCurrencyInfo(targetCurrency).symbol}
                         {(
-                          (Number(billingType === "fixed" ? parsedFixed : weeklyAmount) || 0) *
+                          (Number(billingType === "fixed" ? parsedFixed : hourlyCycleAmount) || 0) *
                           (parseFloat(conversionRate) || 1)
                         ).toLocaleString(undefined, {
                           minimumFractionDigits: 2,

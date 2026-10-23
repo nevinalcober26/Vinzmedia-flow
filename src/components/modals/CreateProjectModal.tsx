@@ -472,53 +472,55 @@ export function CreateProjectModal() {
                   </button>
                 </div>
 
-                {/* Payment Schedule Option */}
-                <div className="p-2.5 rounded-xl bg-secondary/20 border border-border/70 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-foreground">Payment Remittance Schedule</span>
-                    <span className="text-[10px] font-mono text-primary font-bold">
-                      {paymentSchedule === "weekly" ? "Net 7" : paymentSchedule === "15_days" ? "Net 15" : "Net 30"}
-                    </span>
+                {/* Payment Schedule Option - Hourly Only */}
+                {billingType === "hourly" && (
+                  <div className="p-2.5 rounded-xl bg-secondary/20 border border-border/70 space-y-1.5 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-foreground">Payment Remittance Schedule</span>
+                      <span className="text-[10px] font-mono text-primary font-bold">
+                        {paymentSchedule === "weekly" ? "Net 7" : paymentSchedule === "15_days" ? "Net 15" : "Net 30"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentSchedule("weekly")}
+                        className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
+                          paymentSchedule === "weekly"
+                            ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/30"
+                            : "bg-background/60 border-border/60 text-muted-foreground hover:bg-secondary/40"
+                        }`}
+                      >
+                        <div className="font-bold text-[11px] text-foreground">🗓️ Weekly</div>
+                        <div className="text-[9px] text-muted-foreground">Every 7 days</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentSchedule("15_days")}
+                        className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
+                          paymentSchedule === "15_days"
+                            ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/30"
+                            : "bg-background/60 border-border/60 text-muted-foreground hover:bg-secondary/40"
+                        }`}
+                      >
+                        <div className="font-bold text-[11px] text-foreground">🌓 15 Days</div>
+                        <div className="text-[9px] text-muted-foreground">Semi-monthly</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentSchedule("30_days")}
+                        className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
+                          paymentSchedule === "30_days"
+                            ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/30"
+                            : "bg-background/60 border-border/60 text-muted-foreground hover:bg-secondary/40"
+                        }`}
+                      >
+                        <div className="font-bold text-[11px] text-foreground">🌕 30 Days</div>
+                        <div className="text-[9px] text-muted-foreground">Monthly cycle</div>
+                      </button>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentSchedule("weekly")}
-                      className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
-                        paymentSchedule === "weekly"
-                          ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/30"
-                          : "bg-background/60 border-border/60 text-muted-foreground hover:bg-secondary/40"
-                      }`}
-                    >
-                      <div className="font-bold text-[11px] text-foreground">🗓️ Weekly</div>
-                      <div className="text-[9px] text-muted-foreground">Every 7 days</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentSchedule("15_days")}
-                      className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
-                        paymentSchedule === "15_days"
-                          ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/30"
-                          : "bg-background/60 border-border/60 text-muted-foreground hover:bg-secondary/40"
-                      }`}
-                    >
-                      <div className="font-bold text-[11px] text-foreground">🌓 15 Days</div>
-                      <div className="text-[9px] text-muted-foreground">Semi-monthly</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentSchedule("30_days")}
-                      className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
-                        paymentSchedule === "30_days"
-                          ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/30"
-                          : "bg-background/60 border-border/60 text-muted-foreground hover:bg-secondary/40"
-                      }`}
-                    >
-                      <div className="font-bold text-[11px] text-foreground">🌕 30 Days</div>
-                      <div className="text-[9px] text-muted-foreground">Monthly cycle</div>
-                    </button>
-                  </div>
-                </div>
+                )}
 
                 {/* Fixed Price Configuration */}
                 {billingType === "fixed" ? (
@@ -622,27 +624,53 @@ export function CreateProjectModal() {
                           </div>
                         </div>
 
-                        {parsedR > 0 && parsedH > 0 && (
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-600 dark:text-blue-400">
-                              <span className="font-medium">Total Amount Per Week:</span>
-                              <span className="font-mono font-bold">
-                                ${weeklyAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / week
-                              </span>
-                            </div>
+                        {parsedR > 0 && parsedH > 0 && (() => {
+                          let cycleAmount = weeklyAmt;
+                          let cycleLabel = "Total Amount Per Week:";
+                          let cycleUnit = "/ week";
+                          let cycleHours = parsedH;
 
-                            {targetDate && deadlineProjectedAmt !== null && (
-                              <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-600 dark:text-emerald-400">
-                                <span className="font-medium">
-                                  Total Amount till Deadline ({weeksToDeadline} wks):
-                                </span>
+                          if (paymentSchedule === "15_days") {
+                            cycleHours = Math.round(((parsedH * 15) / 7) * 10) / 10;
+                            cycleAmount = Math.round(cycleHours * parsedR * 100) / 100;
+                            cycleLabel = "Total Amount Every 15 Days:";
+                            cycleUnit = "/ 15-days";
+                          } else if (paymentSchedule === "30_days") {
+                            cycleHours = Math.round(((parsedH * 30) / 7) * 10) / 10;
+                            cycleAmount = Math.round(cycleHours * parsedR * 100) / 100;
+                            cycleLabel = "Total Amount (30 Days Monthly):";
+                            cycleUnit = "/ month";
+                          }
+
+                          return (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-600 dark:text-blue-400">
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{cycleLabel}</span>
+                                  {paymentSchedule !== "weekly" && (
+                                    <span className="text-[9px] opacity-75 font-mono">
+                                      ~{cycleHours} hrs {cycleUnit} @ ${parsedR}/hr
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="font-mono font-bold">
-                                  ${deadlineProjectedAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  ${cycleAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {cycleUnit}
                                 </span>
                               </div>
-                            )}
-                          </div>
-                        )}
+
+                              {targetDate && deadlineProjectedAmt !== null && (
+                                <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-600 dark:text-emerald-400">
+                                  <span className="font-medium">
+                                    Total Amount till Deadline ({weeksToDeadline} wks):
+                                  </span>
+                                  <span className="font-mono font-bold">
+                                    ${deadlineProjectedAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })()
