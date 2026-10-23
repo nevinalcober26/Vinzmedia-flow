@@ -52,7 +52,7 @@ export function EditProjectBillingModal({
 
   // Client association & inline creator
   const [selectedClientId, setSelectedClientId] = useState<string>(
-    project.client_id || ""
+    project?.client_id || ""
   );
   const [isCreatingClient, setIsCreatingClient] = useState<boolean>(false);
   const [newClientName, setNewClientName] = useState("");
@@ -60,45 +60,50 @@ export function EditProjectBillingModal({
   const [newClientEmail, setNewClientEmail] = useState("");
 
   const [billingType, setBillingType] = useState<ProjectBillingType>(
-    project.billing_type || "fixed"
+    project?.billing_type || "fixed"
   );
   const [paymentSchedule, setPaymentSchedule] = useState<PaymentSchedule>(
-    project.payment_schedule || "30_days"
+    project?.payment_schedule || "30_days"
   );
   const [paymentTermsDays, setPaymentTermsDays] = useState<number>(
-    project.payment_terms_days || (project.payment_schedule === "weekly" ? 7 : project.payment_schedule === "15_days" ? 15 : 30)
+    project?.payment_terms_days ||
+      (project?.payment_schedule === "weekly"
+        ? 7
+        : project?.payment_schedule === "15_days"
+        ? 15
+        : 30)
   );
   const [fixedAmount, setFixedAmount] = useState<string>(
-    String(project.fixed_price_amount || "5000")
+    String(project?.fixed_price_amount || "5000")
   );
   const [installmentsCount, setInstallmentsCount] = useState<number>(
-    project.payment_installments_count || 3
+    project?.payment_installments_count || 3
   );
   const [milestones, setMilestones] = useState<ProjectPaymentInstallment[]>([]);
 
   const [hourlyRate, setHourlyRate] = useState<string>(
-    String(project.hourly_rate || "75")
+    String(project?.hourly_rate || "75")
   );
   const [hoursPerWeek, setHoursPerWeek] = useState<string>(
-    String(project.estimated_hours_per_week || project.estimated_hours || "40")
+    String(project?.estimated_hours_per_week || project?.estimated_hours || "40")
   );
-  const [currency, setCurrency] = useState<string>(project.currency || "$");
+  const [currency, setCurrency] = useState<string>(project?.currency || "$");
   const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "partially_paid" | "paid">(
-    project.payment_status || "unpaid"
+    project?.payment_status || "unpaid"
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Currency Conversion state & Real-time Live Market Rates
   const [enableConversion, setEnableConversion] = useState<boolean>(
-    project.enable_currency_conversion || false
+    project?.enable_currency_conversion || false
   );
   const [targetCurrency, setTargetCurrency] = useState<string>(
-    project.converted_currency || "PHP"
+    project?.converted_currency || "PHP"
   );
   const [conversionRate, setConversionRate] = useState<string>(
-    project.conversion_rate
+    project?.conversion_rate
       ? String(project.conversion_rate)
-      : String(getDefaultExchangeRate(project.currency || "$", "PHP"))
+      : String(getDefaultExchangeRate(project?.currency || "$", "PHP"))
   );
   const [isLoadingRate, setIsLoadingRate] = useState<boolean>(false);
   const [isLiveRate, setIsLiveRate] = useState<boolean>(false);
@@ -127,8 +132,8 @@ export function EditProjectBillingModal({
 
       const amt = Math.round(((total * pct) / 100) * 100) / 100;
       items.push({
-        id: `inst_${project.id}_${i}`,
-        project_id: project.id,
+        id: `inst_${project?.id || "proj"}_${i}`,
+        project_id: project?.id || "",
         installment_number: i,
         title:
           i === 1
@@ -336,8 +341,6 @@ export function EditProjectBillingModal({
     }
   };
 
-  if (!isOpen) return null;
-
   const totalPercentage = Math.round(
     milestones.reduce((acc, m) => acc + (m.percentage || 0), 0) * 10
   ) / 10;
@@ -346,7 +349,7 @@ export function EditProjectBillingModal({
   let weeksToDeadline: number | null = null;
   let deadlineProjectedAmount: number | null = null;
 
-  if (project.target_date) {
+  if (project?.target_date) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const deadline = new Date(project.target_date);
@@ -432,7 +435,7 @@ export function EditProjectBillingModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !project) return null;
 
   return (
     <AnimatePresence>
@@ -734,7 +737,7 @@ export function EditProjectBillingModal({
                   </div>
                   {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 && (
                     <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
-                      ~{currency}{weeklyAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} / wk
+                      ~{currency}{(Number(weeklyAmount) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} / wk
                     </div>
                   )}
                 </button>
@@ -770,7 +773,7 @@ export function EditProjectBillingModal({
                   </div>
                   {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 && (
                     <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
-                      ~{currency}{Math.round(weeklyAmount * (15 / 7)).toLocaleString()} / cycle
+                      ~{currency}{(Math.round((Number(weeklyAmount) || 0) * (15 / 7)) || 0).toLocaleString()} / cycle
                     </div>
                   )}
                 </button>
@@ -806,7 +809,7 @@ export function EditProjectBillingModal({
                   </div>
                   {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 && (
                     <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
-                      ~{currency}{Math.round(weeklyAmount * (30 / 7)).toLocaleString()} / mo
+                      ~{currency}{(Math.round((Number(weeklyAmount) || 0) * (30 / 7)) || 0).toLocaleString()} / mo
                     </div>
                   )}
                 </button>
@@ -879,7 +882,7 @@ export function EditProjectBillingModal({
                         }`}
                       >
                         {is100Percent
-                          ? `✓ Total: 100% (${currency}${parsedFixed.toLocaleString()})`
+                          ? `✓ Total: 100% (${currency}${(Number(parsedFixed) || 0).toLocaleString()})`
                           : `Total: ${totalPercentage}% (${Math.abs(Math.round((100 - totalPercentage) * 10) / 10)}% ${totalPercentage < 100 ? "remaining" : "over"})`}
                       </span>
 
@@ -996,7 +999,7 @@ export function EditProjectBillingModal({
                             <div className="col-span-3 text-right">
                               <span className="text-xs font-mono font-bold text-foreground block">
                                 {currency}
-                                {m.amount.toLocaleString(undefined, {
+                                {(Number(m.amount) || 0).toLocaleString(undefined, {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,
                                 })}
@@ -1057,7 +1060,7 @@ export function EditProjectBillingModal({
                       <span className="font-medium">Total Amount Per Week:</span>
                       <span className="font-mono font-bold">
                         {currency}
-                        {weeklyAmount.toLocaleString(undefined, {
+                        {(Number(weeklyAmount) || 0).toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}{" "}
@@ -1065,14 +1068,14 @@ export function EditProjectBillingModal({
                       </span>
                     </div>
 
-                    {project.target_date && deadlineProjectedAmount !== null ? (
+                    {project?.target_date && deadlineProjectedAmount !== null ? (
                       <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center justify-between text-emerald-600 dark:text-emerald-400">
                         <span className="font-medium">
                           Projected Total till Target Deadline ({weeksToDeadline} wks):
                         </span>
                         <span className="font-mono font-bold">
                           {currency}
-                          {deadlineProjectedAmount.toLocaleString(undefined, {
+                          {(Number(deadlineProjectedAmount) || 0).toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
                           })}
@@ -1196,7 +1199,7 @@ export function EditProjectBillingModal({
                       </span>
                       <span className="text-[11px] text-muted-foreground font-mono">
                         Base: {currency}
-                        {(billingType === "fixed" ? parsedFixed : weeklyAmount).toLocaleString(undefined, {
+                        {(Number(billingType === "fixed" ? parsedFixed : weeklyAmount) || 0).toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}{" "}
@@ -1207,7 +1210,7 @@ export function EditProjectBillingModal({
                       <span className="font-mono text-sm font-bold text-primary">
                         {getCurrencyInfo(targetCurrency).symbol}
                         {(
-                          (billingType === "fixed" ? parsedFixed : weeklyAmount) *
+                          (Number(billingType === "fixed" ? parsedFixed : weeklyAmount) || 0) *
                           (parseFloat(conversionRate) || 1)
                         ).toLocaleString(undefined, {
                           minimumFractionDigits: 2,

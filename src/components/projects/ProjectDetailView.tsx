@@ -693,18 +693,22 @@ export function ProjectDetailView() {
       </div>
 
       {/* Edit Project Billing Modal */}
-      <EditProjectBillingModal
-        isOpen={isEditBillingOpen}
-        onClose={() => setIsEditBillingOpen(false)}
-        project={activeProject}
-      />
+      {activeProject && (
+        <EditProjectBillingModal
+          isOpen={isEditBillingOpen}
+          onClose={() => setIsEditBillingOpen(false)}
+          project={activeProject}
+        />
+      )}
 
       {/* Project Invoice PDF Generator Modal */}
-      <ProjectInvoiceModal
-        isOpen={isInvoiceModalOpen}
-        onClose={() => setIsInvoiceModalOpen(false)}
-        project={activeProject}
-      />
+      {activeProject && (
+        <ProjectInvoiceModal
+          isOpen={isInvoiceModalOpen}
+          onClose={() => setIsInvoiceModalOpen(false)}
+          project={activeProject}
+        />
+      )}
     </div>
   );
 }
