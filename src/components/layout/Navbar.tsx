@@ -37,6 +37,7 @@ import {
   FolderArchive,
   Receipt,
   User,
+  Download,
 } from "lucide-react";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { formatTimerDisplay, getPriorityBadgeColor } from "@/lib/utils";
@@ -349,6 +350,18 @@ export function Navbar() {
                     >
                       <Settings className="w-3.5 h-3.5 text-muted-foreground" />
                       <span>Workspace Settings</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        if (typeof window !== "undefined") {
+                          window.dispatchEvent(new CustomEvent("trigger-pwa-install"));
+                        }
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer flex items-center space-x-2"
+                    >
+                      <Download className="w-3.5 h-3.5 text-primary" />
+                      <span>Install VinzFlow App</span>
                     </button>
                     <div className="h-px bg-border/40 my-1" />
                     <button
