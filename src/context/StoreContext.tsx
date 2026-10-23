@@ -146,6 +146,8 @@ interface StoreContextType {
   deleteProject: (id: string) => void;
   archiveProject: (id: string) => void;
   duplicateProject: (id: string) => void;
+  togglePaymentPaid: (projectId: string, isPaid?: boolean) => void;
+  toggleInstallmentPaid: (projectId: string, installmentNumber: number) => void;
 
   // Actions - Tasks & Kanban
   createTask: (taskData: Partial<Task>) => Task | null;
@@ -209,6 +211,9 @@ interface StoreContextType {
   // Dashboard customization
   updateWidgets: (widgets: DashboardWidgetConfig[]) => void;
   resetAllData: () => void;
+
+  // Toast notifications
+  toast: ReturnType<typeof useToast>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -854,6 +859,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         progress: 0,
         all_members: data.all_members !== undefined ? data.all_members : true,
         member_ids: data.member_ids?.length ? data.member_ids : [currentUser.id],
+        billing_type: data.billing_type || "fixed",
+        fixed_price_amount: data.fixed_price_amount || 0,
+        payment_installments_count: data.payment_installments_count || 1,
+        installments: data.installments || [],
+        hourly_rate: data.hourly_rate || 0,
+        estimated_hours: data.estimated_hours || 0,
+        currency: data.currency || "USD",
         milestones: data.milestones || [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -933,6 +945,82 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       syncProjectToSupabase(duplicated);
     },
     [projects, logActivity]
+  );
+
+  const togglePaymentPaid = useCallback(
+    (projectId: string, isPaid?: boolean) => {
+      const proj = projects.find((p) => p.id === projectId);
+      if (!proj) return;
+      const willBePaid = isPaid !== undefined ? isPaid : proj.payment_status !== "paid";
+      const newStatus = willBePaid ? ("paid" as const) : ("unpaid" as const);
+      const totalAmount =
+        proj.billing_type === "fixed"
+          ? proj.fixed_price_amount || 0
+          : 0;
+      const updates: Partial<Project> = {
+        payment_status: newStatus,
+        paid_amount: willBePaid ? totalAmount : 0,
+        last_payment_date: willBePaid ? new Date().toISOString() : undefined,
+      };
+      updateProject(projectId, updates);
+      toast.success(
+        willBePaid ? "Marked as Paid" : "Marked as Unpaid",
+        `Project "${proj.name}" payment status updated to ${newStatus}`
+      );
+    },
+    [projects, updateProject, toast]
+  );
+
+  const toggleInstallmentPaid = useCallback(
+    (projectId: string, installmentNumber: number) => {
+      const proj = projects.find((p) => p.id === projectId);
+      if (!proj) return;
+      const count = proj.payment_installments_count || 1;
+      const existingInst = proj.installments || [];
+      const perInstAmount = (proj.fixed_price_amount || 0) / count;
+
+      const installments: ProjectPaymentInstallment[] = Array.from({ length: count }).map((_, idx) => {
+        const num = idx + 1;
+        const found = existingInst.find((inst) => inst.installment_number === num);
+        return (
+          found || {
+            id: `inst_${proj.id}_${num}`,
+            project_id: proj.id,
+            installment_number: num,
+            title: `Payment #${num}`,
+            amount: perInstAmount,
+            status: "pending" as const,
+          }
+        );
+      });
+
+      const target = installments.find((inst) => inst.installment_number === installmentNumber);
+      if (!target) return;
+      const willBePaid = target.status !== "paid";
+      target.status = willBePaid ? "paid" : "pending";
+      target.paid_at = willBePaid ? new Date().toISOString() : undefined;
+
+      const paidCount = installments.filter((i) => i.status === "paid").length;
+      const paidTotal = installments
+        .filter((i) => i.status === "paid")
+        .reduce((acc, i) => acc + i.amount, 0);
+      const overallStatus =
+        paidCount === count ? ("paid" as const) : paidCount > 0 ? ("partially_paid" as const) : ("unpaid" as const);
+
+      const updates: Partial<Project> = {
+        installments,
+        payment_status: overallStatus,
+        paid_amount: paidTotal,
+        last_payment_date: willBePaid ? new Date().toISOString() : proj.last_payment_date,
+      };
+
+      updateProject(projectId, updates);
+      toast.success(
+        willBePaid ? "Installment Paid" : "Installment Marked Pending",
+        `Payment #${installmentNumber} of "${proj.name}" is now ${target.status}`
+      );
+    },
+    [projects, updateProject, toast]
   );
 
   // --- Task & Kanban Management with RBAC & Supabase Sync ---
@@ -1915,6 +2003,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         deleteProject,
         archiveProject,
         duplicateProject,
+        togglePaymentPaid,
+        toggleInstallmentPaid,
 
         createTask,
         updateTask,
@@ -1961,6 +2051,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         updateWidgets,
         resetAllData,
+        toast,
       }}
     >
       {children}

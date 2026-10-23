@@ -12,6 +12,7 @@ import {
   StickyNote,
   Activity,
   Plus,
+  Check,
   CheckCircle2,
   Flag,
   Users,
@@ -20,12 +21,22 @@ import {
   CalendarDays,
   FileText,
   BarChart3,
+  DollarSign,
+  CreditCard,
+  Receipt,
+  Hourglass,
+  Coins,
+  Edit3,
+  Printer,
+  FileDown,
 } from "lucide-react";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { ListView } from "@/components/tasks/ListView";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { TimelineGanttView } from "@/components/timeline/TimelineGanttView";
 import { ClientsFilesView } from "@/components/files/ClientsFilesView";
+import { EditProjectBillingModal } from "@/components/modals/EditProjectBillingModal";
+import { ProjectInvoiceModal } from "@/components/modals/ProjectInvoiceModal";
 import { ProjectSubTab } from "@/types";
 import { formatDate, getPriorityBadgeColor, getProjectStatusBadge } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
@@ -43,6 +54,8 @@ export function ProjectDetailView() {
     notes,
     activityLogs,
     setIsCreateTaskModalOpen,
+    togglePaymentPaid,
+    toggleInstallmentPaid,
   } = useStore();
 
   if (!activeProject) {
@@ -64,6 +77,50 @@ export function ProjectDetailView() {
   const projectNotes = notes.filter((n) => n.project_id === activeProject.id);
   const projectLogs = activityLogs.filter((l) => l.project_id === activeProject.id);
   const projectFiles = files.filter((f) => f.project_id === activeProject.id);
+
+  const [isEditBillingOpen, setIsEditBillingOpen] = React.useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = React.useState(false);
+
+  const totalTrackedSeconds = projectTasks.reduce((acc, t) => acc + (t.tracked_seconds || 0), 0);
+  const totalTrackedHours = (totalTrackedSeconds / 3600).toFixed(1);
+  const hourlyRate = activeProject.hourly_rate || 0;
+  const accruedEarnings = ((totalTrackedSeconds / 3600) * hourlyRate).toFixed(2);
+  const currencySymbol = activeProject.currency || "$";
+  const hoursPerWeek = activeProject.estimated_hours_per_week || activeProject.estimated_hours || 40;
+  const weeklyEstimatedAmount = (hourlyRate * hoursPerWeek).toFixed(2);
+
+  let weeksToDeadline: number | null = null;
+  let deadlineProjectedAmount: number | null = null;
+
+  if (activeProject.target_date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deadline = new Date(activeProject.target_date);
+    deadline.setHours(0, 0, 0, 0);
+    const diffTime = deadline.getTime() - today.getTime();
+    const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    if (diffDays > 0) {
+      weeksToDeadline = Math.max(1, Math.round((diffDays / 7) * 10) / 10);
+      deadlineProjectedAmount = (hourlyRate * hoursPerWeek) * weeksToDeadline;
+    }
+  }
+
+  const paidInstallments = (activeProject.installments || []).filter((i) => i.status === "paid");
+  const paidInstallmentsCount = paidInstallments.length;
+  const totalInstallmentsCount = activeProject.payment_installments_count || 1;
+  const fixedPerInstallment = (activeProject.fixed_price_amount || 0) / totalInstallmentsCount;
+  const fixedPaidAmount = paidInstallmentsCount * fixedPerInstallment;
+  const isFixedFullyPaid = paidInstallmentsCount >= totalInstallmentsCount && totalInstallmentsCount > 0;
+  const isHourlyPaid = activeProject.payment_status === "paid";
+
+  const formatTrackedTime = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  };
 
   const tabs: { id: ProjectSubTab; label: string; icon: any; count?: number }[] = [
     { id: "list", label: "Main Table", icon: ListIcon, count: projectTasks.length },
@@ -228,6 +285,284 @@ export function ProjectDetailView() {
               </div>
             </div>
 
+            {/* Financials & Billing Model Card */}
+            <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border/60">
+                <div className="flex items-center space-x-2.5">
+                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                    <Receipt className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Project Billing & Time Tracking</h3>
+                    <p className="text-[11px] text-muted-foreground">Contract model, financial metrics, and logged task hours</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeProject.billing_type === "hourly" ? (
+                    <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                      <Hourglass className="w-3 h-3" />
+                      <span>Hourly Rate ({currencySymbol}{activeProject.hourly_rate || 0}/hr)</span>
+                    </span>
+                  ) : activeProject.billing_type === "fixed" ? (
+                    <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      <Coins className="w-3 h-3" />
+                      <span>Fixed Price ({currencySymbol}{(activeProject.fixed_price_amount || 0).toLocaleString()})</span>
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-secondary text-muted-foreground border border-border">
+                      Standard
+                    </span>
+                  )}
+
+                  {/* Edit Billing Button */}
+                  <button
+                    onClick={() => setIsEditBillingOpen(true)}
+                    className="flex items-center space-x-1 px-3 py-1 rounded-lg border border-border hover:bg-secondary text-xs font-semibold text-foreground transition-all cursor-pointer"
+                    title="Edit project pricing and billing settings"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Edit Billing</span>
+                  </button>
+
+                  {/* Generate Invoice PDF Button */}
+                  <button
+                    onClick={() => setIsInvoiceModalOpen(true)}
+                    className="flex items-center space-x-1.5 px-3 py-1 bg-[#0073ea] hover:bg-[#0060c0] text-white rounded-lg text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                    title="Generate and download billing invoice PDF"
+                  >
+                    <FileDown className="w-3.5 h-3.5" />
+                    <span>Invoice PDF</span>
+                  </button>
+                </div>
+              </div>
+
+              {activeProject.billing_type === "fixed" ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-xl bg-secondary/40 border border-border/60">
+                      <span className="text-[11px] text-muted-foreground font-medium">Contract Total</span>
+                      <p className="text-xl font-bold font-mono text-foreground mt-0.5">
+                        {currencySymbol}{(activeProject.fixed_price_amount || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-secondary/40 border border-border/60">
+                      <span className="text-[11px] text-muted-foreground font-medium">Installments</span>
+                      <p className="text-xl font-bold font-mono text-foreground mt-0.5">
+                        {activeProject.payment_installments_count || 1} Payments
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-secondary/40 border border-border/60">
+                      <span className="text-[11px] text-muted-foreground font-medium">Per Payment</span>
+                      <p className="text-xl font-bold font-mono text-foreground mt-0.5">
+                        {currencySymbol}
+                        {(
+                          (activeProject.fixed_price_amount || 0) /
+                          (activeProject.payment_installments_count || 1)
+                        ).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-secondary/40 border border-border/60">
+                      <span className="text-[11px] text-muted-foreground font-medium">Logged Labor Time</span>
+                      <p className="text-xl font-bold font-mono text-foreground mt-0.5">
+                        {formatTrackedTime(totalTrackedSeconds)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">across {projectTasks.length} tasks</p>
+                    </div>
+                  </div>
+
+                  {/* Payment schedule breakdown with interactive Paid/Pending check toggle */}
+                  <div className="p-3.5 rounded-xl bg-background border border-border/60 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-semibold text-foreground">Payment Milestones Schedule</span>
+                        <span className="text-[10px] text-muted-foreground hidden sm:inline">(Click any milestone to check if Paid)</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[11px] font-mono text-muted-foreground">
+                          {paidInstallmentsCount} of {totalInstallmentsCount} Paid ({currencySymbol}{fixedPaidAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {currencySymbol}{(activeProject.fixed_price_amount || 0).toLocaleString()})
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            isFixedFullyPaid
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                              : paidInstallmentsCount > 0
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                              : "bg-secondary text-muted-foreground border border-border"
+                          }`}
+                        >
+                          {isFixedFullyPaid ? "✓ Paid in Full" : paidInstallmentsCount > 0 ? "Partially Paid" : "Unpaid"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+                      {Array.from({ length: totalInstallmentsCount }).map((_, idx) => {
+                        const installmentNum = idx + 1;
+                        const matchingInst = (activeProject.installments || []).find(
+                          (i) => i.installment_number === installmentNum
+                        );
+                        const isPaid = matchingInst?.status === "paid";
+                        const installmentAmount = (
+                          (activeProject.fixed_price_amount || 0) / totalInstallmentsCount
+                        ).toFixed(2);
+
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => toggleInstallmentPaid(activeProject.id, installmentNum)}
+                            className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                              isPaid
+                                ? "bg-emerald-500/10 border-emerald-500/40 hover:bg-emerald-500/15"
+                                : "bg-secondary/20 border-border/80 hover:bg-secondary/40"
+                            }`}
+                            title="Click to toggle Paid / Pending"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-foreground">
+                                Payment #{installmentNum}
+                              </span>
+                              <span
+                                className={`inline-flex items-center space-x-1 text-[10px] px-2 py-0.5 rounded font-semibold transition-all ${
+                                  isPaid
+                                    ? "bg-emerald-600 text-white shadow-2xs"
+                                    : "bg-secondary text-muted-foreground border border-border hover:border-foreground/30"
+                                }`}
+                              >
+                                {isPaid ? <span>✓ Paid</span> : <span>Mark Paid</span>}
+                              </span>
+                            </div>
+                            <p className="text-sm font-bold font-mono text-foreground mt-2">
+                              {currencySymbol}{installmentAmount}
+                            </p>
+                            {isPaid && matchingInst?.paid_at ? (
+                              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 mt-1 font-mono">
+                                Settled {formatDate(matchingInst.paid_at)}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-muted-foreground mt-1">
+                                Click to check as paid
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : activeProject.billing_type === "hourly" ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-xl bg-secondary/40 border border-border/60">
+                      <span className="text-[11px] text-muted-foreground font-medium">Hourly Billing Rate</span>
+                      <p className="text-xl font-bold font-mono text-foreground mt-0.5">
+                        {currencySymbol}{activeProject.hourly_rate || 0}<span className="text-xs text-muted-foreground font-normal">/hr</span>
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-secondary/40 border border-border/60">
+                      <span className="text-[11px] text-muted-foreground font-medium">Estimated Hours / Week</span>
+                      <p className="text-xl font-bold font-mono text-foreground mt-0.5">
+                        {hoursPerWeek} <span className="text-xs text-muted-foreground font-normal">hrs/wk</span>
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                      <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">Total Amount / Week</span>
+                      <p className="text-xl font-bold font-mono text-blue-600 dark:text-blue-400 mt-0.5">
+                        {currencySymbol}{weeklyEstimatedAmount}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">based on {hoursPerWeek} hrs weekly commitment</p>
+                    </div>
+
+                    {/* Show Total Amount till Deadline ONLY if target_date exists */}
+                    {activeProject.target_date && deadlineProjectedAmount !== null ? (
+                      <div className="p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                        <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          Total till Target Deadline
+                        </span>
+                        <p className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          {currencySymbol}
+                          {deadlineProjectedAmount.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {weeksToDeadline} weeks to {formatDate(activeProject.target_date)}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3.5 rounded-xl bg-secondary/40 border border-border/60">
+                        <span className="text-[11px] text-muted-foreground font-medium">Logged Labor Value</span>
+                        <p className="text-xl font-bold font-mono text-foreground mt-0.5">
+                          {currencySymbol}{accruedEarnings}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">{totalTrackedHours} hrs tracked so far</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Task time logged status row & Hourly Paid Check */}
+                  <div className="p-3.5 rounded-xl bg-background border border-border/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="w-4 h-4 text-primary" />
+                      <div>
+                        <span className="font-semibold text-foreground">Accrued Billable Labor: </span>
+                        <span className="font-mono font-bold text-foreground">
+                          {formatTrackedTime(totalTrackedSeconds)} ({totalTrackedHours} hours)
+                        </span>
+                        <span className="text-muted-foreground ml-1.5">
+                          accrued to {currencySymbol}{accruedEarnings}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center space-x-1 ${
+                          isHourlyPaid
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                        }`}
+                      >
+                        <span>{isHourlyPaid ? "✓ Labor Settled & Paid" : "○ Unpaid / Pending Billing"}</span>
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => togglePaymentPaid(activeProject.id)}
+                        className={`flex items-center space-x-1 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          isHourlyPaid
+                            ? "bg-secondary text-muted-foreground hover:text-foreground border border-border"
+                            : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
+                        }`}
+                        title="Click to check or uncheck if billable hours are paid"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>{isHourlyPaid ? "Mark Unpaid" : "Check as Paid"}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-secondary/20 border border-dashed border-border/80 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Total Logged Time</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {formatTrackedTime(totalTrackedSeconds)} recorded across {projectTasks.length} tasks
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-foreground">
+                    {totalTrackedHours} Hours
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Milestones Card */}
             <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
@@ -315,6 +650,20 @@ export function ProjectDetailView() {
           </div>
         )}
       </div>
+
+      {/* Edit Project Billing Modal */}
+      <EditProjectBillingModal
+        isOpen={isEditBillingOpen}
+        onClose={() => setIsEditBillingOpen(false)}
+        project={activeProject}
+      />
+
+      {/* Project Invoice PDF Generator Modal */}
+      <ProjectInvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        project={activeProject}
+      />
     </div>
   );
 }

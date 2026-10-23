@@ -25,9 +25,8 @@ import { formatShortDate, formatDuration, isOverdue } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { MondayStatusCell } from "@/components/common/MondayStatusCell";
 import { MondayPriorityCell } from "@/components/common/MondayPriorityCell";
-import {
-  MondayBatteryBar,
-} from "@/components/common/MondayBatteryBar";
+import { MondayBatteryBar } from "@/components/common/MondayBatteryBar";
+import { TaskTimeClock } from "@/components/common/TaskTimeClock";
 import {
   calculateStatusBattery,
   calculatePriorityBattery,
@@ -349,8 +348,8 @@ export function ListView({ projectId }: ListViewProps) {
                         <th className="w-32 px-3 py-2 border-r border-border/50">
                           Timeline / Due
                         </th>
-                        <th className="w-24 px-3 py-2 text-right">
-                          Tracked
+                        <th className="w-36 px-3 py-2 text-right">
+                          ⏱️ Time Clock
                         </th>
                       </tr>
                     </thead>
@@ -491,15 +490,17 @@ export function ListView({ projectId }: ListViewProps) {
                               )}
                             </td>
 
-                            {/* Tracked Time */}
-                            <td className="px-3 py-2 text-right font-mono text-[11px] text-muted-foreground">
-                              {task.tracked_seconds > 0 ? (
-                                <span className="text-foreground font-semibold">
-                                  {formatDuration(task.tracked_seconds)}
-                                </span>
-                              ) : (
-                                "-"
-                              )}
+                            {/* Interactive Task Time Clock */}
+                            <td className="px-3 py-1.5 text-right font-mono text-[11px]" onClick={(e) => e.stopPropagation()}>
+                              <TaskTimeClock
+                                taskId={task.id}
+                                trackedSeconds={task.tracked_seconds || 0}
+                                hourlyRate={
+                                  projects.find((p) => p.id === task.project_id)?.billing_type === "hourly"
+                                    ? projects.find((p) => p.id === task.project_id)?.hourly_rate
+                                    : undefined
+                                }
+                              />
                             </td>
                           </tr>
                         );

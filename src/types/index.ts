@@ -56,6 +56,19 @@ export interface WorkspaceMember {
 export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'archived';
 export type PriorityLevel = 'urgent' | 'high' | 'medium' | 'low';
 
+export type ProjectBillingType = "fixed" | "hourly";
+
+export interface ProjectPaymentInstallment {
+  id: string;
+  project_id: string;
+  installment_number: number;
+  title: string;
+  amount: number;
+  status: "pending" | "invoiced" | "paid";
+  due_date?: string;
+  paid_at?: string;
+}
+
 export interface Project {
   id: string;
   workspace_id: string;
@@ -73,8 +86,37 @@ export interface Project {
   all_members?: boolean;
   members?: User[];
   milestones?: Milestone[];
+  // Pricing & Billing
+  billing_type?: ProjectBillingType;
+  fixed_price_amount?: number;
+  payment_installments_count?: number;
+  installments?: ProjectPaymentInstallment[];
+  hourly_rate?: number;
+  estimated_hours?: number;
+  estimated_hours_per_week?: number;
+  currency?: string;
+  payment_status?: "unpaid" | "partially_paid" | "paid";
+  paid_amount?: number;
+  last_payment_date?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProjectInvoice {
+  id: string;
+  project_id: string;
+  invoice_number: string;
+  billing_type: ProjectBillingType;
+  issue_date: string;
+  due_date?: string;
+  total_amount: number;
+  status: "draft" | "sent" | "paid";
+  items?: Array<{
+    description: string;
+    quantity?: number;
+    rate?: number;
+    amount: number;
+  }>;
 }
 
 export interface Milestone {

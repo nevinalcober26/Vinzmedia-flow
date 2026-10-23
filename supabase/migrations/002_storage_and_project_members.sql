@@ -52,8 +52,8 @@ ON CONFLICT (id) DO UPDATE SET
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- 3. Storage Object RLS Policies (storage.objects)
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- 3. Storage Object RLS Policies (storage.objects has RLS enabled by default)
+-- Note: Do NOT run ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY, as storage.objects is owned by supabase_storage_admin.
 
 -- Clean existing policies on these buckets
 DROP POLICY IF EXISTS "Public Read Access for VinzFlow Buckets" ON storage.objects;

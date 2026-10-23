@@ -283,8 +283,15 @@ export function TaskSlideOver() {
                 </button>
               </label>
               <div className="flex items-center space-x-2">
-                <div className="flex-1 bg-background border border-border rounded-lg px-2.5 py-1 text-xs font-mono font-medium">
-                  {formatDuration(editingTask.tracked_seconds || 0)}
+                <div className={`flex-1 bg-background border rounded-lg px-2.5 py-1 text-xs font-mono font-medium flex items-center justify-between ${
+                  isTimerRunning ? "border-rose-500/50 bg-rose-500/5 text-rose-500 font-bold" : "border-border"
+                }`}>
+                  <span>
+                    {formatDuration(
+                      (editingTask.tracked_seconds || 0) +
+                        (isTimerRunning ? activeTimer?.seconds || 0 : 0)
+                    )}
+                  </span>
                   {editingTask.estimated_hours && (
                     <span className="text-muted-foreground text-[10px] ml-1">
                       / {editingTask.estimated_hours}h est
@@ -295,19 +302,19 @@ export function TaskSlideOver() {
                   <button
                     onClick={stopTimer}
                     title="Stop timer"
-                    className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-lg text-xs font-medium flex items-center space-x-1"
+                    className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold flex items-center space-x-1 shadow-xs cursor-pointer animate-pulse"
                   >
-                    <Square className="w-3 h-3 fill-red-600" />
+                    <Square className="w-3 h-3 fill-white" />
                     <span>Stop</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => startTimer(editingTask.id)}
                     title="Start timer"
-                    className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded-lg text-xs font-medium flex items-center space-x-1"
+                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center space-x-1 shadow-xs cursor-pointer transition-colors"
                   >
-                    <Play className="w-3 h-3 fill-emerald-600" />
-                    <span>Start</span>
+                    <Play className="w-3 h-3 fill-white" />
+                    <span>Start Clock</span>
                   </button>
                 )}
               </div>

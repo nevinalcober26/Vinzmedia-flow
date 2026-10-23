@@ -30,6 +30,17 @@ export const projectService = {
         progress: row.progress || 0,
         all_members: row.all_members !== undefined ? row.all_members : true,
         member_ids: row.member_ids || [row.owner_id],
+        billing_type: row.billing_type || "fixed",
+        fixed_price_amount: Number(row.fixed_price_amount) || 0,
+        payment_installments_count: Number(row.payment_installments_count) || 1,
+        hourly_rate: Number(row.hourly_rate) || 0,
+        estimated_hours: Number(row.estimated_hours_per_week || row.estimated_hours) || 0,
+        estimated_hours_per_week: Number(row.estimated_hours_per_week || row.estimated_hours) || 0,
+        currency: row.currency || "USD",
+        payment_status: row.payment_status || "unpaid",
+        paid_amount: Number(row.paid_amount) || 0,
+        last_payment_date: row.last_payment_date || null,
+        installments: row.installments || [],
         created_at: row.created_at,
         updated_at: row.updated_at || row.created_at || new Date().toISOString(),
       }));
@@ -60,6 +71,21 @@ export const projectService = {
       if (project.all_members !== undefined) {
         payload.all_members = project.all_members;
       }
+      if (project.billing_type !== undefined) payload.billing_type = project.billing_type;
+      if (project.fixed_price_amount !== undefined) payload.fixed_price_amount = project.fixed_price_amount;
+      if (project.payment_installments_count !== undefined) payload.payment_installments_count = project.payment_installments_count;
+      if (project.hourly_rate !== undefined) payload.hourly_rate = project.hourly_rate;
+      if (project.estimated_hours_per_week !== undefined) {
+        payload.estimated_hours_per_week = project.estimated_hours_per_week;
+        payload.estimated_hours = project.estimated_hours_per_week;
+      } else if (project.estimated_hours !== undefined) {
+        payload.estimated_hours = project.estimated_hours;
+        payload.estimated_hours_per_week = project.estimated_hours;
+      }
+      if (project.currency !== undefined) payload.currency = project.currency;
+      if (project.payment_status !== undefined) payload.payment_status = project.payment_status;
+      if (project.paid_amount !== undefined) payload.paid_amount = project.paid_amount;
+      if (project.last_payment_date !== undefined) payload.last_payment_date = project.last_payment_date;
 
       const { data, error } = await supabase
         .from("projects")
@@ -109,6 +135,21 @@ export const projectService = {
       if (updates.target_date !== undefined) payload.target_date = updates.target_date || null;
       if (updates.progress !== undefined) payload.progress = updates.progress;
       if (updates.all_members !== undefined) payload.all_members = updates.all_members;
+      if (updates.billing_type !== undefined) payload.billing_type = updates.billing_type;
+      if (updates.fixed_price_amount !== undefined) payload.fixed_price_amount = updates.fixed_price_amount;
+      if (updates.payment_installments_count !== undefined) payload.payment_installments_count = updates.payment_installments_count;
+      if (updates.hourly_rate !== undefined) payload.hourly_rate = updates.hourly_rate;
+      if (updates.estimated_hours_per_week !== undefined) {
+        payload.estimated_hours_per_week = updates.estimated_hours_per_week;
+        payload.estimated_hours = updates.estimated_hours_per_week;
+      } else if (updates.estimated_hours !== undefined) {
+        payload.estimated_hours = updates.estimated_hours;
+        payload.estimated_hours_per_week = updates.estimated_hours;
+      }
+      if (updates.currency !== undefined) payload.currency = updates.currency;
+      if (updates.payment_status !== undefined) payload.payment_status = updates.payment_status;
+      if (updates.paid_amount !== undefined) payload.paid_amount = updates.paid_amount;
+      if (updates.last_payment_date !== undefined) payload.last_payment_date = updates.last_payment_date;
 
       const { error } = await supabase
         .from("projects")

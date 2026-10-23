@@ -25,6 +25,7 @@ import {
 } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { MONDAY_STATUSES, MONDAY_PRIORITIES } from "@/lib/mondayTheme";
+import { TaskTimeClock } from "@/components/common/TaskTimeClock";
 
 interface KanbanCardProps {
   task: Task;
@@ -262,13 +263,12 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
             </span>
           )}
 
-          {/* Tracked time */}
-          {task.tracked_seconds > 0 && (
-            <span className="flex items-center space-x-1 font-mono text-[10px]">
-              <Clock className="w-3 h-3" />
-              <span>{formatDuration(task.tracked_seconds)}</span>
-            </span>
-          )}
+          {/* Interactive Mini Time Clock */}
+          <TaskTimeClock
+            taskId={task.id}
+            trackedSeconds={task.tracked_seconds || 0}
+            compact
+          />
         </div>
 
         {/* Right: Assignee Avatars (Stacked) */}
