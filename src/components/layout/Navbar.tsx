@@ -25,6 +25,18 @@ import {
   Shield,
   AlertTriangle,
   Database,
+  LayoutDashboard,
+  CheckSquare,
+  Calendar,
+  FileText,
+  Megaphone,
+  Users,
+  Activity,
+  BarChart2,
+  Settings,
+  FolderArchive,
+  Receipt,
+  User,
 } from "lucide-react";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { formatTimerDisplay, getPriorityBadgeColor } from "@/lib/utils";
@@ -32,7 +44,6 @@ import { getRoleBadge } from "@/lib/permissions";
 import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
 import { KeyboardShortcutsModal } from "@/components/modals/KeyboardShortcutsModal";
 import { UserAvatar } from "@/components/common/UserAvatar";
-import { User } from "lucide-react";
 
 export function Navbar() {
   const {
@@ -97,48 +108,59 @@ export function Navbar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [setIsCommandPaletteOpen]);
 
-  // Format breadcrumbs based on view and project
+  // Format breadcrumbs with view icons
   const getBreadcrumb = () => {
     if (activeView === "project_detail" && activeProject) {
       return (
-        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <span
-            className="hover:text-foreground cursor-pointer transition-colors"
+        <div className="flex items-center space-x-2 text-xs md:text-sm text-muted-foreground select-none">
+          <button
             onClick={() => setActiveView("projects")}
+            className="flex items-center space-x-1.5 hover:text-foreground transition-colors cursor-pointer"
           >
-            Projects
-          </span>
-          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />
-          <span className="font-semibold text-foreground flex items-center space-x-1.5">
+            <FolderKanban className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="font-medium">Projects</span>
+          </button>
+          <ChevronRight className="w-3 h-3 text-muted-foreground/50" />
+          <span className="font-semibold text-foreground flex items-center space-x-2">
             <span
-              className="w-2.5 h-2.5 rounded-full inline-block"
+              className="w-2.5 h-2.5 rounded-full inline-block ring-2 ring-background shadow-2xs"
               style={{ backgroundColor: activeProject.color }}
             />
-            <span>{activeProject.name}</span>
+            <span className="truncate max-w-[180px] sm:max-w-none">{activeProject.name}</span>
           </span>
         </div>
       );
     }
-    const viewTitles: Record<string, string> = {
-      dashboard: "Main Dashboard",
-      my_tasks: "My Tasks",
-      projects: "All Projects",
-      clients: "Clients & Files",
-      billing: "Billing & Invoices",
-      timelogs: "Time Logs & Labor Tracking",
-      calendar: "Master Calendar",
-      notes: "Quick Notes & Docs",
-      announcements: "Team Announcements",
-      team: "Team & Roles",
-      activity: "Workspace Activity",
-      workload: "Team Workload",
-      settings: "Workspace Settings",
+
+    const viewMeta: Record<string, { label: string; icon: React.ElementType }> = {
+      dashboard: { label: "Dashboard", icon: LayoutDashboard },
+      my_tasks: { label: "My Tasks", icon: CheckSquare },
+      projects: { label: "All Projects", icon: FolderKanban },
+      clients: { label: "Clients & Files", icon: FolderArchive },
+      billing: { label: "Billing & Invoices", icon: Receipt },
+      timelogs: { label: "Time Logs & Timesheet", icon: Clock },
+      calendar: { label: "Master Calendar", icon: Calendar },
+      notes: { label: "Quick Notes & Docs", icon: FileText },
+      announcements: { label: "Announcements", icon: Megaphone },
+      team: { label: "Team & Roles", icon: Users },
+      activity: { label: "Activity Log", icon: Activity },
+      workload: { label: "Team Workload", icon: BarChart2 },
+      settings: { label: "Workspace Settings", icon: Settings },
     };
+
+    const currentMeta = viewMeta[activeView] || { label: "Dashboard", icon: LayoutDashboard };
+    const CurrentIcon = currentMeta.icon;
+
     return (
-      <div className="flex items-center space-x-2 text-sm">
-        <span className="text-muted-foreground font-medium">{activeWorkspace.name}</span>
-        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />
-        <span className="font-semibold text-foreground">{viewTitles[activeView] || "Dashboard"}</span>
+      <div className="flex items-center space-x-2 text-xs md:text-sm select-none">
+        <span className="text-muted-foreground/80 font-medium hidden sm:inline">
+          {activeWorkspace.name}
+        </span>
+        <ChevronRight className="w-3 h-3 text-muted-foreground/40 hidden sm:inline" />
+        <div className="flex items-center space-x-1.5 text-foreground font-semibold">
+          <CurrentIcon className="w-4 h-4 text-primary" />
+          <span className="tracking-tight">{currentMeta.label}</span>
+        </div>
       </div>
     );
   };
@@ -147,21 +169,21 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/80 px-4 md:px-6 backdrop-blur-md transition-colors">
+      <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/80 px-4 md:px-6 backdrop-blur-xl transition-colors">
         {/* Left: Breadcrumbs & Quick Nav */}
-        <div className="flex items-center space-x-3">{getBreadcrumb()}</div>
+        <div className="flex items-center space-x-3 min-w-0">{getBreadcrumb()}</div>
 
         {/* Center: Global Search trigger (Linear style) */}
         <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
           <button
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="flex items-center justify-between w-full h-8 px-3 text-xs text-muted-foreground bg-secondary/50 hover:bg-secondary border border-border/60 hover:border-border rounded-lg transition-all shadow-sm group"
+            className="flex items-center justify-between w-full h-8 px-3 text-xs text-muted-foreground bg-secondary/40 hover:bg-secondary/70 border border-border/60 hover:border-primary/40 rounded-xl transition-all shadow-2xs group cursor-pointer"
           >
-            <div className="flex items-center space-x-2">
-              <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
-              <span>Search projects, tasks, notes, team...</span>
+            <div className="flex items-center space-x-2 truncate">
+              <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+              <span className="truncate">Search tasks, projects, notes, docs...</span>
             </div>
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/80 bg-background border border-border/80 rounded shadow-xs">
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground/80 bg-background/80 border border-border/80 rounded-md shadow-2xs">
               <CommandIcon className="w-2.5 h-2.5" /> K
             </kbd>
           </button>
@@ -173,7 +195,7 @@ export function Navbar() {
           {!isSupabaseConfigured && (
             <button
               onClick={() => setActiveView("settings")}
-              className="flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-all shadow-xs cursor-pointer animate-pulse"
+              className="flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-all shadow-xs cursor-pointer animate-pulse"
               title="Supabase Environment Variables missing on Vercel. Click for setup instructions."
             >
               <AlertTriangle className="w-3.5 h-3.5" />
@@ -184,15 +206,15 @@ export function Navbar() {
 
           {/* Active Timer Pill if running */}
           {activeTimer && (
-            <div className="flex items-center space-x-2 px-2.5 py-1 text-xs font-mono bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-full animate-pulse">
-              <Clock className="w-3.5 h-3.5" />
-              <span className="font-semibold">{formatTimerDisplay(activeTimer.seconds)}</span>
+            <div className="flex items-center space-x-2 px-3 py-1 text-xs font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-full animate-pulse shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+              <span className="font-bold">{formatTimerDisplay(activeTimer.seconds)}</span>
               <button
                 onClick={stopTimer}
-                title="Stop timer"
-                className="hover:bg-amber-500/20 rounded p-0.5 transition-colors"
+                title="Stop active timer"
+                className="hover:bg-emerald-500/20 rounded p-0.5 transition-colors cursor-pointer"
               >
-                <Square className="w-3 h-3 fill-amber-500" />
+                <Square className="w-3 h-3 fill-emerald-500 text-emerald-500" />
               </button>
             </div>
           )}
@@ -200,8 +222,8 @@ export function Navbar() {
           {/* Quick Note Floating Button */}
           <button
             onClick={() => setIsQuickNoteOpen(true)}
-            title="Open Quick Notes (Scratchpad)"
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+            title="Open Quick Notes Scratchpad"
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-xl transition-colors cursor-pointer"
           >
             <StickyNote className="w-4 h-4" />
           </button>
@@ -210,7 +232,7 @@ export function Navbar() {
           <button
             onClick={() => setIsShortcutsOpen(true)}
             title="Keyboard shortcuts (?)"
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-xl transition-colors cursor-pointer hidden sm:flex"
           >
             <HelpCircle className="w-4 h-4" />
           </button>
@@ -219,9 +241,13 @@ export function Navbar() {
           <button
             onClick={toggleTheme}
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-xl transition-colors cursor-pointer"
           >
-            {theme === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-slate-700" />
+            )}
           </button>
 
           {/* Notifications Popover trigger */}
@@ -229,11 +255,11 @@ export function Navbar() {
             <button
               onClick={() => setIsNotifOpen(!isNotifOpen)}
               title="Notifications"
-              className="relative p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+              className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-xl transition-colors cursor-pointer"
             >
               <Bell className="w-4 h-4" />
               {unreadNotificationCount > 0 && (
-                <span className="absolute top-1 right-1 flex h-2 w-2">
+                <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                 </span>
@@ -248,12 +274,14 @@ export function Navbar() {
           <div className="relative" ref={profileMenuRef}>
             <button
               onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-              className="flex items-center space-x-2 p-1 hover:bg-secondary rounded-xl transition-all cursor-pointer focus:outline-none"
+              className="flex items-center space-x-2 p-1 hover:bg-secondary/70 rounded-xl transition-all cursor-pointer focus:outline-none"
             >
               <UserAvatar user={currentUser} size="sm" showStatus />
 
               {/* Role badge pill */}
-              <span className={`hidden xl:inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full border ${roleBadge.className}`}>
+              <span
+                className={`hidden xl:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleBadge.className}`}
+              >
                 {roleBadge.label}
               </span>
             </button>
@@ -276,10 +304,16 @@ export function Navbar() {
                   <div className="px-4 py-3 border-b border-border/60 flex items-center space-x-3">
                     <UserAvatar user={currentUser} size="md" showStatus />
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold text-foreground text-xs truncate">{currentUser.full_name}</p>
-                      <p className="text-muted-foreground truncate text-[11px]">{currentUser.email}</p>
+                      <p className="font-bold text-foreground text-xs truncate">
+                        {currentUser.full_name}
+                      </p>
+                      <p className="text-muted-foreground truncate text-[11px]">
+                        {currentUser.email}
+                      </p>
                       {currentUser.username && (
-                        <p className="text-primary text-[10px] font-mono">@{currentUser.username}</p>
+                        <p className="text-primary text-[10px] font-mono">
+                          @{currentUser.username}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -301,25 +335,28 @@ export function Navbar() {
                         setIsProfileMenuOpen(false);
                         setActiveView("team");
                       }}
-                      className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
+                      className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer flex items-center space-x-2"
                     >
-                      Team & RBAC Permissions
+                      <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>Team & Roles</span>
                     </button>
                     <button
                       onClick={() => {
                         setIsProfileMenuOpen(false);
                         setActiveView("settings");
                       }}
-                      className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
+                      className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer flex items-center space-x-2"
                     >
-                      Workspace Settings & Database
+                      <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>Workspace Settings</span>
                     </button>
+                    <div className="h-px bg-border/40 my-1" />
                     <button
                       onClick={() => {
                         setIsProfileMenuOpen(false);
                         logout();
                       }}
-                      className="w-full text-left px-3 py-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center space-x-2 cursor-pointer"
+                      className="w-full text-left px-3 py-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center space-x-2 cursor-pointer font-medium"
                     >
                       <LogOut className="w-3.5 h-3.5" />
                       <span>Sign Out</span>

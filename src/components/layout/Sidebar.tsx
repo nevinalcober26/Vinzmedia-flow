@@ -20,13 +20,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
-  Layers,
-  Archive,
-  Compass,
-  FolderArchive,
   Receipt,
   Clock,
-  Timer,
+  FolderArchive,
+  Check,
+  Shield,
+  Briefcase,
 } from "lucide-react";
 import { ActiveView } from "@/types";
 
@@ -45,7 +44,6 @@ export function Sidebar() {
     currentUser,
     files,
     activeTimer,
-    unreadNotificationCount,
     setIsCreateProjectModalOpen,
     setIsProfileModalOpen,
   } = useStore();
@@ -54,9 +52,9 @@ export function Sidebar() {
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
   const [isProjectsExpanded, setIsProjectsExpanded] = useState(true);
 
-  // Calculate my tasks count
+  // Calculate my unfinished tasks count
   const myTasksCount = tasks.filter(
-    (t) => t.assignee_ids.includes(currentUser.id) && t.status !== "done"
+    (t) => (t.assignee_ids || []).includes(currentUser.id) && t.status !== "done"
   ).length;
 
   const handleNavClick = (view: ActiveView) => {
@@ -64,110 +62,163 @@ export function Sidebar() {
     setActiveView(view);
   };
 
-  const navItems = [
+  // Logically structured navigation sections
+  const navSections = [
     {
-      id: "dashboard" as ActiveView,
-      label: "Dashboard",
-      icon: LayoutDashboard,
-      badge: null,
+      id: "workspace",
+      title: "Workspace",
+      items: [
+        {
+          id: "dashboard" as ActiveView,
+          label: "Dashboard",
+          icon: LayoutDashboard,
+          badge: null,
+          badgeType: "default",
+        },
+        {
+          id: "my_tasks" as ActiveView,
+          label: "My Tasks",
+          icon: CheckSquare,
+          badge: myTasksCount > 0 ? myTasksCount : null,
+          badgeType: "primary",
+        },
+        {
+          id: "calendar" as ActiveView,
+          label: "Master Calendar",
+          icon: Calendar,
+          badge: null,
+          badgeType: "default",
+        },
+      ],
     },
     {
-      id: "my_tasks" as ActiveView,
-      label: "My Tasks",
-      icon: CheckSquare,
-      badge: myTasksCount > 0 ? myTasksCount : null,
+      id: "execution",
+      title: "Projects & Work",
+      isProjectsGroup: true,
+      items: [
+        {
+          id: "projects" as ActiveView,
+          label: "All Projects",
+          icon: FolderKanban,
+          badge: projects.length,
+          badgeType: "default",
+        },
+      ],
     },
     {
-      id: "projects" as ActiveView,
-      label: "Projects",
-      icon: FolderKanban,
-      badge: projects.length,
+      id: "finance_ops",
+      title: "Operations & Finance",
+      items: [
+        {
+          id: "timelogs" as ActiveView,
+          label: "Time Logs & Timesheet",
+          icon: Clock,
+          badge: activeTimer ? "LIVE" : null,
+          badgeType: "live",
+        },
+        {
+          id: "billing" as ActiveView,
+          label: "Billing & Invoices",
+          icon: Receipt,
+          badge: null,
+          badgeType: "default",
+        },
+        {
+          id: "clients" as ActiveView,
+          label: "Clients & Files",
+          icon: FolderArchive,
+          badge: files.length > 0 ? files.length : null,
+          badgeType: "default",
+        },
+      ],
     },
     {
-      id: "clients" as ActiveView,
-      label: "Clients & Files",
-      icon: FolderArchive,
-      badge: files.length > 0 ? files.length : null,
+      id: "collaboration",
+      title: "Collaboration",
+      items: [
+        {
+          id: "team" as ActiveView,
+          label: "Team & Roles",
+          icon: Users,
+          badge: null,
+          badgeType: "default",
+        },
+        {
+          id: "announcements" as ActiveView,
+          label: "Announcements",
+          icon: Megaphone,
+          badge: null,
+          badgeType: "default",
+        },
+        {
+          id: "notes" as ActiveView,
+          label: "Quick Notes & Docs",
+          icon: FileText,
+          badge: null,
+          badgeType: "default",
+        },
+      ],
     },
     {
-      id: "billing" as ActiveView,
-      label: "Billing & Invoices",
-      icon: Receipt,
-      badge: null,
-    },
-    {
-      id: "timelogs" as ActiveView,
-      label: "Time Logs",
-      icon: Clock,
-      badge: activeTimer ? "LIVE" : null,
-    },
-    {
-      id: "calendar" as ActiveView,
-      label: "Calendar",
-      icon: Calendar,
-      badge: null,
-    },
-  ];
-
-  const collabItems = [
-    {
-      id: "notes" as ActiveView,
-      label: "Quick Notes",
-      icon: FileText,
-      badge: null,
-    },
-    {
-      id: "announcements" as ActiveView,
-      label: "Announcements",
-      icon: Megaphone,
-      badge: null,
-    },
-    {
-      id: "team" as ActiveView,
-      label: "Team Members",
-      icon: Users,
-      badge: null,
-    },
-    {
-      id: "activity" as ActiveView,
-      label: "Activity Feed",
-      icon: Activity,
-      badge: null,
-    },
-    {
-      id: "workload" as ActiveView,
-      label: "Team Workload",
-      icon: BarChart2,
-      badge: null,
+      id: "admin_insights",
+      title: "Insights & Admin",
+      items: [
+        {
+          id: "workload" as ActiveView,
+          label: "Team Workload",
+          icon: BarChart2,
+          badge: null,
+          badgeType: "default",
+        },
+        {
+          id: "activity" as ActiveView,
+          label: "Activity Log",
+          icon: Activity,
+          badge: null,
+          badgeType: "default",
+        },
+        {
+          id: "settings" as ActiveView,
+          label: "Workspace Settings",
+          icon: Settings,
+          badge: null,
+          badgeType: "default",
+        },
+      ],
     },
   ];
 
   return (
     <aside
-      className={`relative flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 z-40 ${
+      className={`relative flex flex-col border-r border-sidebar-border/70 bg-sidebar/95 backdrop-blur-xl text-sidebar-foreground transition-all duration-300 z-40 select-none shadow-xs ${
         isCollapsed ? "w-16" : "w-64"
       }`}
     >
-      {/* Workspace Header */}
-      <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3">
+      {/* Premium Workspace Header Switcher */}
+      <div className="flex h-14 items-center justify-between border-b border-sidebar-border/60 px-3">
         {!isCollapsed ? (
-          <div className="relative flex-1 min-w-0">
+          <div className="relative flex-1 min-w-0 pr-1">
             <button
               onClick={() => setIsWorkspaceMenuOpen(!isWorkspaceMenuOpen)}
-              className="flex items-center space-x-2.5 w-full text-left p-1.5 rounded-lg hover:bg-sidebar-accent transition-colors"
+              className="flex items-center space-x-2.5 w-full text-left p-1.5 rounded-xl hover:bg-sidebar-accent/60 transition-all border border-transparent hover:border-sidebar-border/50 group cursor-pointer"
             >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-indigo-500/20 flex-shrink-0 group-hover:scale-105 transition-transform">
                 {activeWorkspace.name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold truncate text-sidebar-foreground">
-                  {activeWorkspace.name}
-                </p>
-                <p className="text-[10px] text-muted-foreground capitalize">
-                  {activeWorkspace.plan} Plan
+                <div className="flex items-center space-x-1.5">
+                  <p className="text-xs font-bold truncate text-sidebar-foreground tracking-tight">
+                    {activeWorkspace.name}
+                  </p>
+                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider">
+                    {activeWorkspace.plan || "PRO"}
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  Enterprise Workspace
                 </p>
               </div>
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground group-hover:text-sidebar-foreground transition-colors flex-shrink-0" />
             </button>
 
             {/* Workspace Switcher dropdown */}
@@ -178,33 +229,46 @@ export function Sidebar() {
                   onClick={() => setIsWorkspaceMenuOpen(false)}
                 />
                 <div
-                  className="absolute left-0 top-12 w-56 rounded-xl bg-card border border-border shadow-xl py-1.5 z-50 text-xs animate-in fade-in zoom-in-95"
+                  className="absolute left-0 top-12 w-64 rounded-2xl bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl py-2 z-50 text-xs overflow-hidden animate-in fade-in zoom-in-95"
                   onClick={() => setIsWorkspaceMenuOpen(false)}
                 >
-                  <div className="px-3 py-1.5 text-[10px] uppercase font-semibold text-muted-foreground">
-                    Workspaces
+                  <div className="px-3.5 py-1 text-[10px] uppercase font-bold tracking-wider text-muted-foreground/80 flex items-center justify-between">
+                    <span>Workspaces</span>
+                    <span className="text-[9px] font-mono text-muted-foreground/60">{workspaces.length} active</span>
                   </div>
-                  {workspaces.map((ws) => (
-                    <button
-                      key={ws.id}
-                      onClick={() => setActiveWorkspaceId(ws.id)}
-                      className={`w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-secondary transition-colors ${
-                        ws.id === activeWorkspace.id ? "bg-secondary font-medium" : ""
-                      }`}
-                    >
-                      <div className="w-5 h-5 rounded bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold">
-                        {ws.name.charAt(0)}
-                      </div>
-                      <span className="truncate flex-1">{ws.name}</span>
-                    </button>
-                  ))}
+                  <div className="p-1 space-y-0.5 max-h-56 overflow-y-auto">
+                    {workspaces.map((ws) => {
+                      const isCurrent = ws.id === activeWorkspace.id;
+                      return (
+                        <button
+                          key={ws.id}
+                          onClick={() => setActiveWorkspaceId(ws.id)}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors cursor-pointer ${
+                            isCurrent
+                              ? "bg-secondary text-foreground font-semibold"
+                              : "hover:bg-secondary/60 text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2.5 min-w-0">
+                            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center text-[10px] font-bold shadow-xs flex-shrink-0">
+                              {ws.name.charAt(0)}
+                            </div>
+                            <span className="truncate text-xs">{ws.name}</span>
+                          </div>
+                          {isCurrent && (
+                            <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </>
             )}
           </div>
         ) : (
           <div className="mx-auto">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-indigo-500/20">
               {activeWorkspace.name.charAt(0)}
             </div>
           </div>
@@ -213,8 +277,8 @@ export function Sidebar() {
         {/* Toggle Collapse Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="text-muted-foreground hover:text-sidebar-foreground p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="text-muted-foreground hover:text-sidebar-foreground p-1.5 rounded-lg hover:bg-sidebar-accent/70 transition-colors cursor-pointer"
+          title={isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
         >
           {isCollapsed ? (
             <PanelLeftOpen className="w-4 h-4" />
@@ -225,164 +289,171 @@ export function Sidebar() {
       </div>
 
       {/* Main Navigation Scroll Area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3 space-y-5">
-        {/* Workspace Nav Section */}
-        <div>
-          {!isCollapsed && (
-            <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-              Workspace
-            </p>
-          )}
-          <nav className="space-y-0.5">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeView === item.id && !selectedProjectId;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  title={isCollapsed ? item.label : undefined}
-                  className={`w-full flex items-center ${
-                    isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
-                  } py-1.5 text-xs rounded-lg font-medium transition-all ${
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-2xs"
-                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  }`}
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    {!isCollapsed && <span>{item.label}</span>}
-                  </div>
-                  {!isCollapsed && item.badge !== null && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-secondary text-muted-foreground font-medium">
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Projects Section with Accordion */}
-        <div>
-          <div className="flex items-center justify-between px-2 pb-1.5">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3 space-y-4">
+        {navSections.map((section) => (
+          <div key={section.id} className="space-y-1">
             {!isCollapsed ? (
-              <>
-                <button
-                  onClick={() => setIsProjectsExpanded(!isProjectsExpanded)}
-                  className="flex items-center space-x-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80 hover:text-sidebar-foreground transition-colors"
-                >
-                  {isProjectsExpanded ? (
-                    <ChevronDown className="w-3 h-3" />
-                  ) : (
-                    <ChevronRight className="w-3 h-3" />
-                  )}
-                  <span>Projects</span>
-                </button>
-                <button
-                  onClick={() => setIsCreateProjectModalOpen(true)}
-                  title="Create new project"
-                  className="p-0.5 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent rounded transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </>
+              <div className="px-2 pt-2 pb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                <span>{section.title}</span>
+                {section.isProjectsGroup && (
+                  <button
+                    onClick={() => setIsCreateProjectModalOpen(true)}
+                    title="Create new project"
+                    className="p-0.5 text-muted-foreground hover:text-primary hover:bg-sidebar-accent rounded-md transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             ) : (
-              <div className="h-px w-full bg-sidebar-border my-1" />
+              <div className="h-px w-full bg-sidebar-border/50 my-2" />
             )}
-          </div>
 
-          {(isProjectsExpanded || isCollapsed) && (
-            <div className="space-y-0.5">
-              {projects.map((proj) => {
-                const isSelected = selectedProjectId === proj.id;
+            <nav className="space-y-0.5">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeView === item.id && !selectedProjectId;
                 return (
                   <button
-                    key={proj.id}
-                    onClick={() => {
-                      setSelectedProjectId(proj.id);
-                      setActiveView("project_detail");
-                    }}
-                    title={proj.name}
-                    className={`w-full flex items-center ${
+                    key={item.id}
+                    onClick={() => handleNavClick(item.id)}
+                    title={isCollapsed ? item.label : undefined}
+                    className={`w-full relative flex items-center ${
                       isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
-                    } py-1.5 text-xs rounded-lg transition-all ${
-                      isSelected
-                        ? "bg-sidebar-accent text-sidebar-foreground font-semibold"
-                        : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                    } py-1.5 text-xs rounded-xl font-medium transition-all group cursor-pointer ${
+                      isActive
+                        ? "bg-primary/10 text-primary font-semibold shadow-2xs border-l-2 border-primary"
+                        : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
                     }`}
                   >
                     <div className="flex items-center space-x-2.5 min-w-0">
-                      <span
-                        className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                        style={{ backgroundColor: proj.color }}
+                      <Icon
+                        className={`w-4 h-4 flex-shrink-0 transition-colors ${
+                          isActive
+                            ? "text-primary stroke-[2.2]"
+                            : "text-muted-foreground group-hover:text-sidebar-foreground"
+                        }`}
                       />
-                      {!isCollapsed && <span className="truncate">{proj.name}</span>}
+                      {!isCollapsed && (
+                        <span className="truncate tracking-tight">{item.label}</span>
+                      )}
                     </div>
-                    {!isCollapsed && proj.progress > 0 && (
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {proj.progress}%
-                      </span>
+
+                    {!isCollapsed && item.badge !== null && (
+                      <div>
+                        {item.badgeType === "live" ? (
+                          <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span>LIVE</span>
+                          </span>
+                        ) : item.badgeType === "primary" ? (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary text-primary-foreground">
+                            {item.badge}
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-secondary text-muted-foreground font-mono font-medium">
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </button>
                 );
               })}
-            </div>
-          )}
-        </div>
+            </nav>
 
-        {/* Collaboration Nav Section */}
-        <div>
-          {!isCollapsed && (
-            <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-              Collaboration
-            </p>
-          )}
-          <nav className="space-y-0.5">
-            {collabItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeView === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  title={isCollapsed ? item.label : undefined}
-                  className={`w-full flex items-center ${
-                    isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
-                  } py-1.5 text-xs rounded-lg font-medium transition-all ${
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-foreground font-semibold"
-                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  }`}
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    {!isCollapsed && <span>{item.label}</span>}
+            {/* Expandable Project List for Projects & Work */}
+            {section.isProjectsGroup && (
+              <div className="pt-0.5 space-y-0.5">
+                {!isCollapsed && (
+                  <button
+                    onClick={() => setIsProjectsExpanded(!isProjectsExpanded)}
+                    className="w-full flex items-center justify-between px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-sidebar-foreground rounded-lg hover:bg-sidebar-accent/40 transition-colors"
+                  >
+                    <div className="flex items-center space-x-1.5">
+                      {isProjectsExpanded ? (
+                        <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                      )}
+                      <span>Active Workstreams</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-muted-foreground/70">
+                      {projects.length}
+                    </span>
+                  </button>
+                )}
+
+                {(isProjectsExpanded || isCollapsed) && (
+                  <div className="space-y-0.5 pl-1">
+                    {projects.slice(0, 8).map((proj) => {
+                      const isSelected = selectedProjectId === proj.id;
+                      return (
+                        <button
+                          key={proj.id}
+                          onClick={() => {
+                            setSelectedProjectId(proj.id);
+                            setActiveView("project_detail");
+                          }}
+                          title={proj.name}
+                          className={`w-full flex items-center ${
+                            isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
+                          } py-1.5 text-xs rounded-xl transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                              : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2.5 min-w-0">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-background shadow-2xs"
+                              style={{ backgroundColor: proj.color }}
+                            />
+                            {!isCollapsed && (
+                              <span className="truncate tracking-tight text-[11px]">
+                                {proj.name}
+                              </span>
+                            )}
+                          </div>
+                          {!isCollapsed && proj.progress > 0 && (
+                            <span className="text-[10px] text-muted-foreground/80 font-mono">
+                              {proj.progress}%
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+
+                    {!isCollapsed && projects.length === 0 && (
+                      <p className="px-3 py-1 text-[10px] text-muted-foreground/70 italic">
+                        No projects created yet
+                      </p>
+                    )}
                   </div>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
       {/* Footer / User Profile & Settings */}
-      <div className="border-t border-sidebar-border p-2 space-y-1">
+      <div className="border-t border-sidebar-border/60 p-2.5 space-y-1 bg-sidebar/50">
         <button
           onClick={() => setIsProfileModalOpen(true)}
-          title="Edit Profile & Avatar"
+          title="Account Profile & Settings"
           className={`w-full flex items-center ${
             isCollapsed ? "justify-center px-0" : "space-x-2.5 px-2"
-          } py-1.5 text-xs rounded-xl text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer group`}
+          } py-1.5 text-xs rounded-xl text-sidebar-foreground hover:bg-sidebar-accent/70 transition-all cursor-pointer group border border-transparent hover:border-sidebar-border/40`}
         >
           <UserAvatar user={currentUser} size="xs" showStatus />
           {!isCollapsed && (
             <div className="flex-1 min-w-0 text-left">
-              <p className="font-semibold text-xs truncate group-hover:text-primary transition-colors">
-                {currentUser.full_name}
-              </p>
+              <div className="flex items-center space-x-1.5">
+                <p className="font-bold text-xs truncate group-hover:text-primary transition-colors tracking-tight">
+                  {currentUser.full_name}
+                </p>
+              </div>
               <p className="text-[10px] text-muted-foreground truncate capitalize">
                 {currentUser.role.replace("_", " ")}
               </p>
@@ -398,7 +469,7 @@ export function Sidebar() {
           } py-1.5 text-xs rounded-xl text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer`}
         >
           <Settings className="w-4 h-4 flex-shrink-0" />
-          {!isCollapsed && <span className="font-medium">Settings</span>}
+          {!isCollapsed && <span className="font-medium">Settings & Preferences</span>}
         </button>
       </div>
     </aside>

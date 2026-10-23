@@ -91,7 +91,7 @@ export function ProjectsList() {
               <div
                 key={proj.id}
                 onClick={() => setSelectedProjectId(proj.id)}
-                className="rounded-2xl border border-border/80 bg-card p-5 flex flex-col justify-between shadow-2xs hover:shadow-md transition-all cursor-pointer group hover:border-border relative"
+                className="rounded-2xl border border-border/75 bg-card/95 hover:border-primary/50 p-5 flex flex-col justify-between shadow-2xs hover:shadow-xl transition-all duration-200 cursor-pointer group relative"
               >
               <div>
                 {/* Header: Color pill, Status & Menu */}

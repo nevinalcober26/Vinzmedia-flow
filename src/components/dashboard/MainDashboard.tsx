@@ -166,14 +166,36 @@ export function MainDashboard() {
         </div>
 
         {/* Overdue Tasks */}
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs">
+        <div
+          className={`p-4 rounded-2xl bg-card border shadow-2xs transition-all ${
+            overdueTasks.length > 0
+              ? "border-red-500/40 bg-red-500/5 hover:border-red-500/60"
+              : "border-border/80 hover:border-emerald-500/50"
+          }`}
+        >
           <div className="flex items-center justify-between text-muted-foreground mb-2">
             <span className="text-xs font-medium">Overdue</span>
-            <AlertTriangle className="w-4 h-4 text-red-500" />
+            {overdueTasks.length > 0 ? (
+              <AlertTriangle className="w-4 h-4 text-red-500 animate-pulse" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            )}
           </div>
-          <p className="text-2xl font-bold font-mono text-red-500">{overdueTasks.length}</p>
-          <span className="text-[10px] text-red-500/80 font-medium mt-1 block">
-            Requires attention
+          <p
+            className={`text-2xl font-bold font-mono ${
+              overdueTasks.length > 0 ? "text-red-500" : "text-foreground"
+            }`}
+          >
+            {overdueTasks.length}
+          </p>
+          <span
+            className={`text-[10px] font-medium mt-1 block ${
+              overdueTasks.length > 0
+                ? "text-red-500/80 font-bold"
+                : "text-emerald-600 dark:text-emerald-400"
+            }`}
+          >
+            {overdueTasks.length > 0 ? "Requires attention" : "All on schedule"}
           </span>
         </div>
 
