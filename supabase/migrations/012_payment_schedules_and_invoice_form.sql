@@ -3,10 +3,17 @@
 -- Migration: 012_payment_schedules_and_invoice_form.sql
 -- ====================================================================
 
--- 1. Projects Table: Add Payment Schedule and Terms Days
+-- 1. Projects Table: Add Payment Schedule, Terms Days and Bank Remittance Details
 ALTER TABLE public.projects 
   ADD COLUMN IF NOT EXISTS payment_schedule TEXT DEFAULT '30_days',
-  ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER DEFAULT 30;
+  ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER DEFAULT 30,
+  ADD COLUMN IF NOT EXISTS bank_name TEXT,
+  ADD COLUMN IF NOT EXISTS account_name TEXT,
+  ADD COLUMN IF NOT EXISTS account_number TEXT,
+  ADD COLUMN IF NOT EXISTS bank_iban TEXT,
+  ADD COLUMN IF NOT EXISTS bank_currency TEXT,
+  ADD COLUMN IF NOT EXISTS swift_bic TEXT,
+  ADD COLUMN IF NOT EXISTS routing_number TEXT;
 
 -- Set default for existing projects where payment_schedule is null
 UPDATE public.projects
@@ -44,6 +51,8 @@ CREATE TABLE IF NOT EXISTS public.project_invoices (
   bank_name TEXT,
   account_name TEXT,
   account_number TEXT,
+  bank_iban TEXT,
+  bank_currency TEXT,
   swift_bic TEXT,
   routing_number TEXT,
   notes TEXT,
@@ -67,6 +76,8 @@ ALTER TABLE public.project_invoices
   ADD COLUMN IF NOT EXISTS bank_name TEXT,
   ADD COLUMN IF NOT EXISTS account_name TEXT,
   ADD COLUMN IF NOT EXISTS account_number TEXT,
+  ADD COLUMN IF NOT EXISTS bank_iban TEXT,
+  ADD COLUMN IF NOT EXISTS bank_currency TEXT,
   ADD COLUMN IF NOT EXISTS swift_bic TEXT,
   ADD COLUMN IF NOT EXISTS routing_number TEXT,
   ADD COLUMN IF NOT EXISTS line_items JSONB DEFAULT '[]'::jsonb;

@@ -23,8 +23,9 @@ import {
   UserPlus,
   RefreshCw,
   CalendarDays,
+  Landmark,
 } from "lucide-react";
-import { Project, ProjectBillingType, ProjectPaymentInstallment, PaymentSchedule } from "@/types";
+import { Project, ProjectBillingType, ProjectPaymentInstallment, PaymentSchedule, DEFAULT_BANK_DETAILS } from "@/types";
 import { useStore } from "@/context/StoreContext";
 import { useToast } from "@/context/ToastContext";
 import {
@@ -109,6 +110,29 @@ export function EditProjectBillingModal({
   const [isLiveRate, setIsLiveRate] = useState<boolean>(false);
   const [rateUpdatedAt, setRateUpdatedAt] = useState<string>("");
 
+  // Bank Transfer & Remittance Details
+  const [bankName, setBankName] = useState<string>(
+    project?.bank_name || DEFAULT_BANK_DETAILS.bank_name
+  );
+  const [accountName, setAccountName] = useState<string>(
+    project?.account_name || DEFAULT_BANK_DETAILS.account_name
+  );
+  const [bankIban, setBankIban] = useState<string>(
+    project?.bank_iban || DEFAULT_BANK_DETAILS.bank_iban
+  );
+  const [accountNumber, setAccountNumber] = useState<string>(
+    project?.account_number || DEFAULT_BANK_DETAILS.account_number
+  );
+  const [bankCurrency, setBankCurrency] = useState<string>(
+    project?.bank_currency || DEFAULT_BANK_DETAILS.bank_currency
+  );
+  const [swiftBic, setSwiftBic] = useState<string>(
+    project?.swift_bic || DEFAULT_BANK_DETAILS.swift_bic
+  );
+  const [routingNumber, setRoutingNumber] = useState<string>(
+    project?.routing_number || DEFAULT_BANK_DETAILS.routing_number
+  );
+
   const parsedFixed = parseFloat(fixedAmount) || 0;
   const parsedRate = parseFloat(hourlyRate) || 0;
   const parsedHoursPerWeek = parseFloat(hoursPerWeek) || 0;
@@ -184,6 +208,15 @@ export function EditProjectBillingModal({
       if (project.enable_currency_conversion) {
         updateRateInRealtime(project.currency || "$", targetCurr);
       }
+
+      // Bank Transfer & Remittance Details initialization
+      setBankName(project.bank_name || DEFAULT_BANK_DETAILS.bank_name);
+      setAccountName(project.account_name || DEFAULT_BANK_DETAILS.account_name);
+      setBankIban(project.bank_iban || DEFAULT_BANK_DETAILS.bank_iban);
+      setAccountNumber(project.account_number || DEFAULT_BANK_DETAILS.account_number);
+      setBankCurrency(project.bank_currency || DEFAULT_BANK_DETAILS.bank_currency);
+      setSwiftBic(project.swift_bic || DEFAULT_BANK_DETAILS.swift_bic);
+      setRoutingNumber(project.routing_number || DEFAULT_BANK_DETAILS.routing_number);
 
       // Load existing installments or generate default
       const existing = project.installments || [];
@@ -341,6 +374,27 @@ export function EditProjectBillingModal({
     }
   };
 
+  const handleApplyBankPreset = () => {
+    setBankName(DEFAULT_BANK_DETAILS.bank_name);
+    setAccountName(DEFAULT_BANK_DETAILS.account_name);
+    setBankIban(DEFAULT_BANK_DETAILS.bank_iban);
+    setAccountNumber(DEFAULT_BANK_DETAILS.account_number);
+    setBankCurrency(DEFAULT_BANK_DETAILS.bank_currency);
+    setSwiftBic(DEFAULT_BANK_DETAILS.swift_bic);
+    setRoutingNumber(DEFAULT_BANK_DETAILS.routing_number);
+    toast?.success("Bank Details Applied", "Loaded Emirates NBD (ENBD) details");
+  };
+
+  const handleClearBankDetails = () => {
+    setBankName("");
+    setAccountName("");
+    setBankIban("");
+    setAccountNumber("");
+    setBankCurrency("");
+    setSwiftBic("");
+    setRoutingNumber("");
+  };
+
   const totalPercentage = Math.round(
     milestones.reduce((acc, m) => acc + (m.percentage || 0), 0) * 10
   ) / 10;
@@ -412,6 +466,15 @@ export function EditProjectBillingModal({
       updates.enable_currency_conversion = enableConversion;
       updates.converted_currency = targetCurrency;
       updates.conversion_rate = parseFloat(conversionRate) || 1.0;
+
+      // Bank Transfer & Remittance Details updates
+      updates.bank_name = bankName.trim() || undefined;
+      updates.account_name = accountName.trim() || undefined;
+      updates.bank_iban = bankIban.trim() || undefined;
+      updates.account_number = accountNumber.trim() || undefined;
+      updates.bank_currency = bankCurrency.trim() || undefined;
+      updates.swift_bic = swiftBic.trim() || undefined;
+      updates.routing_number = routingNumber.trim() || undefined;
 
       updateProject(project.id, updates);
       toast?.success("Billing Updated", `Updated pricing model for ${project.name}`);
@@ -1225,6 +1288,151 @@ export function EditProjectBillingModal({
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Bank Transfer & Wire Remittance Details */}
+            <div className="p-4 rounded-2xl bg-secondary/20 border border-border/80 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
+                <div className="flex items-center space-x-2">
+                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                    <Landmark className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-foreground">
+                      Bank Transfer & Remittance Details
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground">
+                      Included automatically on project invoices & PDF downloads
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-1.5">
+                  <button
+                    type="button"
+                    onClick={handleApplyBankPreset}
+                    className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-primary/10 hover:bg-primary/20 text-primary transition-colors cursor-pointer"
+                    title="Load Emirates NBD (ENBD) preset"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>⚡ Fill Emirates NBD (ENBD)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearBankDetails}
+                    className="px-2 py-1 rounded-lg text-[10px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Account Name & Bank */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground">
+                    Account Name *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Nevin Pandacan Alcober"
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground">
+                    Bank Name *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Emirates NBD (ENBD)"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* IBAN & Account Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground">
+                    IBAN *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. AE790260001015470817401"
+                    value={bankIban}
+                    onChange={(e) => setBankIban(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-mono uppercase"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground">
+                    Account Number *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 1015470817401"
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Currency, SWIFT Code & Routing Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground">
+                    Currency
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="AED"
+                    value={bankCurrency}
+                    onChange={(e) => setBankCurrency(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-mono uppercase"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground">
+                    SWIFT / BIC Code
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="EBILAEAD"
+                    value={swiftBic}
+                    onChange={(e) => setSwiftBic(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-mono uppercase"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground">
+                    Routing Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="302620122"
+                    value={routingNumber}
+                    onChange={(e) => setRoutingNumber(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-700 dark:text-emerald-400 flex items-center space-x-1.5">
+                <Check className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  Configured: {bankName || "Emirates NBD (ENBD)"} • IBAN: {bankIban || "AE790260001015470817401"}
+                </span>
+              </div>
             </div>
 
             {/* Payment Settlement Status */}

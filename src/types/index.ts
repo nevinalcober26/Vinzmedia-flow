@@ -59,6 +59,26 @@ export type PriorityLevel = 'urgent' | 'high' | 'medium' | 'low';
 export type ProjectBillingType = "fixed" | "hourly";
 export type PaymentSchedule = "weekly" | "15_days" | "30_days" | "custom";
 
+export interface BankDetails {
+  account_name: string;
+  bank_name: string;
+  bank_iban: string;
+  account_number: string;
+  bank_currency: string;
+  swift_bic: string;
+  routing_number: string;
+}
+
+export const DEFAULT_BANK_DETAILS: BankDetails = {
+  account_name: "Nevin Pandacan Alcober",
+  bank_name: "Emirates NBD (ENBD)",
+  bank_iban: "AE790260001015470817401",
+  account_number: "1015470817401",
+  bank_currency: "AED",
+  swift_bic: "EBILAEAD",
+  routing_number: "302620122",
+};
+
 export interface ProjectPaymentInstallment {
   id: string;
   project_id: string;
@@ -110,6 +130,14 @@ export interface Project {
   conversion_rate?: number;
   task_types?: string[];
   departments?: string[];
+  // Bank Remittance Details
+  bank_name?: string;
+  account_name?: string;
+  account_number?: string;
+  bank_iban?: string;
+  bank_currency?: string;
+  swift_bic?: string;
+  routing_number?: string;
   created_at: string;
   updated_at: string;
 }
@@ -155,6 +183,8 @@ export interface ProjectInvoice {
   bank_name?: string;
   account_name?: string;
   account_number?: string;
+  bank_iban?: string;
+  bank_currency?: string;
   swift_bic?: string;
   routing_number?: string;
   notes?: string;

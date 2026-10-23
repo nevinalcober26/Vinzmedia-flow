@@ -84,6 +84,13 @@ export const projectService = {
         conversion_rate: Number(row.conversion_rate) || 1.0,
         task_types: row.task_types || undefined,
         departments: row.departments || undefined,
+        bank_name: row.bank_name || undefined,
+        account_name: row.account_name || undefined,
+        account_number: row.account_number || undefined,
+        bank_iban: row.bank_iban || undefined,
+        bank_currency: row.bank_currency || undefined,
+        swift_bic: row.swift_bic || undefined,
+        routing_number: row.routing_number || undefined,
         installments: paymentsMap[row.id] || row.installments || [],
         created_at: row.created_at,
         updated_at: row.updated_at || row.created_at || new Date().toISOString(),
@@ -138,6 +145,13 @@ export const projectService = {
       if (project.conversion_rate !== undefined) payload.conversion_rate = project.conversion_rate;
       if (project.task_types !== undefined) payload.task_types = project.task_types;
       if (project.departments !== undefined) payload.departments = project.departments;
+      if (project.bank_name !== undefined) payload.bank_name = project.bank_name;
+      if (project.account_name !== undefined) payload.account_name = project.account_name;
+      if (project.account_number !== undefined) payload.account_number = project.account_number;
+      if (project.bank_iban !== undefined) payload.bank_iban = project.bank_iban;
+      if (project.bank_currency !== undefined) payload.bank_currency = project.bank_currency;
+      if (project.swift_bic !== undefined) payload.swift_bic = project.swift_bic;
+      if (project.routing_number !== undefined) payload.routing_number = project.routing_number;
 
       const { data, error } = await supabase
         .from("projects")
@@ -237,6 +251,13 @@ export const projectService = {
       if (updates.conversion_rate !== undefined) payload.conversion_rate = updates.conversion_rate;
       if (updates.task_types !== undefined) payload.task_types = updates.task_types;
       if (updates.departments !== undefined) payload.departments = updates.departments;
+      if (updates.bank_name !== undefined) payload.bank_name = updates.bank_name;
+      if (updates.account_name !== undefined) payload.account_name = updates.account_name;
+      if (updates.account_number !== undefined) payload.account_number = updates.account_number;
+      if (updates.bank_iban !== undefined) payload.bank_iban = updates.bank_iban;
+      if (updates.bank_currency !== undefined) payload.bank_currency = updates.bank_currency;
+      if (updates.swift_bic !== undefined) payload.swift_bic = updates.swift_bic;
+      if (updates.routing_number !== undefined) payload.routing_number = updates.routing_number;
 
       const { error } = await supabase
         .from("projects")

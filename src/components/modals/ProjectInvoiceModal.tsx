@@ -34,7 +34,7 @@ import {
   Percent,
   Check,
 } from "lucide-react";
-import { Project, ProjectInvoiceItem, PaymentSchedule, Client } from "@/types";
+import { Project, ProjectInvoiceItem, PaymentSchedule, Client, DEFAULT_BANK_DETAILS } from "@/types";
 import { useStore } from "@/context/StoreContext";
 import { formatDate } from "@/lib/utils";
 import {
@@ -85,13 +85,30 @@ export function ProjectInvoiceModal({
   const [providerTaxId, setProviderTaxId] = useState<string>("US-EIN-94-2849102");
 
   // Bank & Wire Remittance Instructions
-  const [paymentMethod, setPaymentMethod] = useState<string>("Direct Bank Wire / ACH");
-  const [bankName, setBankName] = useState<string>("JPMorgan Chase Bank, N.A.");
-  const [accountName, setAccountName] = useState<string>("VinzMedia Global Operations LLC");
-  const [accountNumber, setAccountNumber] = useState<string>("0482 9182 4819 028");
-  const [swiftBic, setSwiftBic] = useState<string>("CHASUS33AXX");
-  const [routingNumber, setRoutingNumber] = useState<string>("021000021");
+  const [paymentMethod, setPaymentMethod] = useState<string>("Direct Bank Wire / Remittance");
+  const [bankName, setBankName] = useState<string>(
+    project?.bank_name || DEFAULT_BANK_DETAILS.bank_name
+  );
+  const [accountName, setAccountName] = useState<string>(
+    project?.account_name || DEFAULT_BANK_DETAILS.account_name
+  );
+  const [bankIban, setBankIban] = useState<string>(
+    project?.bank_iban || DEFAULT_BANK_DETAILS.bank_iban
+  );
+  const [accountNumber, setAccountNumber] = useState<string>(
+    project?.account_number || DEFAULT_BANK_DETAILS.account_number
+  );
+  const [bankCurrency, setBankCurrency] = useState<string>(
+    project?.bank_currency || DEFAULT_BANK_DETAILS.bank_currency
+  );
+  const [swiftBic, setSwiftBic] = useState<string>(
+    project?.swift_bic || DEFAULT_BANK_DETAILS.swift_bic
+  );
+  const [routingNumber, setRoutingNumber] = useState<string>(
+    project?.routing_number || DEFAULT_BANK_DETAILS.routing_number
+  );
   const [notes, setNotes] = useState<string>("");
+  const [copiedBankField, setCopiedBankField] = useState<string | null>(null);
 
   // Line Items
   const [lineItems, setLineItems] = useState<ProjectInvoiceItem[]>([]);
@@ -250,8 +267,49 @@ export function ProjectInvoiceModal({
       if (project.enable_currency_conversion) {
         updateRateInRealtime(targetCurr);
       }
+
+      // Bank & Wire Remittance Details initialization
+      setBankName(project.bank_name || DEFAULT_BANK_DETAILS.bank_name);
+      setAccountName(project.account_name || DEFAULT_BANK_DETAILS.account_name);
+      setBankIban(project.bank_iban || DEFAULT_BANK_DETAILS.bank_iban);
+      setAccountNumber(project.account_number || DEFAULT_BANK_DETAILS.account_number);
+      setBankCurrency(project.bank_currency || DEFAULT_BANK_DETAILS.bank_currency);
+      setSwiftBic(project.swift_bic || DEFAULT_BANK_DETAILS.swift_bic);
+      setRoutingNumber(project.routing_number || DEFAULT_BANK_DETAILS.routing_number);
     }
   }, [isOpen, project]);
+
+  const handleSaveBankToProject = () => {
+    updateProject(project.id, {
+      bank_name: bankName.trim() || undefined,
+      account_name: accountName.trim() || undefined,
+      bank_iban: bankIban.trim() || undefined,
+      account_number: accountNumber.trim() || undefined,
+      bank_currency: bankCurrency.trim() || undefined,
+      swift_bic: swiftBic.trim() || undefined,
+      routing_number: routingNumber.trim() || undefined,
+    });
+    toast?.success("Bank Details Saved", `Updated default bank details for ${project.name}`);
+  };
+
+  const handleApplyBankPreset = () => {
+    setBankName(DEFAULT_BANK_DETAILS.bank_name);
+    setAccountName(DEFAULT_BANK_DETAILS.account_name);
+    setBankIban(DEFAULT_BANK_DETAILS.bank_iban);
+    setAccountNumber(DEFAULT_BANK_DETAILS.account_number);
+    setBankCurrency(DEFAULT_BANK_DETAILS.bank_currency);
+    setSwiftBic(DEFAULT_BANK_DETAILS.swift_bic);
+    setRoutingNumber(DEFAULT_BANK_DETAILS.routing_number);
+    toast?.success("Bank Preset Applied", "Loaded Emirates NBD (ENBD) details");
+  };
+
+  const handleCopyField = (text: string, fieldName: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedBankField(fieldName);
+    setTimeout(() => setCopiedBankField(null), 2000);
+    toast?.success("Copied", `${fieldName} copied to clipboard`);
+  };
 
   // Handle schedule change
   const handleScheduleChange = (newSched: PaymentSchedule) => {
@@ -1019,70 +1077,111 @@ export function ProjectInvoiceModal({
 
               {/* Section 4: Bank Remittance Details */}
               <div className="p-4 rounded-2xl bg-secondary/20 border border-border/80 space-y-3">
-                <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
                   <div className="flex items-center space-x-2">
                     <Landmark className="w-4 h-4 text-primary" />
-                    <h3 className="text-xs font-bold text-foreground">Wire Remittance & Banking Information</h3>
+                    <div>
+                      <h3 className="text-xs font-bold text-foreground">Wire Remittance & Banking Information</h3>
+                      <p className="text-[10px] text-muted-foreground">Will appear in the executive document preview and print PDF</p>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-muted-foreground">Beneficiary Details for Client Payments</span>
+                  <div className="flex items-center space-x-1.5">
+                    <button
+                      type="button"
+                      onClick={handleApplyBankPreset}
+                      className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-primary/10 hover:bg-primary/20 text-primary transition-colors cursor-pointer"
+                      title="Fill Emirates NBD (ENBD) default details"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>⚡ Fill Emirates NBD</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveBankToProject}
+                      className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors cursor-pointer"
+                      title="Save these bank details as default for this project"
+                    >
+                      <Check className="w-3 h-3 text-emerald-500" />
+                      <span>Save as Project Default</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-0.5">
-                    <label className="text-[10px] font-semibold text-muted-foreground">Beneficiary Bank</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">Account Holder Name *</label>
                     <input
                       type="text"
-                      value={bankName}
-                      onChange={(e) => setBankName(e.target.value)}
-                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1 text-xs text-foreground"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
-                    <label className="text-[10px] font-semibold text-muted-foreground">Account Holder Name</label>
-                    <input
-                      type="text"
+                      placeholder="e.g. Nevin Pandacan Alcober"
                       value={accountName}
                       onChange={(e) => setAccountName(e.target.value)}
-                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1 text-xs text-foreground"
+                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground font-medium"
                     />
                   </div>
                   <div className="space-y-0.5">
-                    <label className="text-[10px] font-semibold text-muted-foreground">Account / IBAN Number</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">Beneficiary Bank *</label>
                     <input
                       type="text"
+                      placeholder="e.g. Emirates NBD (ENBD)"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-semibold text-muted-foreground">IBAN *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. AE790260001015470817401"
+                      value={bankIban}
+                      onChange={(e) => setBankIban(e.target.value)}
+                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground font-mono uppercase"
+                    />
+                  </div>
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-semibold text-muted-foreground">Account Number *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 1015470817401"
                       value={accountNumber}
                       onChange={(e) => setAccountNumber(e.target.value)}
-                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1 text-xs text-foreground font-mono"
+                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground font-mono"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-semibold text-muted-foreground">Currency</label>
+                    <input
+                      type="text"
+                      placeholder="AED"
+                      value={bankCurrency}
+                      onChange={(e) => setBankCurrency(e.target.value)}
+                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground font-mono uppercase"
+                    />
+                  </div>
                   <div className="space-y-0.5">
                     <label className="text-[10px] font-semibold text-muted-foreground">SWIFT / BIC Code</label>
                     <input
                       type="text"
+                      placeholder="EBILAEAD"
                       value={swiftBic}
                       onChange={(e) => setSwiftBic(e.target.value)}
-                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1 text-xs text-foreground font-mono uppercase"
+                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground font-mono uppercase"
                     />
                   </div>
                   <div className="space-y-0.5">
-                    <label className="text-[10px] font-semibold text-muted-foreground">Routing / Sort Code</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">Routing Number</label>
                     <input
                       type="text"
+                      placeholder="302620122"
                       value={routingNumber}
                       onChange={(e) => setRoutingNumber(e.target.value)}
-                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1 text-xs text-foreground font-mono"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
-                    <label className="text-[10px] font-semibold text-muted-foreground">Payment Method</label>
-                    <input
-                      type="text"
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1 text-xs text-foreground"
+                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground font-mono"
                     />
                   </div>
                 </div>
@@ -1316,32 +1415,99 @@ export function ProjectInvoiceModal({
 
               {/* Financial Summary & Banking Wire Instructions */}
               <div className="flex flex-col sm:flex-row justify-between items-start gap-5 pt-1">
-                {/* Remittance & Bank Instructions */}
-                <div className="text-[11px] text-muted-foreground max-w-sm space-y-2">
-                  <div className="p-3 rounded-xl bg-secondary/30 border border-border/70 space-y-1.5">
-                    <p className="font-bold text-xs text-foreground flex items-center space-x-1.5">
-                      <Landmark className="w-3.5 h-3.5 text-primary" />
-                      <span>Remittance & Wire Transfer Details:</span>
-                    </p>
-                    <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
-                      <div>
-                        <span className="text-muted-foreground block">Beneficiary Bank:</span>
-                        <span className="font-bold text-foreground">{bankName}</span>
+                {/* Remittance & Bank Instructions: Exact Bank Transfer Details layout */}
+                <div className="text-[11px] text-muted-foreground max-w-sm w-full space-y-2.5">
+                  <div className="p-3.5 rounded-xl bg-secondary/30 border border-border/80 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
+                      <p className="font-bold text-xs uppercase tracking-wide text-foreground flex items-center space-x-1.5">
+                        <Landmark className="w-3.5 h-3.5 text-primary" />
+                        <span>BANK TRANSFER DETAILS</span>
+                      </p>
+                      <span className="text-[9px] font-semibold text-primary uppercase tracking-wider bg-primary/10 px-1.5 py-0.5 rounded">
+                        Wire Transfer
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-[11px]">
+                      <div className="flex flex-col sm:flex-row sm:justify-between py-0.5 border-b border-border/40 gap-0.5">
+                        <span className="text-muted-foreground font-medium">Account Name:</span>
+                        <span className="font-bold text-foreground sm:text-right">
+                          {accountName || "Nevin Pandacan Alcober"}
+                        </span>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground block">Account Holder:</span>
-                        <span className="font-bold text-foreground">{accountName}</span>
+
+                      <div className="flex flex-col sm:flex-row sm:justify-between py-0.5 border-b border-border/40 gap-0.5">
+                        <span className="text-muted-foreground font-medium">Bank:</span>
+                        <span className="font-bold text-foreground sm:text-right">
+                          {bankName || "Emirates NBD (ENBD)"}
+                        </span>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground block">Account / IBAN:</span>
-                        <span className="font-mono font-bold text-foreground">{accountNumber}</span>
+
+                      <div className="flex flex-col sm:flex-row sm:justify-between py-0.5 border-b border-border/40 gap-0.5 group">
+                        <div className="flex items-center justify-between sm:justify-start space-x-1.5">
+                          <span className="text-muted-foreground font-medium">IBAN:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyField(bankIban || "AE790260001015470817401", "IBAN")}
+                            className="no-print opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-primary hover:underline flex items-center space-x-0.5 cursor-pointer"
+                            title="Copy IBAN"
+                          >
+                            {copiedBankField === "IBAN" ? (
+                              <Check className="w-3 h-3 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-2.5 h-2.5" />
+                            )}
+                          </button>
+                        </div>
+                        <span className="font-mono font-bold text-foreground sm:text-right tracking-wide select-all">
+                          {bankIban || "AE790260001015470817401"}
+                        </span>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground block">SWIFT / BIC:</span>
-                        <span className="font-mono font-bold text-foreground uppercase">{swiftBic}</span>
+
+                      <div className="flex flex-col sm:flex-row sm:justify-between py-0.5 border-b border-border/40 gap-0.5 group">
+                        <div className="flex items-center justify-between sm:justify-start space-x-1.5">
+                          <span className="text-muted-foreground font-medium">Account Number:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyField(accountNumber || "1015470817401", "Account Number")}
+                            className="no-print opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-primary hover:underline flex items-center space-x-0.5 cursor-pointer"
+                            title="Copy Account Number"
+                          >
+                            {copiedBankField === "Account Number" ? (
+                              <Check className="w-3 h-3 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-2.5 h-2.5" />
+                            )}
+                          </button>
+                        </div>
+                        <span className="font-mono font-bold text-foreground sm:text-right select-all">
+                          {accountNumber || "1015470817401"}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:justify-between py-0.5 border-b border-border/40 gap-0.5">
+                        <span className="text-muted-foreground font-medium">Currency:</span>
+                        <span className="font-mono font-bold text-foreground sm:text-right">
+                          {bankCurrency || "AED"}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:justify-between py-0.5 border-b border-border/40 gap-0.5">
+                        <span className="text-muted-foreground font-medium">SWIFT Code:</span>
+                        <span className="font-mono font-bold text-foreground uppercase sm:text-right">
+                          {swiftBic || "EBILAEAD"}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:justify-between py-0.5 gap-0.5">
+                        <span className="text-muted-foreground font-medium">Routing Number:</span>
+                        <span className="font-mono font-bold text-foreground sm:text-right">
+                          {routingNumber || "302620122"}
+                        </span>
                       </div>
                     </div>
-                    <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/50">
+
+                    <p className="text-[10px] text-muted-foreground pt-1.5 border-t border-border/50">
                       Memo / Reference: <span className="font-mono font-bold text-foreground">#{invoiceNumber}</span>
                     </p>
                   </div>
