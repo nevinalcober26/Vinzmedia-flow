@@ -15,6 +15,8 @@ import {
   Trash2,
   Sparkles,
   ArrowRight,
+  Search,
+  X,
 } from "lucide-react";
 import {
   formatDate,
@@ -39,15 +41,23 @@ export function ProjectsList() {
   } = useStore();
 
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const query = search.trim().toLowerCase();
+  const visibleProjects = projects.filter((project) =>
+    (statusFilter === "all" || project.status === statusFilter) &&
+    (!query || `${project.name} ${project.description || ""}`.toLowerCase().includes(query))
+  );
 
   return (
     <div className="flex flex-col h-full space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between px-1">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 pt-1">
         <div>
-          <h2 className="text-base font-bold text-foreground">Projects Workspace</h2>
-          <p className="text-xs text-muted-foreground">
-            Centralized hub for all active and planned initiatives
+          <p className="page-eyebrow mb-2">Your work, organized</p>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">Projects</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Plan the work. Keep every initiative moving.
           </p>
         </div>
 
@@ -60,6 +70,32 @@ export function ProjectsList() {
         </button>
       </div>
 
+      {projects.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
+          <div className="relative min-w-[160px] flex-1">
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input
+              aria-label="Search projects"
+              placeholder="Find a project…"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-9 text-sm outline-none focus:border-primary"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} aria-label="Clear project search" className="absolute right-2 top-2 rounded p-0.5 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <select aria-label="Filter projects by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-9 rounded-lg border border-border bg-background px-3 text-xs">
+            <option value="all">All statuses</option>
+            {Array.from(new Set(projects.map((project) => project.status))).map((status) => (
+              <option key={status} value={status}>{status.replace(/_/g, " ")}</option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground" role="status">{visibleProjects.length} of {projects.length} projects</span>
+        </div>
+      )}
       {/* Projects Grid or Clean Empty State */}
       {projects.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-border/80 rounded-2xl p-12 text-center my-auto">
@@ -76,9 +112,16 @@ export function ProjectsList() {
             <span>Create First Project</span>
           </button>
         </div>
+      ) : visibleProjects.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-border p-8 text-center">
+          <Search className="mb-3 h-7 w-7 text-muted-foreground" />
+          <h2 className="font-semibold">No matching projects</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Try another name or choose a different status.</p>
+          <button onClick={() => { setSearch(""); setStatusFilter("all"); }} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Clear filters</button>
+        </div>
       ) : (
-        <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
-          {projects.map((proj) => {
+        <div className="flex-1 min-h-0 overflow-y-auto grid auto-rows-max grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-8">
+          {visibleProjects.map((proj) => {
             const projTasks = tasks.filter((t) => t.project_id === proj.id);
             const doneTasks = projTasks.filter((t) => t.status === "done").length;
             const statusBadge = getProjectStatusBadge(proj.status);
@@ -90,8 +133,18 @@ export function ProjectsList() {
             return (
               <div
                 key={proj.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open project ${proj.name}`}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedProjectId(proj.id);
+                  }
+                }}
                 onClick={() => setSelectedProjectId(proj.id)}
-                className="rounded-2xl border border-border/75 bg-card/95 hover:border-primary/50 p-5 flex flex-col justify-between shadow-2xs hover:shadow-xl transition-all duration-200 cursor-pointer group relative"
+                className="rounded-2xl border border-border/75 bg-card/95 hover:border-primary/50 p-5 flex flex-col justify-between shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer group relative"
               >
               <div>
                 {/* Header: Color pill, Status & Menu */}

@@ -326,23 +326,24 @@ export function BillingView() {
   const targetCurInfo = getCurrencyInfo(targetCurrency);
 
   return (
-    <div className="flex h-full flex-col space-y-4 overflow-y-auto pr-1">
+    <div className="billing-view flex h-full flex-col space-y-6 overflow-y-auto pr-1 pb-24">
       {/* Top Banner / Navigation */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-1 pt-1">
         <div>
           <div className="flex items-center space-x-2.5">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
               <Receipt className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                Billing & Financials
+              <p className="page-eyebrow mb-2">Finance workspace</p>
+              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground flex flex-wrap items-center gap-2">
+                Billing & invoices
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
                   {projects.length} Projects
                 </span>
               </h1>
-              <p className="text-xs text-muted-foreground">
-                Project contracts, milestone payment schedules, billable hourly labor & invoices
+              <p className="text-sm text-muted-foreground mt-2">
+                A clear view of your contracts, payments, and outstanding balances.
               </p>
             </div>
           </div>
@@ -395,7 +396,7 @@ export function BillingView() {
       </div>
 
       {/* Financial KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="metric-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Card 1: Total Revenue / Selected Cycle Subtotal */}
         <div className="rounded-xl border border-border/70 bg-card p-4 shadow-xs relative overflow-hidden group hover:border-primary/40 transition-all">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
@@ -420,7 +421,6 @@ export function BillingView() {
             <Briefcase className="w-3 h-3 text-primary" />
             {`Across ${projects.length} workspace projects`}
           </p>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-blue-500 opacity-60" />
         </div>
 
         {/* Card 2: Collected Revenue */}
@@ -450,7 +450,6 @@ export function BillingView() {
               style={{ width: `${Math.min(100, summaryKPIs.collectionPercentage)}%` }}
             />
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 opacity-60" />
         </div>
 
         {/* Card 3: Pending Receivables */}
@@ -475,7 +474,6 @@ export function BillingView() {
             <AlertCircle className="w-3 h-3 text-amber-500" />
             Awaiting settlement or milestone delivery
           </p>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500 opacity-60" />
         </div>
 
         {/* Card 4: Billable Labor & Hours */}
@@ -496,14 +494,13 @@ export function BillingView() {
             <Check className="w-3 h-3 text-indigo-500" />
             {summaryKPIs.paidMilestones}/{summaryKPIs.totalMilestones} Milestones Paid ({summaryKPIs.milestonePercentage}%)
           </p>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500 opacity-60" />
         </div>
       </div>
 
       {/* View Sub-Tabs & Filter Controls Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-card border border-border/70 p-2.5 rounded-xl shadow-xs">
         {/* Navigation Tabs */}
-        <div className="flex items-center space-x-1 border-b md:border-b-0 pb-2 md:pb-0 border-border/50">
+        <div className="flex flex-wrap items-center gap-1 border-b md:border-b-0 pb-2 md:pb-0 border-border/50">
           <button
             onClick={() => setActiveTab("projects")}
             className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -551,7 +548,8 @@ export function BillingView() {
             <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search project or client..."
+              aria-label="Search billing projects or clients"
+              placeholder="Search project or client…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border/70 rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
@@ -560,6 +558,7 @@ export function BillingView() {
 
           {/* Billing Type Filter */}
           <select
+            aria-label="Filter by billing model"
             value={selectedTypeFilter}
             onChange={(e) => setSelectedTypeFilter(e.target.value)}
             className="text-xs bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
@@ -571,6 +570,7 @@ export function BillingView() {
 
           {/* Payment Status Filter */}
           <select
+            aria-label="Filter by payment status"
             value={selectedStatusFilter}
             onChange={(e) => setSelectedStatusFilter(e.target.value)}
             className="text-xs bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
@@ -584,6 +584,7 @@ export function BillingView() {
           {/* Client Filter */}
           {clients.length > 0 && (
             <select
+              aria-label="Filter by client"
               value={selectedClientFilter}
               onChange={(e) => setSelectedClientFilter(e.target.value)}
               className="text-xs bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
@@ -634,7 +635,7 @@ export function BillingView() {
           ) : (
             <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-foreground">
+                <table className="data-table w-full text-left text-xs text-foreground">
                   <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border/70">
                     <tr>
                       <th className="py-3 px-4">Project & Client</th>
@@ -1013,7 +1014,7 @@ export function BillingView() {
         <div className="space-y-3">
           <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-foreground">
+              <table className="data-table w-full text-left text-xs text-foreground">
                 <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border/70">
                   <tr>
                     <th className="py-3 px-4">Invoice #</th>
@@ -1122,7 +1123,7 @@ export function BillingView() {
         <div className="space-y-3">
           <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-foreground">
+              <table className="data-table w-full text-left text-xs text-foreground">
                 <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border/70">
                   <tr>
                     <th className="py-3 px-4">Task Name</th>

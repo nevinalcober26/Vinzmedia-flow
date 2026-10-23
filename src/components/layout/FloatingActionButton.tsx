@@ -58,9 +58,6 @@ export function FloatingActionButton() {
       label: "Create Project",
       sublabel: "New project board & milestones",
       icon: FolderPlus,
-      gradient: "from-blue-600 to-indigo-600",
-      shadow: "shadow-blue-500/25",
-      badgeColor: "bg-blue-500/10 text-blue-500 border-blue-500/20",
       onClick: () => {
         setIsOpen(false);
         setIsCreateProjectModalOpen(true);
@@ -71,9 +68,6 @@ export function FloatingActionButton() {
       label: "Create a Task",
       sublabel: "Add to-dos, work items & assignments",
       icon: CheckSquare,
-      gradient: "from-emerald-600 to-teal-600",
-      shadow: "shadow-emerald-500/25",
-      badgeColor: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
       onClick: () => {
         setIsOpen(false);
         setIsCreateTaskModalOpen(true);
@@ -84,9 +78,6 @@ export function FloatingActionButton() {
       label: "Upload Document",
       sublabel: "Attach briefs, PDFs, spreadsheets & files",
       icon: FileUp,
-      gradient: "from-purple-600 to-fuchsia-600",
-      shadow: "shadow-purple-500/25",
-      badgeColor: "bg-purple-500/10 text-purple-500 border-purple-500/20",
       onClick: () => {
         setIsOpen(false);
         setIsUploadDocModalOpen(true);
@@ -96,7 +87,7 @@ export function FloatingActionButton() {
 
   return (
     <>
-      <div ref={containerRef} className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+      <div ref={containerRef} className="fixed bottom-5 right-5 md:bottom-7 md:right-7 z-50 flex flex-col items-end">
         {/* Backdrop scrim overlay when open */}
         <AnimatePresence>
           {isOpen && (
@@ -147,7 +138,7 @@ export function FloatingActionButton() {
                   >
                     <div className="flex items-center space-x-3 min-w-0">
                       <div
-                        className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${item.gradient} text-white flex items-center justify-center shadow-md ${item.shadow} group-hover:scale-110 transition-transform duration-200 shrink-0`}
+                        className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0"
                       >
                         <Icon className="w-5 h-5" />
                       </div>
@@ -170,21 +161,18 @@ export function FloatingActionButton() {
 
         {/* Floating Action Master Button */}
         <motion.button
-          whileHover={{ scale: 1.08 }}
+          whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.93 }}
           onClick={() => setIsOpen(!isOpen)}
-          className={`relative z-50 flex items-center justify-center w-14 h-14 rounded-2xl text-white shadow-xl cursor-pointer transition-all duration-300 ${
+          className={`relative z-50 flex items-center justify-center w-12 h-12 rounded-xl text-primary-foreground shadow-lg cursor-pointer transition-all duration-300 ${
             isOpen
-              ? "bg-slate-900 border border-slate-700 shadow-slate-900/40 text-foreground"
-              : "bg-gradient-to-tr from-indigo-600 via-purple-600 to-fuchsia-600 shadow-indigo-500/35 hover:shadow-indigo-500/50"
+              ? "bg-foreground text-background"
+              : "bg-primary hover:bg-primary/90"
           }`}
+          aria-expanded={isOpen}
+          aria-label={isOpen ? "Close quick actions" : "Open quick actions"}
           title={isOpen ? "Close Actions" : "Quick Actions (Create Task, Project, Upload)"}
         >
-          {/* Subtle Ambient Pulse Ring when closed */}
-          {!isOpen && (
-            <span className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-40 blur-md -z-10 animate-pulse" />
-          )}
-
           {/* Smooth rotating icon from Plus to X */}
           <motion.div
             animate={{ rotate: isOpen ? 135 : 0 }}

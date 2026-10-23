@@ -118,17 +118,18 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background">
+    <div className="app-shell flex h-dvh w-full overflow-hidden bg-background">
+      <a href="#workspace-content" className="skip-link">Skip to workspace</a>
       {/* Collapsible Left Navigation Sidebar */}
       <Sidebar />
 
       {/* Main Workspace Frame */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Sticky Top Navbar */}
         <Navbar />
 
         {/* Dynamic Viewport */}
-        <main className="flex-1 overflow-hidden p-4 md:p-6 bg-background/50">
+        <main id="workspace-content" tabIndex={-1} className="workspace-content min-w-0 flex-1 overflow-hidden p-4 md:p-7 lg:p-8">
           <AnimatePresence mode="wait">
             {isViewLoading ? (
               <motion.div

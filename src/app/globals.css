@@ -4,23 +4,23 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 224 71.4% 4.1%;
+    --background: 220 23% 97%;
+    --foreground: 222 32% 15%;
     --card: 0 0% 100%;
     --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
-    --primary: 226 70% 55.5%;
+    --primary: 224 73% 52%;
     --primary-foreground: 210 20% 98%;
     --secondary: 220 14.3% 95.9%;
     --secondary-foreground: 220.9 39.3% 11%;
     --muted: 220 14.3% 95.9%;
-    --muted-foreground: 220 8.9% 46.1%;
+    --muted-foreground: 220 12% 43%;
     --accent: 220 14.3% 95.9%;
     --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
-    --border: 220 13% 91%;
+    --border: 220 19% 89%;
     --input: 220 13% 91%;
     --ring: 226 70% 55.5%;
     --radius: 0.625rem;
@@ -36,11 +36,11 @@
   }
 
   .dark {
-    --background: 224 71% 4%;
+    --background: 224 24% 9%;
     --foreground: 210 20% 98%;
-    --card: 224 71% 5.5%;
+    --card: 224 22% 12%;
     --card-foreground: 210 20% 98%;
-    --popover: 224 71% 5.5%;
+    --popover: 224 22% 12%;
     --popover-foreground: 210 20% 98%;
     --primary: 226 70% 58%;
     --primary-foreground: 210 20% 98%;
@@ -56,7 +56,7 @@
     --input: 215 27.9% 16.9%;
     --ring: 226 70% 58%;
 
-    --sidebar-background: 224 71% 3.5%;
+    --sidebar-background: 224 27% 8%;
     --sidebar-foreground: 210 20% 98%;
     --sidebar-primary: 226 70% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -119,6 +119,179 @@
 }
 .dark .premium-card:hover {
   box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.3);
+}
+
+/* Shared workspace system: quiet surfaces, clear hierarchy, deliberate contrast. */
+@layer components {
+  .app-shell {
+    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    letter-spacing: -0.012em;
+  }
+
+  .workspace-sidebar {
+    --sidebar-background: 222 29% 13%;
+    --sidebar-foreground: 220 25% 94%;
+    --sidebar-accent: 222 22% 21%;
+    --sidebar-border: 222 19% 27%;
+    --muted-foreground: 219 15% 70%;
+    --foreground: 220 25% 94%;
+    --background: 222 29% 13%;
+    --card: 222 25% 17%;
+    --card-foreground: 220 25% 94%;
+    --secondary: 222 22% 21%;
+    --border: 222 19% 27%;
+    --primary: 222 95% 76%;
+    --primary-foreground: 222 35% 14%;
+    background: hsl(var(--sidebar-background));
+    box-shadow: none;
+  }
+
+  .workspace-sidebar nav button[aria-current="page"] svg {
+    color: hsl(var(--sidebar-foreground));
+  }
+
+  .workspace-navbar {
+    background: hsl(var(--card) / 0.95);
+  }
+
+  .workspace-content {
+    background: hsl(var(--background));
+  }
+
+  .page-eyebrow {
+    color: hsl(var(--muted-foreground));
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.13em;
+    line-height: 1.5;
+    text-transform: uppercase;
+  }
+
+  .metric-grid > :is(div, button) {
+    border-radius: 14px;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    padding: 20px;
+    box-shadow: 0 2px 3px -2px hsl(var(--foreground) / 0.06);
+  }
+
+  .metric-grid .text-2xl {
+    font-family: inherit;
+    font-size: clamp(1.5rem, 2.1vw, 2rem);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.045em;
+  }
+
+  .billing-view .metric-grid .uppercase {
+    font-size: 11px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .app-shell table {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .app-shell table th {
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.015em;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .data-table {
+    min-width: 1050px;
+  }
+
+  .data-table > thead {
+    background: hsl(var(--secondary) / 0.65);
+  }
+
+  .data-table > tbody > tr > td {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+
+  .data-table > tbody > tr:hover {
+    background: hsl(var(--primary) / 0.025);
+  }
+
+  .skip-link {
+    position: fixed;
+    left: 16px;
+    top: -80px;
+    z-index: 100;
+    border-radius: 8px;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    padding: 12px 18px;
+    box-shadow: 0 4px 20px hsl(var(--foreground) / 0.15);
+  }
+
+  .skip-link:focus {
+    top: 12px;
+  }
+}
+
+@layer base {
+  button, a, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button, a {
+    touch-action: manipulation;
+  }
+
+  button:focus-visible, a:focus-visible, input:focus-visible,
+  select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+
+  input, select, textarea {
+    accent-color: hsl(var(--primary));
+  }
+}
+
+@media (max-width: 767px) {
+  .workspace-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    height: 100dvh;
+  }
+
+  .workspace-sidebar + div {
+    margin-left: 64px;
+  }
+
+  .workspace-navbar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .metric-grid > :is(div, button) {
+    padding: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Premium Skeleton Shimmer */
@@ -203,3 +376,9 @@
 }
 
 
+
+/* Keep keyboard focus visible even on controls that suppress the default outline. */
+.app-shell :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}

@@ -153,14 +153,14 @@ export function Navbar() {
     const CurrentIcon = currentMeta.icon;
 
     return (
-      <div className="flex items-center space-x-2 text-xs md:text-sm select-none">
+      <div className="flex items-center space-x-2 min-w-0 flex-1 text-xs md:text-sm select-none">
         <span className="text-muted-foreground/80 font-medium hidden sm:inline">
           {activeWorkspace.name}
         </span>
         <ChevronRight className="w-3 h-3 text-muted-foreground/40 hidden sm:inline" />
-        <div className="flex items-center space-x-1.5 text-foreground font-semibold">
+        <div className="flex min-w-0 items-center space-x-1.5 text-foreground font-semibold">
           <CurrentIcon className="w-4 h-4 text-primary" />
-          <span className="tracking-tight">{currentMeta.label}</span>
+          <span className="truncate tracking-tight">{currentMeta.label}</span>
         </div>
       </div>
     );
@@ -170,19 +170,19 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/80 px-4 md:px-6 backdrop-blur-xl transition-colors">
+      <header className="workspace-navbar sticky top-0 z-30 flex h-16 shrink-0 w-full items-center justify-between border-b border-border/60 bg-background/80 px-4 md:px-6 backdrop-blur-xl transition-colors">
         {/* Left: Breadcrumbs & Quick Nav */}
-        <div className="flex items-center space-x-3 min-w-0">{getBreadcrumb()}</div>
+        <div className="flex items-center space-x-3 min-w-0 overflow-hidden">{getBreadcrumb()}</div>
 
         {/* Center: Global Search trigger (Linear style) */}
         <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
           <button
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="flex items-center justify-between w-full h-8 px-3 text-xs text-muted-foreground bg-secondary/40 hover:bg-secondary/70 border border-border/60 hover:border-primary/40 rounded-xl transition-all shadow-2xs group cursor-pointer"
+            className="flex items-center justify-between w-full h-9 px-3 text-xs text-muted-foreground bg-secondary/40 hover:bg-secondary/70 border border-border/60 hover:border-primary/40 rounded-xl transition-all shadow-2xs group cursor-pointer"
           >
             <div className="flex items-center space-x-2 truncate">
               <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
-              <span className="truncate">Search tasks, projects, notes, docs...</span>
+              <span className="truncate">Search your workspace…</span>
             </div>
             <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground/80 bg-background/80 border border-border/80 rounded-md shadow-2xs">
               <CommandIcon className="w-2.5 h-2.5" /> K
@@ -190,8 +190,15 @@ export function Navbar() {
           </button>
         </div>
 
+        <button
+          onClick={() => setIsCommandPaletteOpen(true)}
+          aria-label="Search workspace"
+          className="ml-auto mr-1 rounded-lg p-2 text-muted-foreground hover:bg-secondary md:hidden"
+        >
+          <Search className="h-4 w-4" />
+        </button>
         {/* Right Actions */}
-        <div className="flex items-center space-x-2">
+        <div className="flex shrink-0 items-center space-x-0.5 sm:space-x-2">
           {/* Missing Vercel Env Warning Badge */}
           {!isSupabaseConfigured && (
             <button

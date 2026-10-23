@@ -74,6 +74,24 @@ export function Sidebar() {
 
   useEffect(() => {
     setMounted(true);
+    const media = window.matchMedia("(max-width: 767px)");
+    setIsCollapsed(media.matches);
+    const handleResize = (event: MediaQueryListEvent) => setIsCollapsed(event.matches);
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && media.matches) setIsCollapsed(true);
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+        const target = event.target as HTMLElement;
+        if (target.closest("input, textarea, [contenteditable=true]")) return;
+        event.preventDefault();
+        setIsCollapsed((previous) => !previous);
+      }
+    };
+    media.addEventListener("change", handleResize);
+    window.addEventListener("keydown", handleShortcut);
+    return () => {
+      media.removeEventListener("change", handleResize);
+      window.removeEventListener("keydown", handleShortcut);
+    };
   }, []);
 
   // Dismiss tooltip on window scroll or resize
@@ -117,6 +135,7 @@ export function Sidebar() {
   const handleNavClick = (view: ActiveView) => {
     setSelectedProjectId(null);
     setActiveView(view);
+    if (window.matchMedia("(max-width: 767px)").matches) setIsCollapsed(true);
   };
 
   // Logically structured navigation sections
@@ -247,19 +266,20 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`relative flex flex-col border-r border-sidebar-border/70 bg-sidebar/95 backdrop-blur-xl text-sidebar-foreground transition-all duration-300 z-40 select-none shadow-xs ${
-        isCollapsed ? "w-16" : "w-64"
+      aria-label="Workspace navigation"
+      className={`workspace-sidebar relative shrink-0 flex flex-col border-r border-sidebar-border/70 bg-sidebar/95 backdrop-blur-xl text-sidebar-foreground transition-all duration-300 z-40 select-none shadow-xs ${
+        isCollapsed ? "w-16" : "w-64 lg:w-[248px]"
       }`}
     >
       {/* Premium Workspace Header Switcher */}
-      <div className="flex h-14 items-center justify-between border-b border-sidebar-border/60 px-3 shrink-0">
+      <div className="flex h-16 items-center justify-between border-b border-sidebar-border/60 px-3 shrink-0">
         {!isCollapsed ? (
           <div className="relative flex-1 min-w-0 pr-1">
             <button
               onClick={() => setIsWorkspaceMenuOpen(!isWorkspaceMenuOpen)}
               className="flex items-center space-x-2.5 w-full text-left p-1.5 rounded-xl hover:bg-sidebar-accent/60 transition-all border border-transparent hover:border-sidebar-border/50 group cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-indigo-500/20 flex-shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shadow-sm shadow-indigo-500/20 flex-shrink-0 group-hover:scale-105 transition-transform">
                 {activeWorkspace.name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
@@ -272,7 +292,7 @@ export function Sidebar() {
                   </span>
                 </div>
                 <p className="text-[10px] text-muted-foreground truncate">
-                  Enterprise Workspace
+                  Team workspace
                 </p>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-muted-foreground group-hover:text-sidebar-foreground transition-colors flex-shrink-0" />
@@ -291,7 +311,7 @@ export function Sidebar() {
                 >
                   <div className="px-3.5 py-1 text-[10px] uppercase font-bold tracking-wider text-muted-foreground/80 flex items-center justify-between">
                     <span>Workspaces</span>
-                    <span className="text-[9px] font-mono text-muted-foreground/60">
+                    <span className="text-[9px] font-mono text-muted-foreground/90">
                       {workspaces.length} active
                     </span>
                   </div>
@@ -309,7 +329,7 @@ export function Sidebar() {
                           }`}
                         >
                           <div className="flex items-center space-x-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center text-[10px] font-bold shadow-xs flex-shrink-0">
+                            <div className="w-6 h-6 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold shadow-xs flex-shrink-0">
                               {ws.name.charAt(0)}
                             </div>
                             <span className="truncate text-xs">{ws.name}</span>
@@ -334,7 +354,7 @@ export function Sidebar() {
             }
             onMouseLeave={hideTooltip}
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-indigo-500/20">
+            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shadow-sm shadow-indigo-500/20">
               {activeWorkspace.name.charAt(0)}
             </div>
           </div>
@@ -346,6 +366,8 @@ export function Sidebar() {
             hideTooltip();
             setIsCollapsed(!isCollapsed);
           }}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!isCollapsed}
           title={isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
           onMouseEnter={(e) =>
             showTooltip(e, isCollapsed ? "Expand Sidebar" : "Collapse Sidebar", undefined, "Toggle Sidebar (⌘B)")
@@ -364,12 +386,12 @@ export function Sidebar() {
       {/* Main Navigation Scroll Area */}
       <div
         onScroll={hideTooltip}
-        className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3 space-y-4"
+        className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-4"
       >
         {navSections.map((section) => (
           <div key={section.id} className="space-y-1">
             {!isCollapsed ? (
-              <div className="px-2 pt-2 pb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+              <div className="px-2 pt-2 pb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90">
                 <span>{section.title}</span>
                 {section.isProjectsGroup && (
                   <button
@@ -398,13 +420,14 @@ export function Sidebar() {
                     }}
                     title={isCollapsed ? `${item.label} • ${section.title}` : undefined}
                     aria-label={item.label}
+                    aria-current={isActive ? "page" : undefined}
                     onMouseEnter={(e) => showTooltip(e, item.label, item.badge, section.title)}
                     onMouseLeave={hideTooltip}
                     className={`w-full relative flex items-center ${
                       isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
-                    } py-1.5 text-xs rounded-xl font-medium transition-all group cursor-pointer ${
+                    } py-2 text-[13px] rounded-lg font-medium transition-all group cursor-pointer ${
                       isActive
-                        ? "bg-primary/10 text-primary font-semibold shadow-2xs border-l-2 border-primary"
+                        ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm ring-1 ring-sidebar-border"
                         : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
                     }`}
                   >

@@ -76,19 +76,20 @@ export function MainDashboard() {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6 overflow-y-auto pr-1 pb-10">
+    <div className="dashboard-view flex flex-col h-full space-y-6 overflow-y-auto pr-1 pb-24">
       {/* Welcome Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-primary/10 via-purple-500/10 to-indigo-500/5 border border-primary/20 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-5 pb-2 pt-1">
         <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-bold text-foreground">
-              Welcome back, {currentUser.full_name}! 👋
+          <p className="page-eyebrow mb-2">Workspace overview</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+              Welcome back, {currentUser.full_name.split(" ")[0]}
             </h1>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/20 text-primary capitalize">
               {currentUser.role.replace("_", " ")}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-2">
             You have <span className="font-semibold text-foreground">{myPendingTasks.length} pending tasks</span> across {activeProjects.length} active initiatives.
           </p>
         </div>
@@ -112,11 +113,12 @@ export function MainDashboard() {
       </div>
 
       {/* KPI Metrics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      <div className="metric-grid grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5">
         {/* Active Projects */}
-        <div
+        <button
+          type="button"
           onClick={() => setActiveView("projects")}
-          className="p-4 rounded-2xl bg-card border border-border/80 hover:border-primary/50 shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
+          className="text-left p-4 rounded-2xl bg-card border border-border/80 hover:border-primary/50 shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between text-muted-foreground mb-2">
             <span className="text-xs font-medium">Active Projects</span>
@@ -126,12 +128,13 @@ export function MainDashboard() {
           <span className="text-[10px] text-muted-foreground mt-1 block">
             {projects.length} total projects
           </span>
-        </div>
+        </button>
 
         {/* My Tasks */}
-        <div
+        <button
+          type="button"
           onClick={() => setActiveView("my_tasks")}
-          className="p-4 rounded-2xl bg-card border border-border/80 hover:border-primary/50 shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
+          className="text-left p-4 rounded-2xl bg-card border border-border/80 hover:border-primary/50 shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between text-muted-foreground mb-2">
             <span className="text-xs font-medium">Assigned to Me</span>
@@ -141,7 +144,7 @@ export function MainDashboard() {
           <span className="text-[10px] text-muted-foreground mt-1 block">
             {myPendingTasks.length} pending
           </span>
-        </div>
+        </button>
 
         {/* In Progress */}
         <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs">
@@ -202,11 +205,11 @@ export function MainDashboard() {
         {/* Productivity Score */}
         <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-medium">Health Index</span>
+            <span className="text-xs font-medium">Completion</span>
             <TrendingUp className="w-4 h-4 text-purple-500" />
           </div>
-          <p className="text-2xl font-bold font-mono text-foreground">94/100</p>
-          <span className="text-[10px] text-purple-600 font-medium mt-1 block">On track</span>
+          <p className="text-2xl font-bold font-mono text-foreground">{overallCompletion}%</p>
+          <span className="text-[10px] text-muted-foreground font-medium mt-1 block">{completedTasks.length} of {totalTasksCount} tasks done</span>
         </div>
       </div>
 
