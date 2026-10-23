@@ -76,11 +76,6 @@ export function EditProfileModal() {
     reader.readAsDataURL(file);
   };
 
-  const handleUseLetterAvatar = () => {
-    setAvatarUrl(null);
-    toast.info("Letter Avatar Selected", "A clean initials badge will be used.");
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) {
@@ -168,13 +163,11 @@ export function EditProfileModal() {
                   <div>
                     <h4 className="text-xs font-bold text-foreground">Profile Picture</h4>
                     <p className="text-[11px] text-muted-foreground">
-                      {avatarUrl
-                        ? "Custom photo active"
-                        : "Letter Avatar active by default (clean dynamic initials)"}
+                      PNG, JPG, or WEBP (Max 5MB)
                     </p>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2.5">
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -186,7 +179,7 @@ export function EditProfileModal() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-xs hover:bg-primary/90 transition-all flex items-center space-x-1.5 cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-xs hover:bg-primary/90 transition-all flex items-center space-x-1.5 cursor-pointer"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       <span>Upload Photo</span>
@@ -195,11 +188,11 @@ export function EditProfileModal() {
                     {avatarUrl && (
                       <button
                         type="button"
-                        onClick={handleUseLetterAvatar}
-                        className="px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground font-semibold text-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                        onClick={() => setAvatarUrl(null)}
+                        className="text-xs text-muted-foreground hover:text-rose-500 font-medium transition-colors cursor-pointer flex items-center space-x-1 px-2 py-1 rounded-lg hover:bg-rose-500/10"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Use Letter Avatar</span>
+                        <Trash2 className="w-3 h-3" />
+                        <span>Remove Photo</span>
                       </button>
                     )}
                   </div>
