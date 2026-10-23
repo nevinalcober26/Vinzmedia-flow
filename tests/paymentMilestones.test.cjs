@@ -10,7 +10,7 @@ const compiled = ts.transpileModule(
 ).outputText;
 const context = { exports: {} };
 vm.runInNewContext(compiled, context);
-const { reconcilePaymentMilestones, getConfiguredPaymentMilestones } = context.exports;
+const { reconcilePaymentMilestones, getConfiguredPaymentMilestones, buildFixedPriceInvoiceItems } = context.exports;
 const schedule = (count) => Array.from({ length: count }, (_, i) => ({
   id: `payment-${i + 1}`, project_id: 'project', installment_number: i + 1,
   title: `Payment ${i + 1}`, percentage: count === 3 ? [40, 40, 20][i] : 100 / count,
@@ -69,3 +69,27 @@ for (const [count, percentages, total] of [[2, [50, 50], 1000], [3, [40, 40, 20]
     assert.equal(result.find((item) => item.status !== 'paid')?.installment_number, count === 2 ? undefined : 3);
   });
 }
+
+for (const payment_schedule of ['weekly', '15_days', '30_days', 'custom']) {
+  test(`fixed-price invoice ignores ${payment_schedule} cycle and bills the next configured milestone`, () => {
+    const installments = schedule(3);
+    installments[0].status = 'paid';
+    installments[1].status = 'paid';
+    const items = buildFixedPriceInvoiceItems({
+      id: 'project', name: 'Fixed contract', billing_type: 'fixed',
+      payment_schedule, payment_installments_count: 3, fixed_price_amount: 5800,
+      start_date: '2026-01-01', target_date: '2026-12-31', installments,
+    });
+    assert.equal(items.length, 1);
+    assert.equal(items[0].amount, 1160);
+    assert.equal(items[0].id, 'payment-3');
+  });
+}
+
+test('fixed-price contract without milestones bills the full amount, without time proration', () => {
+  const items = buildFixedPriceInvoiceItems({
+    id: 'project', name: 'Fixed contract', fixed_price_amount: 1000,
+    payment_schedule: '30_days', start_date: '2026-01-01', target_date: '2026-12-31',
+  });
+  assert.equal(items[0].amount, 1000);
+});

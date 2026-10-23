@@ -45,6 +45,7 @@ import {
   formatCurrencyAmount,
 } from "@/lib/currencyRates";
 import { ClientAvatar } from "@/components/common/ClientAvatar";
+import { buildFixedPriceInvoiceItems } from "@/lib/paymentMilestones";
 
 interface ProjectInvoiceModalProps {
   isOpen: boolean;
@@ -144,91 +145,8 @@ export function ProjectInvoiceModal({
     sched: PaymentSchedule,
     termsDays?: number
   ): ProjectInvoiceItem[] => {
-    const isFixed = proj.billing_type === "fixed";
-    const cur = proj.currency || "$";
-
-    if (isFixed) {
-      const fixedTotal = Number(proj.fixed_price_amount) || 5000;
-      let durationDays = 30;
-      if (proj.start_date && proj.target_date) {
-        const start = new Date(proj.start_date).getTime();
-        const end = new Date(proj.target_date).getTime();
-        const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-        if (diff > 0) durationDays = diff;
-      }
-
-      // If project has installments configured in Edit Billing matching this schedule, use that installment
-      if (proj.installments && proj.installments.length > 0 && sched === proj.payment_schedule) {
-        const pendingInst = proj.installments.find((i) => i.status !== "paid") || proj.installments[0];
-        if (pendingInst && (Number(pendingInst.amount) || 0) > 0) {
-          return [
-            {
-              id: pendingInst.id || `item_inst_${pendingInst.installment_number}`,
-              description: `${pendingInst.title || `Payment Milestone #${pendingInst.installment_number}`} (${pendingInst.percentage || 100}% of ${currencySymbol}${fixedTotal.toLocaleString()} contract)`,
-              quantity: 1,
-              rate: Number(pendingInst.amount) || 0,
-              amount: Number(pendingInst.amount) || 0,
-            },
-          ];
-        }
-      }
-
-      if (sched === "weekly") {
-        const weeks = Math.max(1, Math.round(durationDays / 7));
-        const weeklyAmt = Math.round((fixedTotal / weeks) * 100) / 100;
-        return [
-          {
-            id: "item_weekly_cycle",
-            description: `Weekly Payment Milestone (${weeks} weeks project duration - Net 7 Days)`,
-            quantity: 1,
-            rate: weeklyAmt,
-            amount: weeklyAmt,
-          },
-        ];
-      } else if (sched === "15_days") {
-        const cycles = Math.max(1, Math.round(durationDays / 15));
-        const cycleAmt = Math.round((fixedTotal / cycles) * 100) / 100;
-        return [
-          {
-            id: "item_15days_cycle",
-            description: `Every 15 Days Semi-Monthly Payment (Cycle 1 of ${cycles} - Net 15 Days)`,
-            quantity: 1,
-            rate: cycleAmt,
-            amount: cycleAmt,
-          },
-        ];
-      } else if (sched === "30_days") {
-        const months = Math.max(1, Math.round(durationDays / 30));
-        const monthlyAmt = Math.round((fixedTotal / months) * 100) / 100;
-        return [
-          {
-            id: "item_30days_cycle",
-            description: `30-Day Monthly Contract Settlement Payment (Net 30 Days)`,
-            quantity: 1,
-            rate: monthlyAmt,
-            amount: monthlyAmt,
-          },
-        ];
-      } else {
-        if (proj.installments && proj.installments.length > 0) {
-          return proj.installments.map((inst, idx) => ({
-            id: inst.id || `item_${idx + 1}`,
-            description: inst.title || `Payment Milestone #${idx + 1}`,
-            quantity: 1,
-            rate: Number(inst.amount) || 0,
-            amount: Number(inst.amount) || 0,
-          }));
-        }
-        return [
-          {
-            id: "item_fixed_total",
-            description: `Full Contract Value Deliverable (${proj.name})`,
-            quantity: 1,
-            rate: fixedTotal,
-            amount: fixedTotal,
-          },
-        ];
-      }
+    if (proj.billing_type !== "hourly") {
+      return buildFixedPriceInvoiceItems(proj);
     } else {
       // Hourly Time & Materials
       const rate = Number(proj.hourly_rate) || 75;
@@ -267,35 +185,8 @@ export function ProjectInvoiceModal({
 
   // Helper to compute projected cycle subtotal for badge previews
   const getSubtotalForSchedule = (sched: PaymentSchedule): number => {
-    const isFixed = project?.billing_type === "fixed";
-    if (isFixed) {
-      const fixedTotal = Number(project?.fixed_price_amount) || 5000;
-      let durationDays = 30;
-      if (project?.start_date && project?.target_date) {
-        const start = new Date(project.start_date).getTime();
-        const end = new Date(project.target_date).getTime();
-        const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-        if (diff > 0) durationDays = diff;
-      }
-
-      // If project has installments configured in Edit Billing matching this schedule, use that installment amount
-      if (project?.installments && project.installments.length > 0 && sched === project.payment_schedule) {
-        const pendingInst = project.installments.find((i) => i.status !== "paid") || project.installments[0];
-        if (pendingInst && (Number(pendingInst.amount) || 0) > 0) {
-          return Number(pendingInst.amount);
-        }
-      }
-
-      if (sched === "weekly") {
-        const weeks = Math.max(1, Math.round(durationDays / 7));
-        return Math.round((fixedTotal / weeks) * 100) / 100;
-      } else if (sched === "15_days") {
-        const cycles = Math.max(1, Math.round(durationDays / 15));
-        return Math.round((fixedTotal / cycles) * 100) / 100;
-      } else {
-        const months = Math.max(1, Math.round(durationDays / 30));
-        return Math.round((fixedTotal / months) * 100) / 100;
-      }
+    if (project.billing_type !== "hourly") {
+      return buildFixedPriceInvoiceItems(project).reduce((sum, item) => sum + item.amount, 0);
     } else {
       const rate = Number(project?.hourly_rate) || 75;
       const baseHours = Number(project?.estimated_hours_per_week || project?.estimated_hours || 40);
@@ -365,7 +256,7 @@ export function ProjectInvoiceModal({
 
       // Notes
       setNotes(
-        `Payment is due within ${days} days of invoice date (${sched === "weekly" ? "Weekly Payment" : sched === "15_days" ? "Every 15 Days / Semi-Monthly" : "30 Days / Monthly"}). Please reference invoice #${generatedNum} on all remittances.`
+        `Payment is due within ${days} days of invoice date (${project.billing_type !== "hourly" ? "Milestone-based payment" : sched === "weekly" ? "Weekly Payment" : sched === "15_days" ? "Every 15 Days / Semi-Monthly" : "30 Days / Monthly"}). Please reference invoice #${generatedNum} on all remittances.`
       );
 
       // Line Items
@@ -400,7 +291,7 @@ export function ProjectInvoiceModal({
       addNotification({
         id: `notif_invoice_ready_${project.id}_${generatedNum}`,
         title: `Invoice Ready to View: ${project.name}`,
-        message: `Invoice #${generatedNum} for ${currencySymbol}${getSubtotalForSchedule(sched).toLocaleString(undefined, { minimumFractionDigits: 2 })} (${sched === "weekly" ? "Weekly" : sched === "15_days" ? "15-Day" : "30-Day"} cycle) is ready to view and export.`,
+        message: `Invoice #${generatedNum} for ${currencySymbol}${getSubtotalForSchedule(sched).toLocaleString(undefined, { minimumFractionDigits: 2 })} (${project.billing_type !== "hourly" ? "Milestone payment" : sched === "weekly" ? "Weekly cycle" : sched === "15_days" ? "15-Day cycle" : "30-Day cycle"}) is ready to view and export.`,
         type: "invoice",
         link_url: "/billing",
       });
@@ -447,6 +338,7 @@ export function ProjectInvoiceModal({
 
   // Handle schedule change - dynamically recalculates subtotal and line items
   const handleScheduleChange = (newSched: PaymentSchedule) => {
+    if (project.billing_type !== "hourly") return;
     setPaymentSchedule(newSched);
     let days = 30;
     if (newSched === "weekly") days = 7;
@@ -482,8 +374,8 @@ export function ProjectInvoiceModal({
 
   // Switch to billing full project contract at once
   const handleBillFullContract = () => {
-    if (project.billing_type === "fixed") {
-      const fixedTotal = Number(project.fixed_price_amount) || 5000;
+    if (project.billing_type !== "hourly") {
+      const fixedTotal = Number(project.fixed_price_amount) || 0;
       setLineItems([
         {
           id: "item_full_contract",
@@ -621,7 +513,7 @@ export function ProjectInvoiceModal({
   const handleSaveToProject = () => {
     try {
       updateProject(project.id, {
-        payment_schedule: paymentSchedule,
+        ...(project.billing_type === "hourly" ? { payment_schedule: paymentSchedule } : {}),
         payment_terms_days: paymentTermsDays,
         enable_currency_conversion: enableConversion,
         converted_currency: targetCurrency,
@@ -630,7 +522,7 @@ export function ProjectInvoiceModal({
       });
 
       const schedName =
-        paymentSchedule === "weekly"
+        project.billing_type !== "hourly" ? "Milestone payment" : paymentSchedule === "weekly"
           ? "Weekly (Net 7)"
           : paymentSchedule === "15_days"
           ? "Every 15 Days (Net 15)"
@@ -643,7 +535,7 @@ export function ProjectInvoiceModal({
         link_url: "/billing",
       });
 
-      toast?.success("Invoice Settings Saved", "Payment terms & billing cycle updated and logged to Notification Center.");
+      toast?.success("Invoice Settings Saved", "Invoice payment terms and settings updated.");
       setActiveTab("preview");
     } catch (err: any) {
       toast?.error("Error", err?.message || "Failed to save invoice settings.");
@@ -741,7 +633,9 @@ export function ProjectInvoiceModal({
                     Corporate Billing Invoice
                   </span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
-                    {paymentSchedule === "weekly"
+                    {project.billing_type !== "hourly"
+                      ? "Fixed price · Milestones"
+                      : paymentSchedule === "weekly"
                       ? "Weekly • Net 7"
                       : paymentSchedule === "15_days"
                       ? "15 Days • Net 15"
@@ -817,7 +711,8 @@ export function ProjectInvoiceModal({
 
           {/* Quick Payment Schedule & Currency Bar (Hidden in Print) */}
           <div className="no-print px-4 sm:px-6 py-2 bg-secondary/20 border-b border-border/70 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0">
-            {/* Quick Payment Cycle Selector */}
+            {/* Billing cycles apply only to hourly capacity. */}
+            {project.billing_type === "hourly" ? (
             <div className="flex items-center space-x-2">
               <span className="font-semibold text-foreground flex items-center space-x-1.5 text-xs">
                 <CalendarDays className="w-3.5 h-3.5 text-primary" />
@@ -882,6 +777,13 @@ export function ProjectInvoiceModal({
                 </button>
               </div>
             </div>
+
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-medium text-muted-foreground">Fixed price · Milestone schedule</span>
+                <button type="button" onClick={handleBillFullContract} className="rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium hover:bg-secondary">Full contract</button>
+              </div>
+            )}
 
             {/* Currency Conversion Switch */}
             <div className="flex items-center space-x-2">
@@ -970,6 +872,7 @@ export function ProjectInvoiceModal({
                     />
                   </div>
 
+                  {project.billing_type === "hourly" ? (
                   <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-foreground">Payment Schedule</label>
                     <select
@@ -989,6 +892,16 @@ export function ProjectInvoiceModal({
                       <option value="custom">Custom Terms</option>
                     </select>
                   </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <label htmlFor="fixed-invoice-terms" className="text-[11px] font-semibold text-foreground">Payment Terms (days)</label>
+                      <input id="fixed-invoice-terms" type="number" min="0" step="1" value={paymentTermsDays} onChange={(event) => {
+                        const days = Math.max(0, Math.trunc(Number(event.target.value) || 0));
+                        setPaymentTermsDays(days);
+                        setDueDate(computeDueDate(issueDate, days));
+                      }} className="w-full rounded-xl border border-border bg-background px-3 py-1.5 text-xs" />
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-foreground">Due Date</label>
@@ -1518,13 +1431,15 @@ export function ProjectInvoiceModal({
               <div className="flex flex-wrap items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/80 text-xs">
                 <div className="flex items-center space-x-2">
                   <span className="text-base">
-                    {paymentSchedule === "weekly" ? "🗓️" : paymentSchedule === "15_days" ? "🌓" : "🌕"}
+                    {project.billing_type !== "hourly" ? "◇" : paymentSchedule === "weekly" ? "🗓️" : paymentSchedule === "15_days" ? "🌓" : "🌕"}
                   </span>
                   <div>
                     <span className="font-bold text-foreground">
                       Payment Schedule:{" "}
                       <span className="text-[#0073ea]">
-                        {paymentSchedule === "weekly"
+                        {project.billing_type !== "hourly"
+                          ? `Milestone-based · Net ${paymentTermsDays} Days`
+                          : paymentSchedule === "weekly"
                           ? "Weekly Payment (Net 7 Days)"
                           : paymentSchedule === "15_days"
                           ? "Every 15 Days (Net 15 Days / Semi-Monthly)"

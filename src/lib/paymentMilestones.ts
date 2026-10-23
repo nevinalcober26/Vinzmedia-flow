@@ -1,4 +1,28 @@
-import type { Project, ProjectPaymentInstallment } from "@/types";
+import type { Project, ProjectInvoiceItem, ProjectPaymentInstallment } from "@/types";
+
+export function buildFixedPriceInvoiceItems(project: Project): ProjectInvoiceItem[] {
+  const total = Number(project.fixed_price_amount) || 0;
+  const installments = project.installments?.length
+    ? getConfiguredPaymentMilestones(project)
+    : [];
+  const milestone = installments.find((item) => item.status !== "paid") || installments[0];
+  if (milestone) {
+    return [{
+      id: milestone.id,
+      description: `${milestone.title} (${milestone.percentage ?? 0}% of contract)`,
+      quantity: 1,
+      rate: milestone.amount,
+      amount: milestone.amount,
+    }];
+  }
+  return [{
+    id: "item_fixed_total",
+    description: `Full Contract Value Deliverable (${project.name})`,
+    quantity: 1,
+    rate: total,
+    amount: total,
+  }];
+}
 
 export function getConfiguredPaymentMilestones(project: Pick<Project,
   "id" | "installments" | "payment_installments_count" | "fixed_price_amount"
