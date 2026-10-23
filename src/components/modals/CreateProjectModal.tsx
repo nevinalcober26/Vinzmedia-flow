@@ -4,15 +4,18 @@ import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, FolderKanban, Calendar, AlertCircle, Palette, Check, Globe, Lock, Users, Info, DollarSign, Clock, Coins } from "lucide-react";
+import { X, Plus, FolderKanban, Calendar, AlertCircle, Palette, Check, Globe, Lock, Users, Info, DollarSign, Clock, Coins, Building2, UserPlus } from "lucide-react";
 import { PriorityLevel, ProjectStatus, ProjectBillingType } from "@/types";
 import { DEFAULT_TASK_TYPES, DEFAULT_DEPARTMENTS } from "@/lib/taskTypes";
+import { ClientAvatar } from "@/components/common/ClientAvatar";
 
 export function CreateProjectModal() {
   const {
     isCreateProjectModalOpen,
     setIsCreateProjectModalOpen,
     createProject,
+    clients,
+    createClient,
     users,
     currentUser,
     setSelectedProjectId,
@@ -27,12 +30,38 @@ export function CreateProjectModal() {
   const [accessScope, setAccessScope] = useState<"all" | "specific">("all");
   const [memberIds, setMemberIds] = useState<string[]>([currentUser.id]);
 
+  // Client link & quick create
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [isCreatingClient, setIsCreatingClient] = useState<boolean>(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientCompany, setNewClientCompany] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+
   // Pricing & Billing
   const [billingType, setBillingType] = useState<ProjectBillingType>("fixed");
   const [fixedAmount, setFixedAmount] = useState<string>("5000");
   const [installmentsCount, setInstallmentsCount] = useState<number>(3);
   const [hourlyRate, setHourlyRate] = useState<string>("75");
   const [estimatedHours, setEstimatedHours] = useState<string>("50");
+
+  const handleQuickCreateClient = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientCompany.trim() && !newClientName.trim()) return;
+    const created = createClient({
+      name: newClientName.trim() || newClientCompany.trim(),
+      company: newClientCompany.trim() || newClientName.trim(),
+      email: newClientEmail.trim(),
+      status: "active",
+      project_ids: [],
+    });
+    if (created) {
+      setSelectedClientId(created.id);
+      setIsCreatingClient(false);
+      setNewClientName("");
+      setNewClientCompany("");
+      setNewClientEmail("");
+    }
+  };
 
   const handleClose = () => {
     setIsCreateProjectModalOpen(false);
@@ -82,6 +111,7 @@ export function CreateProjectModal() {
       target_date: targetDate || undefined,
       all_members: accessScope === "all",
       member_ids: accessScope === "all" ? users.map((u) => u.id) : memberIds,
+      client_id: selectedClientId || undefined,
       billing_type: billingType,
       fixed_price_amount: billingType === "fixed" ? parsedFixed : 0,
       payment_installments_count: billingType === "fixed" ? installmentsCount : 1,
@@ -100,6 +130,8 @@ export function CreateProjectModal() {
       setSelectedProjectId(newProj.id);
       setName("");
       setDescription("");
+      setSelectedClientId("");
+      setIsCreatingClient(false);
       setAccessScope("all");
       setMemberIds([currentUser.id]);
       handleClose();
@@ -236,6 +268,140 @@ export function CreateProjectModal() {
                     className="w-full bg-secondary/30 border border-border rounded-xl px-2.5 py-2 text-xs text-foreground cursor-pointer"
                   />
                 </div>
+              </div>
+
+              {/* Client & Organization Association */}
+              <div className="space-y-2 pt-1 border-t border-border/50">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-foreground flex items-center space-x-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-primary" />
+                    <span>Client & Organization</span>
+                  </label>
+                  {!isCreatingClient && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingClient(true)}
+                      className="text-[11px] font-semibold text-primary hover:underline flex items-center space-x-1 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Create New Client</span>
+                    </button>
+                  )}
+                </div>
+
+                {!isCreatingClient ? (
+                  <div className="space-y-2">
+                    <select
+                      value={selectedClientId}
+                      onChange={(e) => setSelectedClientId(e.target.value)}
+                      className="w-full bg-secondary/30 border border-border rounded-xl px-3 py-2 text-xs text-foreground cursor-pointer font-medium"
+                    >
+                      <option value="">🏢 No Client (Internal Project)</option>
+                      {clients.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.company ? `${c.company} — ${c.name}` : c.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Preview linked client with letter avatar */}
+                    {selectedClientId && (() => {
+                      const client = clients.find((c) => c.id === selectedClientId);
+                      if (!client) return null;
+                      return (
+                        <div className="p-2.5 rounded-xl bg-secondary/40 border border-border/80 flex items-center justify-between animate-in fade-in">
+                          <div className="flex items-center space-x-2.5">
+                            <ClientAvatar client={client} size="md" />
+                            <div>
+                              <p className="text-xs font-bold text-foreground">
+                                {client.company || client.name}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                Contact: {client.name} • {client.email}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedClientId("")}
+                            className="text-[10px] text-muted-foreground hover:text-destructive px-2 py-1 rounded-md hover:bg-destructive/10 transition-colors"
+                          >
+                            Unlink
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  /* Quick inline client creation */
+                  <div className="p-3.5 rounded-xl bg-secondary/40 border border-primary/30 space-y-3 animate-in fade-in slide-in-from-top-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-primary flex items-center space-x-1">
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Quick Create Client & Link to Project</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsCreatingClient(false)}
+                        className="text-muted-foreground hover:text-foreground p-0.5"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-semibold text-muted-foreground">Company / Organization *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Acme Corp"
+                          value={newClientCompany}
+                          onChange={(e) => setNewClientCompany(e.target.value)}
+                          className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-semibold text-muted-foreground">Primary Contact Name *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Sarah Connor"
+                          value={newClientName}
+                          onChange={(e) => setNewClientName(e.target.value)}
+                          className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-semibold text-muted-foreground">Billing / Contact Email</label>
+                      <input
+                        type="email"
+                        placeholder="e.g. accounting@acmewidgets.com"
+                        value={newClientEmail}
+                        onChange={(e) => setNewClientEmail(e.target.value)}
+                        className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-end space-x-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setIsCreatingClient(false)}
+                        className="px-3 py-1 rounded-lg text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleQuickCreateClient}
+                        disabled={!newClientCompany.trim() && !newClientName.trim()}
+                        className="px-3 py-1 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-lg text-xs font-semibold cursor-pointer"
+                      >
+                        Save & Link Client
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Project Pricing & Billing Model */}

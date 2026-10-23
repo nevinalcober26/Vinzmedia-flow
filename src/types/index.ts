@@ -87,6 +87,9 @@ export interface Project {
   all_members?: boolean;
   members?: User[];
   milestones?: Milestone[];
+  // Client link
+  client_id?: string | null;
+  client?: Client;
   // Pricing & Billing
   billing_type?: ProjectBillingType;
   fixed_price_amount?: number;
@@ -237,6 +240,8 @@ export interface Task {
   estimated_hours?: number;
   tracked_seconds: number;
   is_timer_running?: boolean;
+  is_paid?: boolean;
+  paid_at?: string;
   task_type?: string;
   department?: string;
   dependencies: string[]; // task IDs
@@ -359,6 +364,7 @@ export type ActiveView =
   | 'activity'
   | 'workload'
   | 'clients'
+  | 'billing'
   | 'settings';
 
 export type ProjectSubTab =

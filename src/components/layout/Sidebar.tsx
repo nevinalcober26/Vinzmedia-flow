@@ -24,6 +24,7 @@ import {
   Archive,
   Compass,
   FolderArchive,
+  Receipt,
 } from "lucide-react";
 import { ActiveView } from "@/types";
 
@@ -84,6 +85,12 @@ export function Sidebar() {
       label: "Clients & Files",
       icon: FolderArchive,
       badge: files.length > 0 ? files.length : null,
+    },
+    {
+      id: "billing" as ActiveView,
+      label: "Billing & Invoices",
+      icon: Receipt,
+      badge: null,
     },
     {
       id: "calendar" as ActiveView,
@@ -156,28 +163,34 @@ export function Sidebar() {
 
             {/* Workspace Switcher dropdown */}
             {isWorkspaceMenuOpen && (
-              <div
-                className="absolute left-0 top-12 w-56 rounded-xl bg-card border border-border shadow-xl py-1.5 z-50 text-xs animate-in fade-in zoom-in-95"
-                onClick={() => setIsWorkspaceMenuOpen(false)}
-              >
-                <div className="px-3 py-1.5 text-[10px] uppercase font-semibold text-muted-foreground">
-                  Workspaces
+              <>
+                <div
+                  className="fixed inset-0 z-40 cursor-default"
+                  onClick={() => setIsWorkspaceMenuOpen(false)}
+                />
+                <div
+                  className="absolute left-0 top-12 w-56 rounded-xl bg-card border border-border shadow-xl py-1.5 z-50 text-xs animate-in fade-in zoom-in-95"
+                  onClick={() => setIsWorkspaceMenuOpen(false)}
+                >
+                  <div className="px-3 py-1.5 text-[10px] uppercase font-semibold text-muted-foreground">
+                    Workspaces
+                  </div>
+                  {workspaces.map((ws) => (
+                    <button
+                      key={ws.id}
+                      onClick={() => setActiveWorkspaceId(ws.id)}
+                      className={`w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-secondary transition-colors ${
+                        ws.id === activeWorkspace.id ? "bg-secondary font-medium" : ""
+                      }`}
+                    >
+                      <div className="w-5 h-5 rounded bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold">
+                        {ws.name.charAt(0)}
+                      </div>
+                      <span className="truncate flex-1">{ws.name}</span>
+                    </button>
+                  ))}
                 </div>
-                {workspaces.map((ws) => (
-                  <button
-                    key={ws.id}
-                    onClick={() => setActiveWorkspaceId(ws.id)}
-                    className={`w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-secondary transition-colors ${
-                      ws.id === activeWorkspace.id ? "bg-secondary font-medium" : ""
-                    }`}
-                  >
-                    <div className="w-5 h-5 rounded bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold">
-                      {ws.name.charAt(0)}
-                    </div>
-                    <span className="truncate flex-1">{ws.name}</span>
-                  </button>
-                ))}
-              </div>
+              </>
             )}
           </div>
         ) : (

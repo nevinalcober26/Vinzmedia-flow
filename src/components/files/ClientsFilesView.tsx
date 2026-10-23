@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import { ProjectFile, Client } from "@/types";
+import { ClientAvatar } from "@/components/common/ClientAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { fileService } from "@/lib/services/fileService";
 
@@ -536,11 +537,7 @@ export function ClientsFilesView({
               >
                 <div>
                   <div className="flex items-start justify-between mb-3">
-                    <img
-                      src={client.avatar_url}
-                      alt={client.name}
-                      className="w-12 h-12 rounded-xl object-cover ring-2 ring-border shadow-xs"
-                    />
+                    <ClientAvatar client={client} size="lg" rounded="xl" />
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border uppercase tracking-wider ${
                         client.status === "active"

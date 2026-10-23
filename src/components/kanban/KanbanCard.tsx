@@ -45,6 +45,29 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
   } = useStore();
 
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const menuBtnRef = React.useRef<HTMLButtonElement>(null);
+  const [menuCoords, setMenuCoords] = React.useState<{
+    top: number;
+    right: number;
+    openUpwards: boolean;
+  } | null>(null);
+
+  const handleToggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isMenuOpen && menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUpwards = spaceBelow < 220;
+      setMenuCoords({
+        top: openUpwards ? rect.top - 6 : rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+        openUpwards,
+      });
+      setIsMenuOpen(true);
+    } else {
+      setIsMenuOpen(false);
+    }
+  };
 
   const {
     attributes,
@@ -164,62 +187,82 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
           {/* Card menu button */}
           <div className="relative">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsMenuOpen(!isMenuOpen);
-              }}
+              ref={menuBtnRef}
+              onClick={handleToggleMenu}
               title="More options"
-              className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-secondary"
+              className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-secondary cursor-pointer"
             >
               <MoreHorizontal className="w-3.5 h-3.5" />
             </button>
 
-            {/* Context Dropdown */}
-            {isMenuOpen && (
-              <div
-                className="absolute right-0 top-6 w-44 rounded-xl bg-card border border-border shadow-xl py-1 z-50 text-xs animate-in fade-in"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="px-2.5 py-1 text-[10px] font-semibold uppercase text-muted-foreground">
-                  Move to status
-                </div>
-                {columns.map((c) => (
+            {/* Context Dropdown with Full-screen click-outside backdrop */}
+            {isMenuOpen && menuCoords && (
+              <>
+                <div
+                  className="fixed inset-0 z-[9998] cursor-default"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen(false);
+                  }}
+                />
+                <div
+                  style={{
+                    position: "fixed",
+                    top: menuCoords.openUpwards ? "auto" : `${menuCoords.top}px`,
+                    bottom: menuCoords.openUpwards
+                      ? `${window.innerHeight - menuCoords.top}px`
+                      : "auto",
+                    right: `${menuCoords.right}px`,
+                  }}
+                  className="w-48 rounded-2xl bg-card border border-border shadow-2xl py-1.5 z-[9999] text-xs animate-in fade-in zoom-in-95 duration-100"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 mb-1">
+                    Move to status
+                  </div>
+                  {columns.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveTask(task.id, c.status_key);
+                        setIsMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-secondary flex items-center justify-between text-xs cursor-pointer ${
+                        task.status === c.status_key
+                          ? "font-bold text-primary"
+                          : "text-foreground"
+                      }`}
+                    >
+                      <span>{c.title}</span>
+                      {task.status === c.status_key && <span className="text-xs">✓</span>}
+                    </button>
+                  ))}
+                  <div className="h-px bg-border my-1" />
                   <button
-                    key={c.id}
-                    onClick={() => {
-                      moveTask(task.id, c.status_key);
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      duplicateTask(task.id);
                       setIsMenuOpen(false);
                     }}
-                    className={`w-full text-left px-2.5 py-1 hover:bg-secondary flex items-center justify-between text-xs ${
-                      task.status === c.status_key ? "font-semibold text-primary" : "text-foreground"
-                    }`}
+                    className="w-full text-left px-3 py-1.5 hover:bg-secondary flex items-center space-x-2 text-xs text-foreground cursor-pointer"
                   >
-                    <span>{c.title}</span>
-                    {task.status === c.status_key && <span className="text-xs">✓</span>}
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Duplicate</span>
                   </button>
-                ))}
-                <div className="h-px bg-border my-1" />
-                <button
-                  onClick={() => {
-                    duplicateTask(task.id);
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full text-left px-2.5 py-1 hover:bg-secondary flex items-center space-x-1.5 text-xs text-foreground"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Duplicate</span>
-                </button>
-                <button
-                  onClick={() => {
-                    deleteTask(task.id);
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full text-left px-2.5 py-1 hover:bg-destructive/10 flex items-center space-x-1.5 text-xs text-destructive"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
-                </button>
-              </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteTask(task.id);
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-destructive/10 flex items-center space-x-2 text-xs text-destructive cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>

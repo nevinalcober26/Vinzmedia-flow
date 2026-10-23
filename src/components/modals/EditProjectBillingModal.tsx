@@ -19,6 +19,9 @@ import {
   Sparkles,
   ArrowRightLeft,
   Globe,
+  Building2,
+  UserPlus,
+  RefreshCw,
 } from "lucide-react";
 import { Project, ProjectBillingType, ProjectPaymentInstallment } from "@/types";
 import { useStore } from "@/context/StoreContext";
@@ -27,8 +30,10 @@ import {
   SUPPORTED_CURRENCIES,
   getCurrencyInfo,
   getDefaultExchangeRate,
+  fetchRealtimeExchangeRate,
   formatCurrencyAmount,
 } from "@/lib/currencyRates";
+import { ClientAvatar } from "@/components/common/ClientAvatar";
 
 interface EditProjectBillingModalProps {
   isOpen: boolean;
@@ -41,8 +46,17 @@ export function EditProjectBillingModal({
   onClose,
   project,
 }: EditProjectBillingModalProps) {
-  const { updateProject } = useStore();
+  const { updateProject, clients, createClient } = useStore();
   const toast = useToast();
+
+  // Client association & inline creator
+  const [selectedClientId, setSelectedClientId] = useState<string>(
+    project.client_id || ""
+  );
+  const [isCreatingClient, setIsCreatingClient] = useState<boolean>(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientCompany, setNewClientCompany] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
 
   const [billingType, setBillingType] = useState<ProjectBillingType>(
     project.billing_type || "fixed"
@@ -67,7 +81,7 @@ export function EditProjectBillingModal({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Currency Conversion state
+  // Currency Conversion state & Real-time Live Market Rates
   const [enableConversion, setEnableConversion] = useState<boolean>(
     project.enable_currency_conversion || false
   );
@@ -79,6 +93,9 @@ export function EditProjectBillingModal({
       ? String(project.conversion_rate)
       : String(getDefaultExchangeRate(project.currency || "$", "PHP"))
   );
+  const [isLoadingRate, setIsLoadingRate] = useState<boolean>(false);
+  const [isLiveRate, setIsLiveRate] = useState<boolean>(false);
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<string>("");
 
   const parsedFixed = parseFloat(fixedAmount) || 0;
   const parsedRate = parseFloat(hourlyRate) || 0;
@@ -133,6 +150,8 @@ export function EditProjectBillingModal({
       );
       setCurrency(project.currency || "$");
       setPaymentStatus(project.payment_status || "unpaid");
+      setSelectedClientId(project.client_id || "");
+      setIsCreatingClient(false);
 
       // Currency conversion initialization
       setEnableConversion(project.enable_currency_conversion || false);
@@ -143,6 +162,10 @@ export function EditProjectBillingModal({
           ? String(project.conversion_rate)
           : String(getDefaultExchangeRate(project.currency || "$", targetCurr))
       );
+
+      if (project.enable_currency_conversion) {
+        updateRateInRealtime(project.currency || "$", targetCurr);
+      }
 
       // Load existing installments or generate default
       const existing = project.installments || [];
@@ -252,13 +275,52 @@ export function EditProjectBillingModal({
     }
   }, [fixedAmount]);
 
+  const updateRateInRealtime = async (baseCurr: string, targetCurr: string) => {
+    setIsLoadingRate(true);
+    try {
+      const res = await fetchRealtimeExchangeRate(baseCurr, targetCurr);
+      setConversionRate(String(res.rate));
+      setIsLiveRate(res.isLive);
+      setRateUpdatedAt(res.lastUpdated || "Live");
+    } finally {
+      setIsLoadingRate(false);
+    }
+  };
+
   const handleTargetCurrencyChange = (newTarget: string) => {
     setTargetCurrency(newTarget);
-    setConversionRate(String(getDefaultExchangeRate(currency, newTarget)));
+    updateRateInRealtime(currency, newTarget);
   };
 
   const handleResetDefaultRate = () => {
-    setConversionRate(String(getDefaultExchangeRate(currency, targetCurrency)));
+    updateRateInRealtime(currency, targetCurrency);
+  };
+
+  const handleBaseCurrencyChange = (newBase: string) => {
+    setCurrency(newBase);
+    if (enableConversion) {
+      updateRateInRealtime(newBase, targetCurrency);
+    }
+  };
+
+  const handleQuickCreateClient = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientCompany.trim() && !newClientName.trim()) return;
+    const created = createClient({
+      name: newClientName.trim() || newClientCompany.trim(),
+      company: newClientCompany.trim() || newClientName.trim(),
+      email: newClientEmail.trim(),
+      status: "active",
+      project_ids: [project.id],
+    });
+    if (created) {
+      setSelectedClientId(created.id);
+      setIsCreatingClient(false);
+      setNewClientName("");
+      setNewClientCompany("");
+      setNewClientEmail("");
+      toast?.success("Client Created", `Linked ${created.company || created.name} to this project`);
+    }
   };
 
   if (!isOpen) return null;
@@ -318,6 +380,9 @@ export function EditProjectBillingModal({
           paymentStatus === "paid" ? new Date().toISOString() : project.last_payment_date;
       }
 
+      // Client association update
+      updates.client_id = selectedClientId || undefined;
+
       // Currency conversion updates
       updates.enable_currency_conversion = enableConversion;
       updates.converted_currency = targetCurrency;
@@ -368,6 +433,140 @@ export function EditProjectBillingModal({
 
           {/* Form */}
           <form onSubmit={handleSave} className="p-6 space-y-5 overflow-y-auto">
+            {/* Client & Organization Association */}
+            <div className="p-3.5 rounded-xl bg-secondary/30 border border-border/70 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground flex items-center space-x-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-primary" />
+                  <span>Linked Client & Organization</span>
+                </label>
+                {!isCreatingClient && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCreatingClient(true)}
+                    className="text-[11px] font-semibold text-primary hover:underline flex items-center space-x-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Create New Client</span>
+                  </button>
+                )}
+              </div>
+
+              {!isCreatingClient ? (
+                <div className="space-y-2">
+                  <select
+                    value={selectedClientId}
+                    onChange={(e) => setSelectedClientId(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground cursor-pointer font-medium"
+                  >
+                    <option value="">🏢 No Client (Internal Project)</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.company ? `${c.company} — ${c.name}` : c.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Preview linked client with letter avatar */}
+                  {selectedClientId && (() => {
+                    const cl = clients.find((c) => c.id === selectedClientId);
+                    if (!cl) return null;
+                    return (
+                      <div className="p-2.5 rounded-lg bg-card border border-border/80 flex items-center justify-between animate-in fade-in">
+                        <div className="flex items-center space-x-2.5">
+                          <ClientAvatar client={cl} size="md" />
+                          <div>
+                            <p className="text-xs font-bold text-foreground">
+                              {cl.company || cl.name}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Contact: {cl.name} • {cl.email}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedClientId("")}
+                          className="text-[10px] text-muted-foreground hover:text-destructive px-2 py-1 rounded-md hover:bg-destructive/10 transition-colors cursor-pointer"
+                        >
+                          Unlink
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                /* Quick inline client creation */
+                <div className="p-3 rounded-lg bg-card border border-primary/30 space-y-2.5 animate-in fade-in slide-in-from-top-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-primary flex items-center space-x-1">
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Quick Create Client & Link to Project</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingClient(false)}
+                      className="text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-semibold text-muted-foreground">Company / Organization *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Acme Corp"
+                        value={newClientCompany}
+                        onChange={(e) => setNewClientCompany(e.target.value)}
+                        className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-semibold text-muted-foreground">Primary Contact Name *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Sarah Connor"
+                        value={newClientName}
+                        onChange={(e) => setNewClientName(e.target.value)}
+                        className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-semibold text-muted-foreground">Billing / Contact Email</label>
+                    <input
+                      type="email"
+                      placeholder="e.g. accounting@acmewidgets.com"
+                      value={newClientEmail}
+                      onChange={(e) => setNewClientEmail(e.target.value)}
+                      className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end space-x-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingClient(false)}
+                      className="px-3 py-1 rounded-lg text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleQuickCreateClient}
+                      disabled={!newClientCompany.trim() && !newClientName.trim()}
+                      className="px-3 py-1 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-lg text-xs font-semibold cursor-pointer"
+                    >
+                      Save & Link Client
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Currency Selector */}
             <div className="flex items-center justify-between pb-3 border-b border-border/60">
               <span className="text-xs font-semibold text-foreground">Billing Currency</span>
@@ -376,7 +575,7 @@ export function EditProjectBillingModal({
                   <button
                     key={c}
                     type="button"
-                    onClick={() => setCurrency(c)}
+                    onClick={() => handleBaseCurrencyChange(c)}
                     className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                       currency === c
                         ? "bg-primary text-primary-foreground shadow-2xs"
@@ -732,7 +931,13 @@ export function EditProjectBillingModal({
                 {/* Monday Toggle Switch */}
                 <button
                   type="button"
-                  onClick={() => setEnableConversion(!enableConversion)}
+                  onClick={() => {
+                    const next = !enableConversion;
+                    setEnableConversion(next);
+                    if (next) {
+                      updateRateInRealtime(currency, targetCurrency);
+                    }
+                  }}
                   className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
                     enableConversion ? "bg-[#0073ea]" : "bg-muted-foreground/30"
                   }`}
@@ -773,16 +978,24 @@ export function EditProjectBillingModal({
                     {/* Exchange Rate Input */}
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-semibold text-foreground">
-                          Exchange Rate (1 {currency} =)
+                        <label className="text-[11px] font-semibold text-foreground flex items-center space-x-1.5">
+                          <span>Exchange Rate (1 {currency} =)</span>
+                          {isLiveRate && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>Live</span>
+                            </span>
+                          )}
                         </label>
                         <button
                           type="button"
                           onClick={handleResetDefaultRate}
-                          className="text-[10px] text-primary hover:underline font-medium cursor-pointer"
-                          title="Reset to market benchmark rate"
+                          disabled={isLoadingRate}
+                          className="text-[10px] text-primary hover:underline font-medium cursor-pointer flex items-center space-x-1"
+                          title="Fetch latest real-time market exchange rate"
                         >
-                          Auto Rate
+                          <RefreshCw className={`w-2.5 h-2.5 ${isLoadingRate ? "animate-spin" : ""}`} />
+                          <span>{isLoadingRate ? "Syncing..." : "Live Rate"}</span>
                         </button>
                       </div>
                       <div className="relative">
@@ -804,8 +1017,9 @@ export function EditProjectBillingModal({
                   {/* Realtime Converted Amount Live Badge */}
                   <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-primary tracking-wide block">
-                        Live Converted Total
+                      <span className="text-[10px] uppercase font-bold text-primary tracking-wide flex items-center space-x-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                        <span>Live Real-Time Converted Total</span>
                       </span>
                       <span className="text-[11px] text-muted-foreground font-mono">
                         Base: {currency}
@@ -829,7 +1043,7 @@ export function EditProjectBillingModal({
                         {targetCurrency}
                       </span>
                       <span className="text-[10px] text-muted-foreground block">
-                        Reflected on final client invoices
+                        {isLiveRate ? "Real-time live exchange rate" : "Reflected on final client invoices"}
                       </span>
                     </div>
                   </div>

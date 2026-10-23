@@ -109,6 +109,7 @@ export const initialProjects: Project[] = [
     start_date: "2026-09-01",
     target_date: "2026-11-30",
     progress: 75,
+    client_id: "client_1",
     member_ids: ["user_alex", "user_elena", "user_marcus", "user_sarah"],
     milestones: [
       {
@@ -152,6 +153,7 @@ export const initialProjects: Project[] = [
     start_date: "2026-10-01",
     target_date: "2026-12-15",
     progress: 45,
+    client_id: "client_2",
     member_ids: ["user_alex", "user_marcus", "user_david"],
     milestones: [
       {
@@ -187,6 +189,7 @@ export const initialProjects: Project[] = [
     start_date: "2026-08-15",
     target_date: "2026-12-01",
     progress: 60,
+    client_id: "client_3",
     member_ids: ["user_david", "user_marcus", "user_alex"],
     milestones: [
       {
@@ -961,7 +964,6 @@ export const initialClients: Client[] = [
     name: "Nexus Financial Group",
     company: "Nexus Financial Holdings Inc.",
     email: "enterprise@nexusfin.com",
-    avatar_url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
     status: "active",
     project_ids: ["proj_mobile", "proj_ai"],
     created_at: "2026-08-01T00:00:00Z",
@@ -972,7 +974,6 @@ export const initialClients: Client[] = [
     name: "Aether Health Systems",
     company: "Aether Health Labs",
     email: "compliance@aetherhealth.org",
-    avatar_url: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
     status: "active",
     project_ids: ["proj_ai", "proj_cloud"],
     created_at: "2026-08-15T00:00:00Z",
@@ -983,7 +984,6 @@ export const initialClients: Client[] = [
     name: "Horizon Global Logistics",
     company: "Horizon Freight & Rail",
     email: "partners@horizonlogistics.com",
-    avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     status: "active",
     project_ids: ["proj_cloud", "proj_analytics"],
     created_at: "2026-09-01T00:00:00Z",

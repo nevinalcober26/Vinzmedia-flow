@@ -54,6 +54,7 @@ export const projectService = {
         start_date: row.start_date || "",
         target_date: row.target_date || "",
         progress: row.progress || 0,
+        client_id: row.client_id || null,
         all_members: row.all_members !== undefined ? row.all_members : true,
         member_ids: row.member_ids || [row.owner_id],
         billing_type: row.billing_type || "fixed",
@@ -102,6 +103,7 @@ export const projectService = {
       if (project.all_members !== undefined) {
         payload.all_members = project.all_members;
       }
+      if (project.client_id !== undefined) payload.client_id = project.client_id || null;
       if (project.billing_type !== undefined) payload.billing_type = project.billing_type;
       if (project.fixed_price_amount !== undefined) payload.fixed_price_amount = project.fixed_price_amount;
       if (project.payment_installments_count !== undefined) payload.payment_installments_count = project.payment_installments_count;
@@ -143,6 +145,16 @@ export const projectService = {
             role: "member",
           }));
           await supabase.from("project_members").upsert(memberRows, { onConflict: "project_id,user_id" });
+        } catch {}
+      }
+
+      // Persist client association to client_projects table
+      if (project.client_id && data?.id) {
+        try {
+          await supabase.from("client_projects").upsert(
+            { client_id: project.client_id, project_id: data.id },
+            { onConflict: "client_id,project_id" }
+          );
         } catch {}
       }
 
@@ -188,6 +200,7 @@ export const projectService = {
       if (updates.target_date !== undefined) payload.target_date = updates.target_date || null;
       if (updates.progress !== undefined) payload.progress = updates.progress;
       if (updates.all_members !== undefined) payload.all_members = updates.all_members;
+      if (updates.client_id !== undefined) payload.client_id = updates.client_id || null;
       if (updates.billing_type !== undefined) payload.billing_type = updates.billing_type;
       if (updates.fixed_price_amount !== undefined) payload.fixed_price_amount = updates.fixed_price_amount;
       if (updates.payment_installments_count !== undefined) payload.payment_installments_count = updates.payment_installments_count;
@@ -229,6 +242,19 @@ export const projectService = {
               role: "member",
             }));
             await supabase.from("project_members").insert(memberRows);
+          }
+        } catch {}
+      }
+
+      // Sync client association
+      if (updates.client_id !== undefined) {
+        try {
+          await supabase.from("client_projects").delete().eq("project_id", id);
+          if (updates.client_id) {
+            await supabase.from("client_projects").insert({
+              client_id: updates.client_id,
+              project_id: id,
+            });
           }
         } catch {}
       }

@@ -74,7 +74,15 @@ export function MondayStatusCell({
 
       {/* Monday.com Signature Popover Menu */}
       {isOpen && (
-        <div className="absolute top-full mt-1.5 z-50 w-52 p-2 rounded-2xl bg-card border border-border/80 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+        <>
+          <div
+            className="fixed inset-0 z-40 cursor-default"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+            }}
+          />
+          <div className="absolute top-full mt-1.5 z-50 w-52 p-2 rounded-2xl bg-card border border-border/80 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
           <div className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-1 tracking-wider border-b border-border/50 mb-1.5">
             Select Status
           </div>
@@ -103,6 +111,7 @@ export function MondayStatusCell({
             })}
           </div>
         </div>
+        </>
       )}
     </div>
   );

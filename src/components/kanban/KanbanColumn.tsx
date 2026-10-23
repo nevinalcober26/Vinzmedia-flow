@@ -20,9 +20,18 @@ import {
 interface KanbanColumnProps {
   column: TaskColumn;
   tasks: Task[];
+  department?: string;
+  droppableId?: string;
+  isRowMode?: boolean;
 }
 
-export function KanbanColumn({ column, tasks }: KanbanColumnProps) {
+export function KanbanColumn({
+  column,
+  tasks,
+  department,
+  droppableId,
+  isRowMode = false,
+}: KanbanColumnProps) {
   const {
     createTask,
     updateColumn,
@@ -38,11 +47,16 @@ export function KanbanColumn({ column, tasks }: KanbanColumnProps) {
   const [columnTitle, setColumnTitle] = useState(column.title);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  const effectiveDroppableId =
+    droppableId ||
+    (department ? `${department}::${column.status_key}` : column.status_key);
+
   const { setNodeRef, isOver } = useDroppable({
-    id: column.status_key,
+    id: effectiveDroppableId,
     data: {
       type: "Column",
       column,
+      department,
     },
   });
 
@@ -52,6 +66,7 @@ export function KanbanColumn({ column, tasks }: KanbanColumnProps) {
     createTask({
       title: quickTitle.trim(),
       status: column.status_key,
+      department: department || undefined,
       project_id: activeProject?.id,
     });
     setQuickTitle("");
@@ -72,7 +87,9 @@ export function KanbanColumn({ column, tasks }: KanbanColumnProps) {
       <div
         ref={setNodeRef}
         onClick={() => setIsCollapsed(false)}
-        className="w-12 h-[calc(100vh-190px)] rounded-2xl bg-secondary/30 border border-border/80 flex flex-col items-center py-4 cursor-pointer hover:bg-secondary/60 transition-colors select-none"
+        className={`w-12 ${
+          isRowMode ? "min-h-[160px]" : "h-[calc(100vh-190px)]"
+        } rounded-2xl bg-secondary/30 border border-border/80 flex flex-col items-center py-4 cursor-pointer hover:bg-secondary/60 transition-colors select-none`}
       >
         <span
           className="w-2.5 h-2.5 rounded-full mb-3"
@@ -172,27 +189,33 @@ export function KanbanColumn({ column, tasks }: KanbanColumnProps) {
             </button>
 
             {isMenuOpen && (
-              <div
-                className="absolute right-0 top-6 w-36 rounded-xl bg-card border border-border shadow-xl py-1 z-50 text-xs animate-in fade-in"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <button
-                  onClick={() => setIsEditingTitle(true)}
-                  className="w-full text-left px-3 py-1.5 hover:bg-secondary flex items-center space-x-2 text-foreground"
+              <>
+                <div
+                  className="fixed inset-0 z-40 cursor-default"
+                  onClick={() => setIsMenuOpen(false)}
+                />
+                <div
+                  className="absolute right-0 top-6 w-36 rounded-xl bg-card border border-border shadow-xl py-1 z-50 text-xs animate-in fade-in"
+                  onClick={() => setIsMenuOpen(false)}
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  <span>Rename</span>
-                </button>
-                {!column.is_default && (
                   <button
-                    onClick={() => deleteColumn(column.id)}
-                    className="w-full text-left px-3 py-1.5 hover:bg-destructive/10 flex items-center space-x-2 text-destructive"
+                    onClick={() => setIsEditingTitle(true)}
+                    className="w-full text-left px-3 py-1.5 hover:bg-secondary flex items-center space-x-2 text-foreground"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete</span>
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Rename</span>
                   </button>
-                )}
-              </div>
+                  {!column.is_default && (
+                    <button
+                      onClick={() => deleteColumn(column.id)}
+                      className="w-full text-left px-3 py-1.5 hover:bg-destructive/10 flex items-center space-x-2 text-destructive"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -229,7 +252,11 @@ export function KanbanColumn({ column, tasks }: KanbanColumnProps) {
       )}
 
       {/* Cards List with SortableContext */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-[140px] max-h-[calc(100vh-220px)]">
+      <div
+        className={`flex-1 overflow-y-auto p-2 space-y-2 min-h-[140px] ${
+          isRowMode ? "max-h-[380px]" : "max-h-[calc(100vh-220px)]"
+        }`}
+      >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <KanbanCard key={task.id} task={task} />

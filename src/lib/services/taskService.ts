@@ -202,13 +202,14 @@ export const taskService = {
     }
   },
 
-  async moveTask(id: string, newStatus: string, newIndex?: number): Promise<boolean> {
+  async moveTask(id: string, newStatus: string, newIndex?: number, targetDepartment?: string): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;
     try {
       const payload: Record<string, any> = {
         status: newStatus,
       };
       if (newIndex !== undefined) payload.order_index = newIndex;
+      if (targetDepartment !== undefined) payload.department = targetDepartment;
 
       const { error } = await supabase.from("tasks").update(payload).eq("id", id);
       return !error;

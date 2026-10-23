@@ -84,10 +84,15 @@ export function NotificationsPopover({ onClose }: NotificationsPopoverProps) {
   };
 
   return (
-    <div
-      ref={ref}
-      className="absolute right-0 top-10 w-80 md:w-96 rounded-2xl bg-card border border-border shadow-2xl z-50 text-card-foreground animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
-    >
+    <>
+      <div
+        className="fixed inset-0 z-40 cursor-default"
+        onClick={onClose}
+      />
+      <div
+        ref={ref}
+        className="absolute right-0 top-10 w-80 md:w-96 rounded-2xl bg-card border border-border shadow-2xl z-50 text-card-foreground animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
+      >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/80 bg-secondary/30">
         <div className="flex items-center space-x-2">
@@ -168,5 +173,6 @@ export function NotificationsPopover({ onClose }: NotificationsPopoverProps) {
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -98,6 +98,8 @@ export function Navbar() {
       dashboard: "Main Dashboard",
       my_tasks: "My Tasks",
       projects: "All Projects",
+      clients: "Clients & Files",
+      billing: "Billing & Invoices",
       calendar: "Master Calendar",
       notes: "Quick Notes & Docs",
       announcements: "Team Announcements",
@@ -228,10 +230,15 @@ export function Navbar() {
 
             {/* Profile Menu Dropdown */}
             {isProfileMenuOpen && (
-              <div
-                className="absolute right-0 mt-2 w-72 rounded-2xl bg-card border border-border shadow-2xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
-                onClick={() => setIsProfileMenuOpen(false)}
-              >
+              <>
+                <div
+                  className="fixed inset-0 z-40 cursor-default"
+                  onClick={() => setIsProfileMenuOpen(false)}
+                />
+                <div
+                  className="absolute right-0 mt-2 w-72 rounded-2xl bg-card border border-border shadow-2xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
+                  onClick={() => setIsProfileMenuOpen(false)}
+                >
                 <div className="px-4 py-3 border-b border-border/60 flex items-center space-x-3">
                   <UserAvatar user={currentUser} size="md" showStatus />
                   <div className="min-w-0 flex-1">
@@ -273,6 +280,7 @@ export function Navbar() {
                   </button>
                 </div>
               </div>
+              </>
             )}
           </div>
         </div>

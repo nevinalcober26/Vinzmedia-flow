@@ -29,6 +29,7 @@ import {
   Edit3,
   Printer,
   FileDown,
+  Building2,
 } from "lucide-react";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { ListView } from "@/components/tasks/ListView";
@@ -38,6 +39,7 @@ import { ClientsFilesView } from "@/components/files/ClientsFilesView";
 import { EditProjectBillingModal } from "@/components/modals/EditProjectBillingModal";
 import { ProjectInvoiceModal } from "@/components/modals/ProjectInvoiceModal";
 import { ProjectSubTab } from "@/types";
+import { ClientAvatar } from "@/components/common/ClientAvatar";
 import { formatDate, getPriorityBadgeColor, getProjectStatusBadge } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
 
@@ -51,6 +53,7 @@ export function ProjectDetailView() {
     tasks,
     files,
     users,
+    clients,
     notes,
     activityLogs,
     setIsCreateTaskModalOpen,
@@ -80,6 +83,8 @@ export function ProjectDetailView() {
 
   const [isEditBillingOpen, setIsEditBillingOpen] = React.useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = React.useState(false);
+
+  const linkedClient = clients.find((c) => c.id === activeProject.client_id);
 
   const totalTrackedSeconds = projectTasks.reduce((acc, t) => acc + (t.tracked_seconds || 0), 0);
   const totalTrackedHours = (totalTrackedSeconds / 3600).toFixed(1);
@@ -160,6 +165,27 @@ export function ProjectDetailView() {
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-lg font-bold text-foreground">{activeProject.name}</h1>
+              {linkedClient ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditBillingOpen(true)}
+                  className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary/80 hover:bg-secondary text-foreground border border-border/80 transition-all cursor-pointer shadow-2xs"
+                  title="Click to edit project billing or change client"
+                >
+                  <ClientAvatar client={linkedClient} size="xs" rounded="full" />
+                  <span className="truncate max-w-[130px]">{linkedClient.company || linkedClient.name}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEditBillingOpen(true)}
+                  className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-muted-foreground hover:text-foreground border border-dashed border-border/80 hover:border-primary/50 transition-all cursor-pointer"
+                  title="Link a client to this project"
+                >
+                  <Building2 className="w-2.5 h-2.5" />
+                  <span>+ Link Client</span>
+                </button>
+              )}
               <span
                 className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusBadge.className}`}
               >

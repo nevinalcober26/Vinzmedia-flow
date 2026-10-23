@@ -71,7 +71,16 @@ export function MondayTaskTypeCell({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1 w-52 bg-card border border-border shadow-2xl rounded-xl p-1.5 z-50 text-xs animate-in fade-in zoom-in-95">
+        <>
+          <div
+            className="fixed inset-0 z-40 cursor-default"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+              setIsAddingNew(false);
+            }}
+          />
+          <div className="absolute left-0 top-full mt-1 w-52 bg-card border border-border shadow-2xl rounded-xl p-1.5 z-50 text-xs animate-in fade-in zoom-in-95">
           <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 mb-1 flex items-center justify-between">
             <span>Select Task Type</span>
             <span className="font-mono text-[9px] text-primary">Monday.com</span>
@@ -165,6 +174,7 @@ export function MondayTaskTypeCell({
             )}
           </div>
         </div>
+        </>
       )}
     </div>
   );

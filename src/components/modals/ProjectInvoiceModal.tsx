@@ -17,6 +17,7 @@ import {
   Share2,
   ArrowRightLeft,
   Globe,
+  RefreshCw,
 } from "lucide-react";
 import { Project, Task } from "@/types";
 import { useStore } from "@/context/StoreContext";
@@ -25,8 +26,10 @@ import {
   SUPPORTED_CURRENCIES,
   getCurrencyInfo,
   getDefaultExchangeRate,
+  fetchRealtimeExchangeRate,
   formatCurrencyAmount,
 } from "@/lib/currencyRates";
+import { ClientAvatar } from "@/components/common/ClientAvatar";
 
 interface ProjectInvoiceModalProps {
   isOpen: boolean;
@@ -39,12 +42,12 @@ export function ProjectInvoiceModal({
   onClose,
   project,
 }: ProjectInvoiceModalProps) {
-  const { tasks, activeWorkspace, users, toast, togglePaymentPaid } = useStore();
+  const { tasks, activeWorkspace, users, clients, toast, togglePaymentPaid } = useStore();
   const [invoiceStatus, setInvoiceStatus] = useState<"Draft" | "Issued" | "Paid">(
     project.payment_status === "paid" ? "Paid" : "Issued"
   );
 
-  // Currency Conversion state
+  // Currency Conversion state & Real-time Live Market Rates
   const [enableConversion, setEnableConversion] = useState<boolean>(
     project.enable_currency_conversion || false
   );
@@ -56,15 +59,33 @@ export function ProjectInvoiceModal({
       ? String(project.conversion_rate)
       : String(getDefaultExchangeRate(project.currency || "$", "PHP"))
   );
+  const [isLoadingRate, setIsLoadingRate] = useState<boolean>(false);
+  const [isLiveRate, setIsLiveRate] = useState<boolean>(false);
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<string>("");
+
+  const updateRateInRealtime = async (targetCurr: string) => {
+    setIsLoadingRate(true);
+    try {
+      const res = await fetchRealtimeExchangeRate(project.currency || "$", targetCurr);
+      setConversionRate(String(res.rate));
+      setIsLiveRate(res.isLive);
+      setRateUpdatedAt(res.lastUpdated || "Live");
+    } finally {
+      setIsLoadingRate(false);
+    }
+  };
 
   const handleTargetCurrencyChange = (newTarget: string) => {
     setTargetCurrency(newTarget);
-    setConversionRate(String(getDefaultExchangeRate(project.currency || "$", newTarget)));
+    updateRateInRealtime(newTarget);
   };
 
   const handleResetRate = () => {
-    setConversionRate(String(getDefaultExchangeRate(project.currency || "$", targetCurrency)));
+    updateRateInRealtime(targetCurrency);
   };
+
+  // Find linked client
+  const linkedClient = clients.find((c) => c.id === project.client_id);
 
   if (!isOpen) return null;
 
@@ -234,11 +255,19 @@ export function ProjectInvoiceModal({
                 <button
                   type="button"
                   onClick={handleResetRate}
-                  className="text-[10px] text-primary hover:underline font-semibold ml-1 cursor-pointer"
-                  title="Reset to market rate benchmark"
+                  disabled={isLoadingRate}
+                  className="text-[10px] text-primary hover:underline font-semibold ml-1 cursor-pointer flex items-center space-x-1"
+                  title="Fetch real-time live exchange rate"
                 >
-                  Auto
+                  <RefreshCw className={`w-2.5 h-2.5 ${isLoadingRate ? "animate-spin" : ""}`} />
+                  <span>{isLoadingRate ? "Syncing..." : "Live Rate"}</span>
                 </button>
+                {isLiveRate && (
+                  <span className="inline-flex items-center space-x-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Real-time</span>
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -294,10 +323,34 @@ export function ProjectInvoiceModal({
                 <span className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">
                   Billed To / Project Client
                 </span>
-                <p className="font-bold text-sm text-foreground">{project.name}</p>
-                <p className="text-muted-foreground mt-0.5 line-clamp-2">
-                  {project.description || "Project Milestone & Task Deliverables"}
-                </p>
+                {linkedClient ? (
+                  <div className="flex items-start space-x-3 mt-1.5">
+                    <ClientAvatar client={linkedClient} size="lg" rounded="xl" />
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-sm text-foreground">
+                        {linkedClient.company || linkedClient.name}
+                      </p>
+                      {linkedClient.company && linkedClient.name && (
+                        <p className="text-xs text-muted-foreground font-medium">
+                          Attn: {linkedClient.name}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        {linkedClient.email}
+                      </p>
+                      <p className="text-[10px] font-mono text-[#0073ea] font-medium pt-0.5">
+                        Project: {project.name}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="font-bold text-sm text-foreground">{project.name}</p>
+                    <p className="text-muted-foreground mt-0.5 line-clamp-2">
+                      {project.description || "Project Milestone & Task Deliverables"}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>

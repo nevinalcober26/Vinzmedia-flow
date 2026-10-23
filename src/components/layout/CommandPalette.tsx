@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Sparkles,
   X,
+  Receipt,
 } from "lucide-react";
 import { ActiveView } from "@/types";
 
@@ -111,6 +112,18 @@ export function CommandPalette() {
       action: () => {
         setSelectedProjectId(null);
         setActiveView("my_tasks");
+        handleClose();
+      },
+    },
+    {
+      id: "cmd_billing",
+      category: "Navigation",
+      title: "Go to Billing & Invoices",
+      subtitle: "Project pricing, milestones & currency conversions",
+      icon: Receipt,
+      action: () => {
+        setSelectedProjectId(null);
+        setActiveView("billing");
         handleClose();
       },
     },

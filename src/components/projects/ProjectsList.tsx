@@ -22,6 +22,7 @@ import {
   getProjectStatusBadge,
 } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
+import { ClientAvatar } from "@/components/common/ClientAvatar";
 
 export function ProjectsList() {
   const confirm = useConfirm();
@@ -29,6 +30,7 @@ export function ProjectsList() {
     projects,
     tasks,
     users,
+    clients,
     setSelectedProjectId,
     setIsCreateProjectModalOpen,
     duplicateProject,
@@ -124,49 +126,58 @@ export function ProjectsList() {
                     </button>
 
                     {activeMenuId === proj.id && (
-                      <div
-                        className="absolute right-0 top-6 w-36 rounded-xl bg-card border border-border shadow-xl py-1 z-50 text-xs animate-in fade-in"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          onClick={() => {
-                            duplicateProject(proj.id);
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setActiveMenuId(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 hover:bg-secondary flex items-center space-x-1.5 text-foreground"
+                        />
+                        <div
+                          className="absolute right-0 top-6 w-36 rounded-xl bg-card border border-border shadow-xl py-1 z-50 text-xs animate-in fade-in"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Duplicate</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            archiveProject(proj.id);
-                            setActiveMenuId(null);
-                          }}
-                          className="w-full text-left px-3 py-1.5 hover:bg-secondary flex items-center space-x-1.5 text-foreground"
-                        >
-                          <Archive className="w-3.5 h-3.5" />
-                          <span>Archive</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setActiveMenuId(null);
-                            confirm({
-                              title: "Delete Project?",
-                              message: `Are you sure you want to delete "${proj.name}" and all its tasks? This action cannot be undone.`,
-                              confirmText: "Delete Project",
-                              variant: "danger",
-                              onConfirm: () => {
-                                deleteProject(proj.id);
-                              },
-                            });
-                          }}
-                          className="w-full text-left px-3 py-1.5 hover:bg-destructive/10 flex items-center space-x-1.5 text-destructive"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
+                          <button
+                            onClick={() => {
+                              duplicateProject(proj.id);
+                              setActiveMenuId(null);
+                            }}
+                            className="w-full text-left px-3 py-1.5 hover:bg-secondary flex items-center space-x-1.5 text-foreground"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Duplicate</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              archiveProject(proj.id);
+                              setActiveMenuId(null);
+                            }}
+                            className="w-full text-left px-3 py-1.5 hover:bg-secondary flex items-center space-x-1.5 text-foreground"
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                            <span>Archive</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveMenuId(null);
+                              confirm({
+                                title: "Delete Project?",
+                                message: `Are you sure you want to delete "${proj.name}" and all its tasks? This action cannot be undone.`,
+                                confirmText: "Delete Project",
+                                variant: "danger",
+                                onConfirm: () => {
+                                  deleteProject(proj.id);
+                                },
+                              });
+                            }}
+                            className="w-full text-left px-3 py-1.5 hover:bg-destructive/10 flex items-center space-x-1.5 text-destructive"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -178,6 +189,20 @@ export function ProjectsList() {
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
                   {proj.description || "No project description provided."}
                 </p>
+
+                {/* Linked Client Badge with Letter Avatar */}
+                {(() => {
+                  const client = clients.find((c) => c.id === proj.client_id);
+                  if (!client) return null;
+                  return (
+                    <div className="flex items-center space-x-2 mt-3 pt-2.5 border-t border-border/40">
+                      <ClientAvatar client={client} size="xs" rounded="md" />
+                      <span className="text-[11px] font-semibold text-foreground/80 truncate">
+                        {client.company || client.name}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Progress & Stats Bottom */}

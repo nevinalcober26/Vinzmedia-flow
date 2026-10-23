@@ -154,7 +154,7 @@ interface StoreContextType {
   createTask: (taskData: Partial<Task>) => Task | null;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
-  moveTask: (taskId: string, targetStatus: string, newIndex?: number) => void;
+  moveTask: (taskId: string, targetStatus: string, newIndex?: number, targetDepartment?: string) => void;
   reorderTasksInColumn: (statusKey: string, orderedTaskIds: string[]) => void;
   duplicateTask: (id: string) => void;
   bulkUpdateTasks: (taskIds: string[], updates: Partial<Task>) => void;
@@ -292,6 +292,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch {}
 
     // 2. Fetch real dynamic database tables from Supabase
+    const activeWsRef = { current: "b0000000-0000-0000-0000-000000000001" };
     const loadDynamicData = async () => {
       let targetWsId = "b0000000-0000-0000-0000-000000000001";
       if (isSupabaseConfigured && supabase) {
@@ -306,6 +307,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (dbWorkspaces && dbWorkspaces.length > 0) {
             setWorkspaces(dbWorkspaces);
             targetWsId = dbWorkspaces[0].id;
+            activeWsRef.current = targetWsId;
             setActiveWorkspaceIdState(targetWsId);
           }
 
@@ -370,20 +372,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       realtimeChannel = supabase
         .channel("vinzflow_realtime_changes")
         .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, async () => {
-          const freshTasks = await taskService.getTasks("10000000-0000-0000-0000-000000000001");
-          setTasks(freshTasks);
+          const currentWs = activeWsRef.current || "b0000000-0000-0000-0000-000000000001";
+          const freshTasks = await taskService.getTasks(currentWs);
+          if (freshTasks && freshTasks.length > 0) {
+            setTasks(freshTasks);
+          }
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, async () => {
-          const freshProjects = await projectService.getProjects("10000000-0000-0000-0000-000000000001");
-          setProjects(freshProjects);
+          const currentWs = activeWsRef.current || "b0000000-0000-0000-0000-000000000001";
+          const freshProjects = await projectService.getProjects(currentWs);
+          if (freshProjects && freshProjects.length > 0) {
+            setProjects(freshProjects);
+          }
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "files" }, async () => {
-          const freshFiles = await fileService.getFiles("10000000-0000-0000-0000-000000000001");
-          setFiles(freshFiles);
+          const currentWs = activeWsRef.current || "b0000000-0000-0000-0000-000000000001";
+          const freshFiles = await fileService.getFiles(currentWs);
+          if (freshFiles && freshFiles.length > 0) {
+            setFiles(freshFiles);
+          }
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, async () => {
-          const freshClients = await clientService.getClients("10000000-0000-0000-0000-000000000001");
-          setClients(freshClients);
+          const currentWs = activeWsRef.current || "b0000000-0000-0000-0000-000000000001";
+          const freshClients = await clientService.getClients(currentWs);
+          if (freshClients && freshClients.length > 0) {
+            setClients(freshClients);
+          }
         })
         .subscribe();
     }
@@ -860,6 +874,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         progress: 0,
         all_members: data.all_members !== undefined ? data.all_members : true,
         member_ids: data.member_ids?.length ? data.member_ids : [currentUser.id],
+        client_id: data.client_id || undefined,
         billing_type: data.billing_type || "fixed",
         fixed_price_amount: data.fixed_price_amount || 0,
         payment_installments_count: data.payment_installments_count || 1,
@@ -872,6 +887,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         updated_at: new Date().toISOString(),
       };
       setProjects((prev) => [newProj, ...prev]);
+      if (newProj.client_id) {
+        setClients((prev) =>
+          prev.map((c) =>
+            c.id === newProj.client_id && !c.project_ids.includes(newProjId)
+              ? { ...c, project_ids: [...c.project_ids, newProjId] }
+              : c
+          )
+        );
+      }
       logActivity("project_created", `Created new project "${newProj.name}"`, newProj.id);
       projectService.createProject(newProj);
       broadcastSync({ projects: [newProj, ...projects] });
@@ -899,6 +923,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           return p;
         })
       );
+      if (updates.client_id !== undefined) {
+        setClients((prev) =>
+          prev.map((c) => {
+            if (c.id === updates.client_id) {
+              return c.project_ids.includes(id) ? c : { ...c, project_ids: [...c.project_ids, id] };
+            } else {
+              return { ...c, project_ids: c.project_ids.filter((pid) => pid !== id) };
+            }
+          })
+        );
+      }
     },
     [currentUser.role, logActivity, toast]
   );
@@ -1165,7 +1200,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const moveTask = useCallback(
-    (taskId: string, targetStatus: string, newIndex?: number) => {
+    (taskId: string, targetStatus: string, newIndex?: number, targetDepartment?: string) => {
       if (!hasPermission(currentUser.role, "task:move")) {
         toast.error("Permission Denied", "Guests cannot move board columns.");
         return;
@@ -1176,8 +1211,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (!taskToMove) return prev;
 
         const otherTasks = prev.filter((t) => t.id !== taskId);
+        const finalDept = targetDepartment !== undefined ? targetDepartment : taskToMove.department;
+
         const columnTasks = otherTasks
-          .filter((t) => t.status === targetStatus && t.project_id === taskToMove.project_id)
+          .filter(
+            (t) =>
+              t.status === targetStatus &&
+              t.project_id === taskToMove.project_id &&
+              (targetDepartment === undefined || t.department === finalDept)
+          )
           .sort((a, b) => a.order_index - b.order_index);
 
         const insertIndex =
@@ -1188,6 +1230,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const updatedMovedTask = {
           ...taskToMove,
           status: targetStatus,
+          department: finalDept,
           updated_at: new Date().toISOString(),
         };
 
@@ -1199,22 +1242,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }));
 
         const nonColumnTasks = otherTasks.filter(
-          (t) => !(t.status === targetStatus && t.project_id === taskToMove.project_id)
+          (t) =>
+            !(
+              t.status === targetStatus &&
+              t.project_id === taskToMove.project_id &&
+              (targetDepartment === undefined || t.department === finalDept)
+            )
         );
 
         const nextTasks = [...nonColumnTasks, ...reindexedColumnTasks];
         recalculateProjectProgress(taskToMove.project_id, nextTasks);
 
         if (editingTask && editingTask.id === taskId) {
-          setEditingTask({ ...editingTask, status: targetStatus });
+          setEditingTask({ ...editingTask, status: targetStatus, department: finalDept });
         }
 
-        taskService.moveTask(taskId, targetStatus, insertIndex);
+        taskService.moveTask(taskId, targetStatus, insertIndex, targetDepartment);
         broadcastSync({ tasks: nextTasks });
         return nextTasks;
       });
 
-      logActivity("task_moved", `Moved task status to "${targetStatus}"`, undefined, taskId);
+      logActivity(
+        "task_moved",
+        `Moved task to "${targetStatus}"${targetDepartment ? ` in ${targetDepartment}` : ""}`,
+        undefined,
+        taskId
+      );
     },
     [currentUser.role, recalculateProjectProgress, editingTask, broadcastSync, logActivity]
   );
@@ -1825,9 +1878,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         name: clientData.name || "Untitled Client",
         company: clientData.company || "",
         email: clientData.email || "",
-        avatar_url:
-          clientData.avatar_url ||
-          `https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80`,
+        avatar_url: clientData.avatar_url || undefined,
         status: clientData.status || "active",
         project_ids: clientData.project_ids || [],
         created_at: new Date().toISOString(),

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useStore } from "@/context/StoreContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
@@ -52,6 +52,14 @@ export function CreateTaskModal() {
   const [isCustomType, setIsCustomType] = useState(false);
   const [customDeptInput, setCustomDeptInput] = useState("");
   const [isCustomDept, setIsCustomDept] = useState(false);
+
+  const currentProject = projects.find((p) => p.id === projectId);
+  const projectDepartments = useMemo(() => {
+    if (currentProject?.departments && currentProject.departments.length > 0) {
+      return currentProject.departments;
+    }
+    return DEFAULT_DEPARTMENTS;
+  }, [currentProject]);
 
   const handleSelectTaskType = (typeId: string) => {
     setIsCustomType(false);
@@ -311,7 +319,7 @@ export function CreateTaskModal() {
                     onChange={(e) => setDepartment(e.target.value)}
                     className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer font-medium"
                   >
-                    {DEFAULT_DEPARTMENTS.map((dept) => (
+                    {projectDepartments.map((dept) => (
                       <option key={dept} value={dept}>
                         🏛️ {dept}
                       </option>

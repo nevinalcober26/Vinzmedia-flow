@@ -37,6 +37,7 @@ import { ActivityView } from "@/components/activity/ActivityView";
 import { WorkloadView } from "@/components/team/WorkloadView";
 import { WorkspaceSettingsView } from "@/components/settings/WorkspaceSettingsView";
 import { ClientsFilesView } from "@/components/files/ClientsFilesView";
+import { BillingView } from "@/components/billing/BillingView";
 
 export default function Home() {
   const router = useRouter();
@@ -66,6 +67,7 @@ export default function Home() {
       case "workload":
         return <TeamSkeleton />;
       case "clients":
+      case "billing":
         return <ClientsFilesSkeleton />;
       case "notes":
       case "announcements":
@@ -101,6 +103,8 @@ export default function Home() {
         return <WorkloadView />;
       case "clients":
         return <ClientsFilesView />;
+      case "billing":
+        return <BillingView />;
       case "settings":
         return <WorkspaceSettingsView />;
       default:

@@ -67,7 +67,16 @@ export function MondayDepartmentCell({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1 w-56 bg-card border border-border shadow-2xl rounded-xl p-1.5 z-50 text-xs animate-in fade-in zoom-in-95">
+        <>
+          <div
+            className="fixed inset-0 z-40 cursor-default"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+              setIsAddingNew(false);
+            }}
+          />
+          <div className="absolute left-0 top-full mt-1 w-56 bg-card border border-border shadow-2xl rounded-xl p-1.5 z-50 text-xs animate-in fade-in zoom-in-95">
           <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 mb-1 flex items-center justify-between">
             <span>Assign Department</span>
             <span className="font-mono text-[9px] text-primary">Team</span>
@@ -150,6 +159,7 @@ export function MondayDepartmentCell({
             )}
           </div>
         </div>
+        </>
       )}
     </div>
   );
