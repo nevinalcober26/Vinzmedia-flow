@@ -215,26 +215,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
-  // Core collections
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [currentUserId, setCurrentUserIdState] = useState<string>("user_alex");
-  const [workspaces, setWorkspaces] = useState<Workspace[]>(initialWorkspaces);
-  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<string>("ws_main");
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  // Core collections (Live dynamic data loaded from Supabase)
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentUserId, setCurrentUserIdState] = useState<string>("");
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<string>("");
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(null);
   const [columns, setColumns] = useState<TaskColumn[]>(initialColumns);
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [notes, setNotes] = useState<Note[]>(initialNotes);
-  const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(initialActivityLogs);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [widgets, setWidgets] = useState<DashboardWidgetConfig[]>(initialWidgets);
-  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(initialTimeEntries);
-  const [clients, setClients] = useState<Client[]>(initialClients);
-  const [files, setFiles] = useState<ProjectFile[]>(initialFiles);
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [files, setFiles] = useState<ProjectFile[]>([]);
   const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const [onlineUsers] = useState<string[]>(["user_alex", "user_elena", "user_marcus", "user_sarah"]);
+  const [onlineUsers] = useState<string[]>([]);
 
   // UI state
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
@@ -455,13 +455,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [activeTimer]);
 
   // Derived Values
-  const currentUser = useMemo(() => {
-    return users.find((u) => u.id === currentUserId) || users[0];
+  const currentUser = useMemo((): User => {
+    return (
+      users.find((u) => u.id === currentUserId) ||
+      users[0] || {
+        id: currentUserId || "user_lead",
+        email: "",
+        full_name: "Workspace Lead",
+        role: "owner" as Role,
+        title: "Workspace Lead",
+        department: "Executive",
+        status: "online" as const,
+        created_at: new Date().toISOString(),
+      }
+    );
   }, [users, currentUserId]);
 
-  const activeWorkspace = useMemo(() => {
-    return workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
-  }, [workspaces, activeWorkspaceId]);
+  const activeWorkspace = useMemo((): Workspace => {
+    return (
+      workspaces.find((w) => w.id === activeWorkspaceId) ||
+      workspaces[0] || {
+        id: activeWorkspaceId || "ws_lead",
+        name: "My Workspace",
+        slug: "my-workspace",
+        owner_id: currentUser?.id || "user_lead",
+        plan: "pro" as const,
+        created_at: new Date().toISOString(),
+      }
+    );
+  }, [workspaces, activeWorkspaceId, currentUser?.id]);
 
   const activeProject = useMemo(() => {
     if (!selectedProjectId) return null;
@@ -582,7 +604,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     authService.signOut().catch(() => {});
     setIsAuthenticated(false);
-    setIsAuthModalOpen(true);
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
   }, []);
 
   const demoLogin = useCallback(
@@ -1395,9 +1419,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [users, logActivity]
   );
 
-  const updateMemberRole = useCallback((userId: string, role: Role) => {
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
-  }, []);
+  const updateMemberRole = useCallback(
+    async (userId: string, role: Role) => {
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase.from("profiles").update({ role }).eq("id", userId);
+          await supabase
+            .from("workspace_members")
+            .update({ role })
+            .eq("workspace_id", activeWorkspaceId)
+            .eq("user_id", userId);
+          logActivity("role_updated", `Updated member role to ${role}`);
+        } catch (err) {
+          console.error("Failed to update member role in Supabase:", err);
+        }
+      }
+    },
+    [activeWorkspaceId, logActivity]
+  );
 
   const removeMember = useCallback((userId: string) => {
     setUsers((prev) => prev.filter((u) => u.id !== userId));

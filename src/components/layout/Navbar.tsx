@@ -27,7 +27,6 @@ import { formatTimerDisplay, getPriorityBadgeColor } from "@/lib/utils";
 import { getRoleBadge } from "@/lib/permissions";
 import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
 import { KeyboardShortcutsModal } from "@/components/modals/KeyboardShortcutsModal";
-import { AuthModal } from "@/components/auth/AuthModal";
 
 export function Navbar() {
   const {
@@ -48,8 +47,6 @@ export function Navbar() {
     setActiveView,
     isAuthenticated,
     logout,
-    isAuthModalOpen,
-    setIsAuthModalOpen,
   } = useStore();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -256,56 +253,13 @@ export function Navbar() {
                   </div>
                 </div>
 
-                {/* Login / Register Option */}
-                <div className="px-2 py-1.5 border-b border-border/60">
-                  <button
-                    onClick={() => setIsAuthModalOpen(true)}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-secondary transition-colors text-left text-primary font-medium"
-                  >
-                    <LogIn className="w-3.5 h-3.5" />
-                    <span>Sign In or Create Account</span>
-                  </button>
-                </div>
-
-                <div className="px-3 py-2 border-b border-border/60">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                    Switch Test User Persona (RBAC)
-                  </p>
-                  <div className="space-y-1">
-                    {users.map((u) => (
-                      <button
-                        key={u.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentUserId(u.id);
-                          setIsProfileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-secondary transition-colors text-left ${
-                          u.id === currentUser.id ? "bg-secondary font-medium" : ""
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2 min-w-0">
-                          <img
-                            src={u.avatar_url}
-                            alt=""
-                            className="w-5 h-5 rounded-full object-cover flex-shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <p className="text-xs text-foreground leading-none truncate">{u.full_name}</p>
-                            <p className="text-[10px] text-muted-foreground capitalize leading-tight">
-                              {u.role.replace("_", " ")}
-                            </p>
-                          </div>
-                        </div>
-                        {u.id === currentUser.id && (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 <div className="p-1 space-y-0.5">
+                  <button
+                    onClick={() => setActiveView("team")}
+                    className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+                  >
+                    Team & RBAC Permissions
+                  </button>
                   <button
                     onClick={() => setActiveView("settings")}
                     className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
@@ -328,9 +282,6 @@ export function Navbar() {
 
       {/* Shortcuts Modal */}
       {isShortcutsOpen && <KeyboardShortcutsModal onClose={() => setIsShortcutsOpen(false)} />}
-
-      {/* Auth & RBAC Modal */}
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </>
   );
 }

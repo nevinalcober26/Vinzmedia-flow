@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useStore } from "@/context/StoreContext";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
@@ -25,7 +26,22 @@ import { WorkspaceSettingsView } from "@/components/settings/WorkspaceSettingsVi
 import { ClientsFilesView } from "@/components/files/ClientsFilesView";
 
 export default function Home() {
-  const { activeView } = useStore();
+  const router = useRouter();
+  const { activeView, isAuthenticated } = useStore();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isAuthenticated, router]);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center h-screen w-screen bg-background text-muted-foreground text-xs">
+        Redirecting to sign in...
+      </div>
+    );
+  }
 
   const renderActiveView = () => {
     switch (activeView) {
