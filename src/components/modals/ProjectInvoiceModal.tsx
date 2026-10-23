@@ -140,16 +140,16 @@ export function ProjectInvoiceModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-xs overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 15 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col my-8"
+          className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[94vh] overflow-hidden flex flex-col my-auto"
         >
           {/* Action Bar (Screen Only - Hidden in Print) */}
-          <div className="no-print flex items-center justify-between px-6 py-3.5 border-b border-border/80 bg-secondary/30">
+          <div className="no-print flex items-center justify-between px-4 sm:px-6 py-2.5 border-b border-border/80 bg-secondary/30 shrink-0">
             <div className="flex items-center space-x-2">
               <Receipt className="w-4 h-4 text-primary" />
               <span className="text-xs font-bold text-foreground">
@@ -173,7 +173,7 @@ export function ProjectInvoiceModal({
 
               <button
                 onClick={handlePrint}
-                className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#0073ea] hover:bg-[#0060c0] text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer"
+                className="flex items-center space-x-1.5 px-3 py-1 bg-[#0073ea] hover:bg-[#0060c0] text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer"
                 title="Print or Save as PDF"
               >
                 <Printer className="w-3.5 h-3.5" />
@@ -182,7 +182,7 @@ export function ProjectInvoiceModal({
 
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -190,9 +190,9 @@ export function ProjectInvoiceModal({
           </div>
 
           {/* Currency Conversion Options Bar (Screen Only - Hidden in Print) */}
-          <div className="no-print px-6 py-2.5 bg-secondary/20 border-b border-border/70 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center space-x-2.5">
-              <span className="font-semibold text-foreground flex items-center space-x-1.5">
+          <div className="no-print px-4 sm:px-6 py-2 bg-secondary/20 border-b border-border/70 flex flex-wrap items-center justify-between gap-2.5 text-xs shrink-0">
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold text-foreground flex items-center space-x-1.5 text-xs">
                 <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
                 <span>Currency Conversion:</span>
               </span>
@@ -201,15 +201,15 @@ export function ProjectInvoiceModal({
               <button
                 type="button"
                 onClick={() => setEnableConversion(!enableConversion)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
                   enableConversion ? "bg-[#0073ea]" : "bg-muted-foreground/30"
                 }`}
                 role="switch"
                 aria-checked={enableConversion}
               >
                 <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                    enableConversion ? "translate-x-4" : "translate-x-0"
+                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                    enableConversion ? "translate-x-3.5" : "translate-x-0"
                   }`}
                 />
               </button>
@@ -225,7 +225,7 @@ export function ProjectInvoiceModal({
                 <select
                   value={targetCurrency}
                   onChange={(e) => handleTargetCurrencyChange(e.target.value)}
-                  className="bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground cursor-pointer font-medium"
+                  className="bg-background border border-border rounded-lg px-2 py-0.5 text-xs text-foreground cursor-pointer font-medium"
                 >
                   {SUPPORTED_CURRENCIES.map((curr) => (
                     <option key={curr.code} value={curr.code}>
@@ -245,7 +245,7 @@ export function ProjectInvoiceModal({
                     min="0.0001"
                     value={conversionRate}
                     onChange={(e) => setConversionRate(e.target.value)}
-                    className="w-20 bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground font-mono"
+                    className="w-18 bg-background border border-border rounded-lg px-1.5 py-0.5 text-xs text-foreground font-mono"
                   />
                   <span className="text-[11px] font-bold text-muted-foreground font-mono">
                     {targetCurrency}
@@ -275,37 +275,37 @@ export function ProjectInvoiceModal({
           {/* Printable Invoice Sheet */}
           <div
             id="invoice-printable-area"
-            className="p-8 sm:p-10 space-y-8 bg-card text-foreground"
+            className="p-4 sm:p-6 space-y-4 sm:space-y-4.5 bg-card text-foreground overflow-y-auto flex-1"
           >
             {/* Invoice Top Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pb-6 border-b border-border/80">
-              <div className="space-y-1">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-3 pb-3.5 border-b border-border/80">
+              <div className="space-y-0.5">
                 <div className="flex items-center space-x-2">
-                  <div className="w-7 h-7 rounded-lg bg-[#0073ea] flex items-center justify-center text-white font-bold text-sm">
+                  <div className="w-6 h-6 rounded-md bg-[#0073ea] flex items-center justify-center text-white font-bold text-xs">
                     V
                   </div>
-                  <h1 className="text-xl font-extrabold tracking-tight text-foreground">
+                  <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-foreground">
                     VinzMedia Platform
                   </h1>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   Workspace: {activeWorkspace?.name || "Corporate Internal App"}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   Professional Services & Software Development
                 </p>
               </div>
 
-              <div className="text-right space-y-1 sm:self-auto self-end">
-                <h2 className="text-2xl font-black tracking-tight text-[#0073ea]">
+              <div className="text-right space-y-0.5 sm:self-auto self-end">
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[#0073ea]">
                   INVOICE
                 </h2>
-                <p className="text-xs font-mono font-bold text-foreground">
+                <p className="text-[11px] font-mono font-bold text-foreground">
                   #{invoiceNumber}
                 </p>
-                <div className="inline-block mt-1">
+                <div className="inline-block mt-0.5">
                   <span
-                    className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                    className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${
                       invoiceStatus === "Paid"
                         ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
                         : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
@@ -318,35 +318,35 @@ export function ProjectInvoiceModal({
             </div>
 
             {/* Bill To & Invoice Meta Details */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
               <div>
-                <span className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">
+                <span className="font-semibold text-muted-foreground uppercase tracking-wider text-[9px] block mb-1">
                   Billed To / Project Client
                 </span>
                 {linkedClient ? (
-                  <div className="flex items-start space-x-3 mt-1.5">
-                    <ClientAvatar client={linkedClient} size="lg" rounded="xl" />
-                    <div className="space-y-0.5">
-                      <p className="font-bold text-sm text-foreground">
+                  <div className="flex items-start space-x-2.5 mt-1">
+                    <ClientAvatar client={linkedClient} size="md" rounded="lg" />
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="font-bold text-xs text-foreground truncate">
                         {linkedClient.company || linkedClient.name}
                       </p>
                       {linkedClient.company && linkedClient.name && (
-                        <p className="text-xs text-muted-foreground font-medium">
+                        <p className="text-[11px] text-muted-foreground font-medium truncate">
                           Attn: {linkedClient.name}
                         </p>
                       )}
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground truncate">
                         {linkedClient.email}
                       </p>
-                      <p className="text-[10px] font-mono text-[#0073ea] font-medium pt-0.5">
+                      <p className="text-[10px] font-mono text-[#0073ea] font-medium pt-0.5 truncate">
                         Project: {project.name}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <p className="font-bold text-sm text-foreground">{project.name}</p>
-                    <p className="text-muted-foreground mt-0.5 line-clamp-2">
+                    <p className="font-bold text-xs text-foreground">{project.name}</p>
+                    <p className="text-muted-foreground mt-0.5 text-[11px] line-clamp-2">
                       {project.description || "Project Milestone & Task Deliverables"}
                     </p>
                   </div>
@@ -354,31 +354,31 @@ export function ProjectInvoiceModal({
               </div>
 
               <div>
-                <span className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">
+                <span className="font-semibold text-muted-foreground uppercase tracking-wider text-[9px] block mb-1">
                   Billing Terms
                 </span>
-                <p className="font-bold text-foreground">
+                <p className="font-bold text-xs text-foreground">
                   {isFixed ? "Fixed Contract Agreement" : "Hourly Rate (Time & Materials)"}
                 </p>
-                <p className="text-muted-foreground mt-0.5 font-mono">
+                <p className="text-muted-foreground mt-0.5 font-mono text-[11px]">
                   Currency: {currencySymbol} ({project.currency || "USD"})
                 </p>
                 {enableConversion && (
-                  <p className="text-[#0073ea] font-medium mt-1 font-mono text-[11px]">
+                  <p className="text-[#0073ea] font-medium mt-0.5 font-mono text-[10px]">
                     💱 1 {project.currency || "$"} = {parsedRate} {targetCurrency}
                   </p>
                 )}
               </div>
 
               <div className="sm:text-right">
-                <span className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">
+                <span className="font-semibold text-muted-foreground uppercase tracking-wider text-[9px] block mb-1">
                   Important Dates
                 </span>
-                <p className="text-foreground">
+                <p className="text-foreground text-[11px]">
                   <span className="text-muted-foreground">Issue Date:</span>{" "}
                   <span className="font-medium font-mono">{formatDate(todayStr)}</span>
                 </p>
-                <p className="text-foreground mt-0.5">
+                <p className="text-foreground mt-0.5 text-[11px]">
                   <span className="text-muted-foreground">Due Date:</span>{" "}
                   <span className="font-bold font-mono text-[#0073ea]">
                     {formatDate(dueDateStr)}
@@ -391,11 +391,11 @@ export function ProjectInvoiceModal({
             <div className="border border-border/80 rounded-xl overflow-hidden">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-secondary/50 border-b border-border/80 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                    <th className="py-2.5 px-4">Item & Description</th>
-                    <th className="py-2.5 px-4 text-center">Unit / Term</th>
-                    <th className="py-2.5 px-4 text-right">Rate</th>
-                    <th className="py-2.5 px-4 text-right">Amount ({currencySymbol})</th>
+                  <tr className="bg-secondary/50 border-b border-border/80 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    <th className="py-2 px-3">Item & Description</th>
+                    <th className="py-2 px-3 text-center">Unit / Term</th>
+                    <th className="py-2 px-3 text-right">Rate</th>
+                    <th className="py-2 px-3 text-right">Amount ({currencySymbol})</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -419,9 +419,9 @@ export function ProjectInvoiceModal({
                       const isInstPaid = inst.status === "paid";
                       return (
                         <tr key={idx} className="hover:bg-secondary/20 transition-colors">
-                          <td className="py-3 px-4">
+                          <td className="py-2 px-3">
                             <div className="flex items-center space-x-2">
-                              <p className="font-bold text-foreground">
+                              <p className="font-bold text-xs text-foreground">
                                 {inst.title || `Payment Milestone #${idx + 1}`}
                               </p>
                               {isInstPaid && (
@@ -430,21 +430,21 @@ export function ProjectInvoiceModal({
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
                               Milestone #{inst.installment_number || idx + 1} ({inst.percentage || Math.round(100 / installmentsCount)}% of total contract)
                             </p>
                           </td>
-                          <td className="py-3 px-4 text-center font-mono text-muted-foreground">
+                          <td className="py-2 px-3 text-center font-mono text-[11px] text-muted-foreground">
                             {inst.percentage || Math.round(100 / installmentsCount)}%
                           </td>
-                          <td className="py-3 px-4 text-right font-mono">
+                          <td className="py-2 px-3 text-right font-mono text-xs">
                             {currencySymbol}
                             {(Number(inst.amount) || perInstallmentAmount).toLocaleString(undefined, {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             })}
                           </td>
-                          <td className="py-3 px-4 text-right font-mono font-bold text-foreground">
+                          <td className="py-2 px-3 text-right font-mono font-bold text-xs text-foreground">
                             {currencySymbol}
                             {(Number(inst.amount) || perInstallmentAmount).toLocaleString(undefined, {
                               minimumFractionDigits: 2,
@@ -459,22 +459,22 @@ export function ProjectInvoiceModal({
                     <>
                       {/* Weekly commitment summary */}
                       <tr className="hover:bg-secondary/20 transition-colors">
-                        <td className="py-3 px-4">
-                          <p className="font-bold text-foreground">
+                        <td className="py-2 px-3">
+                          <p className="font-bold text-xs text-foreground">
                             Dedicated Weekly Development Allocation
                           </p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
                             Planned capacity commitment ({hoursPerWeek} billable hours/week)
                           </p>
                         </td>
-                        <td className="py-3 px-4 text-center font-mono text-muted-foreground">
+                        <td className="py-2 px-3 text-center font-mono text-[11px] text-muted-foreground">
                           {hoursPerWeek} hrs/wk
                         </td>
-                        <td className="py-3 px-4 text-right font-mono">
+                        <td className="py-2 px-3 text-right font-mono text-xs">
                           {currencySymbol}
                           {hourlyRate.toFixed(2)}/hr
                         </td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-foreground">
+                        <td className="py-2 px-3 text-right font-mono font-bold text-xs text-foreground">
                           {currencySymbol}
                           {weeklyEstimatedAmount.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
@@ -494,22 +494,22 @@ export function ProjectInvoiceModal({
                               key={task.id}
                               className="hover:bg-secondary/20 transition-colors bg-secondary/5"
                             >
-                              <td className="py-2.5 px-4 pl-8">
-                                <p className="font-medium text-foreground">
+                              <td className="py-1.5 px-3 pl-6">
+                                <p className="font-medium text-xs text-foreground">
                                   Task: {task.title}
                                 </p>
-                                <p className="text-[10px] text-muted-foreground capitalize">
+                                <p className="text-[9px] text-muted-foreground capitalize">
                                   Status: {task.status.replace("_", " ")}
                                 </p>
                               </td>
-                              <td className="py-2.5 px-4 text-center font-mono text-muted-foreground">
+                              <td className="py-1.5 px-3 text-center font-mono text-[10px] text-muted-foreground">
                                 {taskHours.toFixed(2)} hrs
                               </td>
-                              <td className="py-2.5 px-4 text-right font-mono text-muted-foreground">
+                              <td className="py-1.5 px-3 text-right font-mono text-[11px] text-muted-foreground">
                                 {currencySymbol}
                                 {hourlyRate.toFixed(2)}
                               </td>
-                              <td className="py-2.5 px-4 text-right font-mono font-medium text-foreground">
+                              <td className="py-1.5 px-3 text-right font-mono font-medium text-xs text-foreground">
                                 {currencySymbol}
                                 {taskCost.toLocaleString(undefined, {
                                   minimumFractionDigits: 2,
@@ -526,8 +526,8 @@ export function ProjectInvoiceModal({
             </div>
 
             {/* Total Summary Breakdown */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-2">
-              <div className="text-xs text-muted-foreground max-w-sm space-y-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-3 pt-1">
+              <div className="text-[11px] text-muted-foreground max-w-sm space-y-1.5">
                 <div>
                   <p className="font-bold text-foreground">Payment Instructions:</p>
                   <p>
@@ -537,7 +537,7 @@ export function ProjectInvoiceModal({
                 </div>
 
                 {enableConversion && (
-                  <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-900 dark:text-blue-200">
+                  <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-900 dark:text-blue-200">
                     <p className="font-bold text-blue-600 dark:text-blue-400">
                       Multi-Currency Settlement Notice:
                     </p>
@@ -550,8 +550,8 @@ export function ProjectInvoiceModal({
                 )}
               </div>
 
-              <div className="w-full sm:w-80 space-y-2 text-xs">
-                <div className="flex justify-between py-1 text-muted-foreground">
+              <div className="w-full sm:w-72 space-y-1 text-xs">
+                <div className="flex justify-between py-0.5 text-muted-foreground text-[11px]">
                   <span>Subtotal:</span>
                   <span className="font-mono font-semibold text-foreground">
                     {currencySymbol}
@@ -561,13 +561,13 @@ export function ProjectInvoiceModal({
                     })}
                   </span>
                 </div>
-                <div className="flex justify-between py-1 text-muted-foreground">
+                <div className="flex justify-between py-0.5 text-muted-foreground text-[11px]">
                   <span>Tax (0%):</span>
                   <span className="font-mono text-foreground">{currencySymbol}0.00</span>
                 </div>
-                <div className="flex justify-between py-2 border-t-2 border-foreground/80 text-sm font-bold text-foreground">
+                <div className="flex justify-between py-1.5 border-t-2 border-foreground/80 text-xs font-bold text-foreground">
                   <span>Total Amount Due:</span>
-                  <span className="font-mono text-base text-[#0073ea]">
+                  <span className="font-mono text-sm text-[#0073ea]">
                     {currencySymbol}
                     {finalTotal.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
@@ -578,25 +578,25 @@ export function ProjectInvoiceModal({
 
                 {/* Highlighted Converted Total on Final Invoice */}
                 {enableConversion && (
-                  <div className="p-3.5 rounded-xl bg-blue-500/10 border-2 border-blue-500/30 text-foreground space-y-1 mt-2">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-blue-600 dark:text-blue-400">
-                      <span className="flex items-center space-x-1.5">
-                        <ArrowRightLeft className="w-3.5 h-3.5" />
+                  <div className="p-2.5 rounded-lg bg-blue-500/10 border-2 border-blue-500/30 text-foreground space-y-0.5 mt-1">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                      <span className="flex items-center space-x-1">
+                        <ArrowRightLeft className="w-3 h-3" />
                         <span>Converted Payable Total:</span>
                       </span>
-                      <span className="font-mono text-[10px] text-muted-foreground">
+                      <span className="font-mono text-[9px] text-muted-foreground">
                         1 {project.currency || "$"} = {parsedRate}
                       </span>
                     </div>
                     <div className="flex items-baseline justify-between pt-0.5">
-                      <span className="text-[11px] text-muted-foreground">In {targetCurrency}:</span>
-                      <span className="font-mono text-lg font-extrabold text-[#0073ea]">
+                      <span className="text-[10px] text-muted-foreground">In {targetCurrency}:</span>
+                      <span className="font-mono text-base font-extrabold text-[#0073ea]">
                         {targetCurrencyInfo.symbol}
                         {convertedFinalTotal.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}{" "}
-                        <span className="text-xs font-bold text-foreground">{targetCurrency}</span>
+                        <span className="text-[10px] font-bold text-foreground">{targetCurrency}</span>
                       </span>
                     </div>
                   </div>
@@ -605,7 +605,7 @@ export function ProjectInvoiceModal({
             </div>
 
             {/* Footer Note */}
-            <div className="pt-6 border-t border-border/60 text-center text-[11px] text-muted-foreground">
+            <div className="pt-3 border-t border-border/60 text-center text-[10px] text-muted-foreground">
               <p>Thank you for your business. Generated securely by VinzMedia Project Management Platform.</p>
             </div>
           </div>
