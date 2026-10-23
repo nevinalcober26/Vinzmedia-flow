@@ -1,11 +1,13 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState, useRef } from "react";
 import { useStore } from "@/context/StoreContext";
 import { useConfirm } from "@/context/ToastContext";
 import {
   FolderKanban,
   FileText,
+  Users,
   Upload,
   Plus,
   Search,
@@ -412,11 +414,18 @@ export function ClientsFilesView({
           {/* Files Grid */}
           <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pb-10">
             {filteredFiles.length === 0 ? (
-              <div className="col-span-full py-16 text-center text-muted-foreground text-xs">
-                <FileText className="w-10 h-10 opacity-30 mx-auto mb-2" />
-                <p className="font-semibold text-foreground">No files match your filter</p>
-                <p className="mt-0.5">Drag and drop files to upload.</p>
-              </div>
+              <EmptyState
+                className="col-span-full self-start"
+                icon={FileText}
+                title={search || selectedType !== "all" || selectedClientFilter !== "all" || (!initialProjectId && selectedProjectFilter !== "all") ? "No files match your filters" : "Your files, all in one place"}
+                description="Keep briefs, documents, and deliverables together. Upload a file or adjust your filters to find what you need."
+                actionLabel={search || selectedType !== "all" || selectedClientFilter !== "all" || (!initialProjectId && selectedProjectFilter !== "all") ? "Clear filters" : "Upload a file"}
+                onAction={() => {
+                  if (search || selectedType !== "all" || selectedClientFilter !== "all" || (!initialProjectId && selectedProjectFilter !== "all")) {
+                    setSearch(""); setSelectedType("all"); setSelectedClientFilter("all"); setSelectedProjectFilter(initialProjectId || "all");
+                  } else setIsDocTypeModalOpen(true);
+                }}
+              />
             ) : (
               filteredFiles.map((file) => {
                 const iconInfo = getFileIcon(file.type, file.name);
@@ -524,6 +533,7 @@ export function ClientsFilesView({
       {/* Tab 2: Clients & Accounts */}
       {activeTab === "clients" && (
         <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-12">
+          {clients.length === 0 && <EmptyState className="col-span-full self-start" icon={Users} title="Make room for your first client" description="Connect clients to their projects, files, and billing so every engagement stays organized." actionLabel="Add client" onAction={() => setIsClientModalOpen(true)} />}
           {clients.map((client) => {
             const clientFiles = files.filter((f) => f.client_id === client.id);
             const clientProjectsList = projects.filter((p) =>

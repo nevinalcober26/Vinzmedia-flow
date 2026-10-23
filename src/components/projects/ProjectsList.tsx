@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
 import { useConfirm } from "@/context/ToastContext";
@@ -98,27 +99,9 @@ export function ProjectsList() {
       )}
       {/* Projects Grid or Clean Empty State */}
       {projects.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-border/80 rounded-2xl p-12 text-center my-auto">
-          <FolderKanban className="w-12 h-12 text-muted-foreground/30 mb-3" />
-          <h3 className="text-sm font-bold text-foreground">No Projects Created Yet</h3>
-          <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-4">
-            Get started by creating your first project to organize sprints, manage tasks, and track team progress.
-          </p>
-          <button
-            onClick={() => setIsCreateProjectModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-xs font-semibold shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create First Project</span>
-          </button>
-        </div>
+        <EmptyState className="flex-1" icon={FolderKanban} title="Your next great project starts here" description="Bring tasks, people, and milestones together. Create your first project to give the work a home." actionLabel="Create project" onAction={() => setIsCreateProjectModalOpen(true)} />
       ) : visibleProjects.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-border p-8 text-center">
-          <Search className="mb-3 h-7 w-7 text-muted-foreground" />
-          <h2 className="font-semibold">No matching projects</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Try another name or choose a different status.</p>
-          <button onClick={() => { setSearch(""); setStatusFilter("all"); }} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Clear filters</button>
-        </div>
+        <EmptyState className="flex-1" icon={Search} title="No matching projects" description="Try another name or clear your filters to explore all projects." actionLabel="Clear filters" onAction={() => { setSearch(""); setStatusFilter("all"); }} />
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto grid auto-rows-max grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-8">
           {visibleProjects.map((proj) => {

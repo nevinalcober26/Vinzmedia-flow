@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
 import {
@@ -70,6 +71,7 @@ export function ActivityView() {
 
       {/* Activity Timeline List */}
       <div className="flex-1 overflow-y-auto space-y-3 pb-8">
+        {filteredLogs.length === 0 && <EmptyState icon={Activity} title={filterProject !== "all" ? "No activity for this project yet" : "Your workspace story starts here"} description="Project updates, task changes, and team activity will appear here as work moves forward." actionLabel={filterProject !== "all" ? "View all activity" : undefined} onAction={filterProject !== "all" ? () => setFilterProject("all") : undefined} />}
         {filteredLogs.map((log) => (
           <div
             key={log.id}

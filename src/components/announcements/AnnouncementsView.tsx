@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
 import {
@@ -77,6 +78,7 @@ export function AnnouncementsView() {
 
       {/* Announcements Stream */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-8">
+        {announcements.length === 0 && <EmptyState icon={Megaphone} title="A home for the updates that matter" description={canCreate ? "Share your first announcement to keep the team informed and moving together." : "Team announcements will appear here when your workspace has something to share."} actionLabel={canCreate ? "Post announcement" : undefined} onAction={canCreate ? () => setIsModalOpen(true) : undefined} />}
         {announcements.map((ann) => {
           const isRead = ann.read_by.includes(currentUser.id);
           return (

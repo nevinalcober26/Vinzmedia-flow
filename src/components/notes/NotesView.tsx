@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
 import { useConfirm, useToast } from "@/context/ToastContext";
@@ -283,24 +284,16 @@ export function NotesView() {
       {/* Main Corkboard Wall Grid */}
       <div className="flex-1 overflow-y-auto pr-1 pb-10">
         {sortedNotes.length === 0 ? (
-          <div className="h-96 flex flex-col items-center justify-center border-2 border-dashed border-border/80 rounded-3xl p-8 text-center my-auto">
-            <div className="w-14 h-14 rounded-2xl bg-amber-400/10 text-amber-500 flex items-center justify-center mb-3">
-              <StickyNote className="w-7 h-7" />
-            </div>
-            <h3 className="text-sm font-bold text-foreground">No Sticky Notes Found</h3>
-            <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-4">
-              {search
-                ? `No notes matching "${search}". Try clearing your search.`
-                : "Your board is empty! Click below to stick your first idea, note, or meeting memo."}
-            </p>
-            <button
-              onClick={() => handleCreateStickyNote("yellow")}
-              className="flex items-center space-x-1.5 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl text-xs font-semibold shadow-xs"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Stick a Note</span>
-            </button>
-          </div>
+          <EmptyState
+            icon={StickyNote}
+            title={search || selectedColorFilter !== "all" ? "No notes match your filters" : "Good ideas start here"}
+            description={search || selectedColorFilter !== "all" ? "Clear your search and color filter to see all your notes." : "Capture your first idea, meeting note, or reminder. Keep it close to the work that matters."}
+            actionLabel={search || selectedColorFilter !== "all" ? "Clear filters" : "Create a note"}
+            onAction={() => {
+              if (search || selectedColorFilter !== "all") { setSearch(""); setSelectedColorFilter("all"); }
+              else handleCreateStickyNote("yellow");
+            }}
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-2">
             {sortedNotes.map((note, index) => {

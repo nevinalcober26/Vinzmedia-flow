@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState, useMemo } from "react";
 import { useStore } from "@/context/StoreContext";
 import {
@@ -207,11 +208,16 @@ export function MyTasksView() {
         )}
 
         {myTasks.length === 0 && (
-          <div className="py-16 text-center text-muted-foreground text-xs">
-            <CheckSquare className="w-12 h-12 mx-auto opacity-30 mb-2" />
-            <p className="font-semibold text-foreground">No tasks assigned to you</p>
-            <p className="mt-0.5">Click &quot;Add Task&quot; above to create one.</p>
-          </div>
+          <EmptyState
+            icon={CheckSquare}
+            title={search || selectedProjectId !== "all" ? "No tasks match your filters" : "A clear space for your next task"}
+            description={search || selectedProjectId !== "all" ? "Try another search or view tasks across all projects." : "Tasks assigned to you will appear here. Add a task to start planning your work."}
+            actionLabel={search || selectedProjectId !== "all" ? "Clear filters" : "Add task"}
+            onAction={() => {
+              if (search || selectedProjectId !== "all") { setSearch(""); setSelectedProjectId("all"); }
+              else setIsCreateTaskModalOpen(true);
+            }}
+          />
         )}
       </div>
     </div>

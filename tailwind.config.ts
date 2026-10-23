@@ -16,6 +16,11 @@ const config: Config = {
       },
     },
     extend: {
+      boxShadow: {
+        "2xs": "var(--shadow-2xs)",
+        xs: "var(--shadow-xs)",
+        soft: "var(--shadow-soft)",
+      },
       fontFamily: {
         sans: ["var(--font-inter)", "sans-serif"],
       },

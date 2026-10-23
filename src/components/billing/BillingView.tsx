@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -59,6 +60,7 @@ export function BillingView() {
     toggleInstallmentPaid,
     setSelectedProjectId,
     setActiveView,
+    setIsCreateProjectModalOpen,
   } = useStore();
   const toast = useToast();
 
@@ -324,6 +326,11 @@ export function BillingView() {
   }, [projectFinancials, enableConversionPreview]);
 
   const targetCurInfo = getCurrencyInfo(targetCurrency);
+  const hourlyBillableTasks = tasks.filter((task) =>
+    (task.tracked_seconds || 0) > 0 && projects.some((project) =>
+      project.id === task.project_id && project.billing_type === "hourly"
+    )
+  );
 
   return (
     <div className="billing-view flex h-full flex-col space-y-6 overflow-y-auto pr-1 pb-24">
@@ -625,13 +632,10 @@ export function BillingView() {
       {activeTab === "projects" && (
         <div className="space-y-3">
           {filteredProjectFinancials.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border bg-card">
-              <Receipt className="w-10 h-10 text-muted-foreground/40 mb-3" />
-              <h3 className="text-sm font-semibold text-foreground">No Billing Records Found</h3>
-              <p className="text-xs text-muted-foreground max-w-sm mt-1">
-                No projects matched your search or filters. Create projects or adjust your billing criteria.
-              </p>
-            </div>
+            <EmptyState icon={Receipt} title={projects.length === 0 ? "A clear view of your finances starts here" : "No billing records match your filters"} description={projects.length === 0 ? "Create a project and set its pricing to track milestones, payments, and invoices here." : "Adjust your search, model, status, or client filter to find a project."} actionLabel={projects.length === 0 ? "Create project" : "Clear filters"} onAction={() => {
+              if (projects.length === 0) setIsCreateProjectModalOpen(true);
+              else { setSearch(""); setSelectedTypeFilter("all"); setSelectedStatusFilter("all"); setSelectedClientFilter("all"); }
+            }} />
           ) : (
             <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
               <div className="overflow-x-auto">
@@ -1026,6 +1030,12 @@ export function BillingView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
+                  {filteredProjectFinancials.length === 0 && (
+                    <tr><td colSpan={6} className="p-0"><EmptyState className="border-0 rounded-none shadow-none" icon={Receipt} title={projects.length === 0 ? "Your invoices will live here" : "No invoices match your filters"} description={projects.length === 0 ? "Create a project and configure its billing to prepare your first invoice." : "Clear the current filters to see invoices for all your projects."} actionLabel={projects.length === 0 ? "Create project" : "Clear filters"} onAction={() => {
+                      if (projects.length === 0) setIsCreateProjectModalOpen(true);
+                      else { setSearch(""); setSelectedTypeFilter("all"); setSelectedStatusFilter("all"); setSelectedClientFilter("all"); }
+                    }} /></td></tr>
+                  )}
                   {filteredProjectFinancials.map((item) => {
                     const invoiceNum = `INV-VINZ-${item.project.id.slice(0, 6).toUpperCase()}`;
                     const baseCurrency = item.project.currency || "$";
@@ -1136,12 +1146,10 @@ export function BillingView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
-                  {tasks
-                    .filter((t) => {
-                      const proj = projects.find((p) => p.id === t.project_id);
-                      return proj && (t.tracked_seconds || 0) > 0;
-                    })
-                    .map((task) => {
+                  {hourlyBillableTasks.length === 0 && (
+                    <tr><td colSpan={7} className="p-0"><EmptyState className="border-0 rounded-none shadow-none" icon={Clock} title="No billable hours yet" description="Time tracked on hourly projects will appear here, ready to review and bill." actionLabel="Open time tracking" onAction={() => setActiveView("timelogs")} /></td></tr>
+                  )}
+                  {hourlyBillableTasks.map((task) => {
                       const proj = projects.find((p) => p.id === task.project_id);
                       if (!proj) return null;
                       const hours = Math.round(((task.tracked_seconds || 0) / 3600) * 10) / 10;

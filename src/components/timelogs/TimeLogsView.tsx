@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -68,6 +69,7 @@ export function TimeLogsView() {
     currentUser,
     setSelectedProjectId,
     setActiveView,
+    setIsCreateTaskModalOpen,
   } = useStore();
   const toast = useToast();
 
@@ -713,19 +715,8 @@ export function TimeLogsView() {
               <tbody className="divide-y divide-border/60">
                 {taskRowsData.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-12 text-center text-muted-foreground">
-                      <Clock className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-                      <p className="font-semibold">No tasks match your search or filter.</p>
-                      <button
-                        onClick={() => {
-                          setSearch("");
-                          setSelectedProjectFilter("all");
-                          setHideZeroHours(false);
-                        }}
-                        className="mt-2 text-xs text-primary font-semibold hover:underline"
-                      >
-                        Reset filters
-                      </button>
+                    <td colSpan={10} className="p-0">
+                      <EmptyState className="border-0 rounded-none shadow-none" icon={Clock} title={tasks.length === 0 ? "Time tracking starts with a task" : "Nothing on this timesheet yet"} description={tasks.length === 0 ? "Create your first task, then track time as you work." : "Tasks and their tracked time will appear here. Clear your filters to see more work."} actionLabel={tasks.length === 0 ? "Create task" : "Reset filters"} onAction={() => { if (tasks.length === 0) setIsCreateTaskModalOpen(true); else { setSearch(""); setSelectedProjectFilter("all"); setSelectedDepartmentFilter("all"); setHideZeroHours(false); } }} />
                     </td>
                   </tr>
                 ) : (
@@ -899,6 +890,7 @@ export function TimeLogsView() {
       {/* VIEW 2: Project Columns Board */}
       {viewMode === "project_columns" && (
         <div className="flex-1 overflow-x-auto pb-4">
+          {filteredProjects.length === 0 && <EmptyState icon={Clock} title="No projects to show" description="Clear your project filter or add a project to organize its tasks and tracked time." actionLabel="View projects" onAction={() => setActiveView("projects")} />}
           <div className="flex items-start space-x-4 min-w-max">
             {filteredProjects.map((project) => {
               const projTasks = (tasksByProject.get(project.id) || []).filter((task) => {
@@ -1145,9 +1137,7 @@ export function TimeLogsView() {
               <tbody className="divide-y divide-border/50">
                 {timeEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-muted-foreground">
-                      No time entries logged yet. Start a timer or click &quot;Log Time&quot; above.
-                    </td>
+                    <td colSpan={6} className="p-0"><EmptyState className="border-0 rounded-none shadow-none" icon={Clock} title="Make your time count" description="Log time against a task to build a clear record of your work." actionLabel={tasks.length > 0 ? "Log time" : "Create task"} onAction={() => tasks.length > 0 ? openLogTimeForTask(tasks[0].id) : setIsCreateTaskModalOpen(true)} /></td>
                   </tr>
                 ) : (
                   timeEntries.map((entry) => {

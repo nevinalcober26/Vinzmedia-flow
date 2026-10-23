@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
 import { useToast, useConfirm } from "@/context/ToastContext";
@@ -252,6 +253,7 @@ export function TeamView() {
           {/* Members Grid */}
           <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
             <AnimatePresence>
+              {filteredMembers.length === 0 && <EmptyState className="col-span-full self-start" icon={Users} title={searchQuery ? "No teammates match your search" : "Build your team here"} description={searchQuery ? "Try a different name, email, or role to find your teammate." : "Your team directory will fill up as people join the workspace."} actionLabel={searchQuery ? "Clear search" : undefined} onAction={searchQuery ? () => setSearchQuery("") : undefined} />}
               {filteredMembers.map((member) => {
                 const memberTasks = tasks.filter((t) =>
                   (t.assignee_ids || []).includes(member.id)
@@ -374,15 +376,7 @@ export function TeamView() {
           </div>
 
           {pendingApprovals.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border p-12 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
-                <UserCheck className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-foreground">No Pending Approvals</h3>
-              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                All team registrations have been processed. New invitees will appear here after setting their username and password.
-              </p>
-            </div>
+            <EmptyState icon={UserCheck} title="You're all caught up" description="There are no registrations waiting for approval. New requests will appear here when teammates sign up." />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <AnimatePresence>
@@ -469,15 +463,7 @@ export function TeamView() {
           </div>
 
           {activeInvites.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border p-12 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
-                <LinkIcon className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-foreground">No Active Invitation Links</h3>
-              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                Generate an invitation link to onboard new teammates.
-              </p>
-            </div>
+            <EmptyState icon={LinkIcon} title="Bring your team together" description="Create an invitation link when you're ready to welcome a new teammate." actionLabel={canManageRoles ? "Create invitation link" : undefined} onAction={canManageRoles ? () => { setGeneratedLink(""); setInviteEmail(""); setIsInviteModalOpen(true); } : undefined} />
           ) : (
             <div className="space-y-3">
               {activeInvites.map((inv) => {
