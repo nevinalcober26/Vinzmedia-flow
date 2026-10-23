@@ -199,10 +199,10 @@ export function AnnouncementsView() {
           onClick={() => setIsModalOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground animate-in zoom-in-95 cursor-default"
+            className="w-full max-w-lg max-h-[88vh] flex flex-col bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground animate-in zoom-in-95 cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-secondary/30">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/30 shrink-0">
               <div className="flex items-center space-x-2">
                 <Megaphone className="w-4 h-4 text-primary" />
                 <h3 className="text-sm font-semibold text-foreground">
@@ -211,13 +211,14 @@ export function AnnouncementsView() {
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-md"
+                className="text-muted-foreground hover:text-foreground p-1 rounded-md cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreate} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleCreate} className="flex-1 flex flex-col overflow-hidden">
+              <div className="p-4 sm:p-5 space-y-3 flex-1 overflow-y-auto text-xs">
               <div className="space-y-1">
                 <label className="font-semibold text-foreground">Announcement Title</label>
                 <input
@@ -269,28 +270,29 @@ export function AnnouncementsView() {
                   placeholder="Write the full message details..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full bg-secondary/30 border border-border rounded-lg p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-sans"
+                  className="w-full bg-secondary/30 border border-border rounded-lg p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-sans"
                 />
               </div>
+            </div>
 
-              <div className="flex justify-end space-x-2 pt-2 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!title.trim() || !content.trim()}
-                  className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg text-xs shadow-sm hover:bg-primary/90 disabled:opacity-50"
-                >
-                  Publish Announcement
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="flex justify-end space-x-2 px-5 py-3 border-t border-border bg-secondary/20 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary rounded-lg cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!title.trim() || !content.trim()}
+                className="px-4 py-1.5 bg-primary text-primary-foreground font-semibold rounded-lg text-xs shadow-sm hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
+              >
+                Publish Announcement
+              </button>
+            </div>
+          </form>
+        </div>
         </div>
       )}
     </div>

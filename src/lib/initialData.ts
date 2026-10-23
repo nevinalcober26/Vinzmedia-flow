@@ -679,6 +679,7 @@ Our goal this quarter is to deliver world-class performance, intuitive mobile ex
     is_pinned: true,
     is_private: false,
     tags: ["Strategy", "Architecture", "Q4"],
+    color: "yellow",
     created_at: "2026-10-01T09:00:00Z",
     updated_at: "2026-10-22T17:00:00Z",
   },
@@ -698,6 +699,7 @@ Our goal this quarter is to deliver world-class performance, intuitive mobile ex
     is_pinned: true,
     is_private: false,
     tags: ["AI", "Prompts", "Engineering"],
+    color: "blue",
     created_at: "2026-10-14T11:30:00Z",
     updated_at: "2026-10-20T14:15:00Z",
   },
@@ -713,8 +715,57 @@ Our goal this quarter is to deliver world-class performance, intuitive mobile ex
     is_pinned: false,
     is_private: true,
     tags: ["Ideas", "Personal"],
+    color: "green",
     created_at: "2026-10-19T08:00:00Z",
     updated_at: "2026-10-23T06:45:00Z",
+  },
+  {
+    id: "note_4",
+    workspace_id: "ws_main",
+    author_id: "user_elena",
+    title: "Design System Guidelines & Micro-interactions ✨",
+    content: `- Border radiuses: cards 16px, buttons 12px, pills 9999px.
+- Use 450ms spring stiffness with 28 damping for modals.
+- Glass panels should have 20px blur with subtle 70% border opacity.
+- Avoid loud flat shadows; prefer ambient diffuse glows!`,
+    is_pinned: true,
+    is_private: false,
+    tags: ["Design", "UI/UX"],
+    color: "pink",
+    created_at: "2026-10-20T10:00:00Z",
+    updated_at: "2026-10-23T08:30:00Z",
+  },
+  {
+    id: "note_5",
+    workspace_id: "ws_main",
+    author_id: "user_david",
+    title: "Weekly Release Checklist & QA Signoff 🚀",
+    content: `1. Verify Supabase migrations applied on staging.
+2. Run automated regression tests.
+3. Test billing webhook idempotency with test clock.
+4. Ping stakeholder channel before DNS switchover.`,
+    is_pinned: false,
+    is_private: false,
+    tags: ["DevOps", "Release"],
+    color: "purple",
+    created_at: "2026-10-21T14:00:00Z",
+    updated_at: "2026-10-23T09:15:00Z",
+  },
+  {
+    id: "note_6",
+    workspace_id: "ws_main",
+    author_id: "user_alex",
+    title: "Client Meeting Action Items 📋",
+    content: `Call with VinzMedia stakeholders:
+- Review quarterly burn rate & capacity chart.
+- Finalize invoice deliverables for Phase 2 milestone.
+- Send updated timeline Gantt chart by Friday afternoon.`,
+    is_pinned: false,
+    is_private: false,
+    tags: ["Clients", "Meeting"],
+    color: "orange",
+    created_at: "2026-10-22T16:00:00Z",
+    updated_at: "2026-10-23T11:00:00Z",
   },
 ];
 

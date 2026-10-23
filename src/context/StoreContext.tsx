@@ -1476,6 +1476,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         is_pinned: data.is_pinned ?? false,
         is_private: data.is_private ?? false,
         tags: data.tags || ["General"],
+        color: data.color || "yellow",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

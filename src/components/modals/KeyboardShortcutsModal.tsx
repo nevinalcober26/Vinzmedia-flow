@@ -52,23 +52,23 @@ export function KeyboardShortcutsModal({ onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground animate-in zoom-in-95 duration-150 cursor-default"
+        className="w-full max-w-md max-h-[82vh] flex flex-col bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground animate-in zoom-in-95 duration-150 cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-secondary/30">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/30 shrink-0">
           <div className="flex items-center space-x-2">
             <CommandIcon className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">Keyboard Shortcuts</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground p-1 rounded-md"
+            className="text-muted-foreground hover:text-foreground p-1 rounded-md cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-5 space-y-4 max-h-[480px] overflow-y-auto">
+        <div className="p-4 space-y-3 flex-1 overflow-y-auto">
           {shortcutGroups.map((group) => (
             <div key={group.title} className="space-y-2">
               <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

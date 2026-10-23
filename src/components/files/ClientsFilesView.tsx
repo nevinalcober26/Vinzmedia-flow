@@ -616,10 +616,10 @@ export function ClientsFilesView({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
               transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
-              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground p-6 space-y-4 cursor-default"
+              className="w-full max-w-md max-h-[85vh] flex flex-col bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border/60 bg-secondary/30 shrink-0">
                 <div className="flex items-center space-x-2.5">
                   <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                     <Upload className="w-4 h-4" />
@@ -637,7 +637,7 @@ export function ClientsFilesView({
                 </button>
               </div>
 
-              <div className="space-y-2.5 pt-1">
+              <div className="p-4 space-y-2 flex-1 overflow-y-auto">
                 {/* Option 1: Word Document */}
                 <button
                   type="button"
@@ -741,10 +741,10 @@ export function ClientsFilesView({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
               transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
-              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground cursor-default"
+              className="w-full max-w-md max-h-[85vh] flex flex-col bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-secondary/30">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/30 shrink-0">
                 <div className="flex items-center space-x-2">
                   <Upload className="w-4 h-4 text-primary" />
                   <h3 className="text-sm font-semibold text-foreground">
@@ -753,15 +753,15 @@ export function ClientsFilesView({
                 </div>
                 <button
                   onClick={() => setIsUploadModalOpen(false)}
-                  className="text-muted-foreground hover:text-foreground p-1 rounded-md"
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-md cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-5 space-y-4 text-xs">
+              <div className="p-4 sm:p-5 space-y-3 flex-1 overflow-y-auto text-xs">
                 {/* Files preview list */}
-                <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-secondary/30 border border-border/60">
+                <div className="max-h-32 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-secondary/30 border border-border/60">
                   {selectedFilesToUpload.map((f, i) => (
                     <div key={i} className="flex items-center justify-between text-xs">
                       <span className="font-medium text-foreground truncate max-w-xs">{f.name}</span>
@@ -803,23 +803,23 @@ export function ClientsFilesView({
                     ))}
                   </select>
                 </div>
+              </div>
 
-                <div className="flex justify-end space-x-2 pt-2 border-t border-border">
-                  <button
-                    type="button"
-                    onClick={() => setIsUploadModalOpen(false)}
-                    className="px-3 py-1.5 rounded-lg text-muted-foreground hover:bg-secondary text-xs"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleConfirmUpload}
-                    className="px-4 py-1.5 bg-primary text-primary-foreground font-semibold rounded-lg text-xs shadow-sm hover:bg-primary/90"
-                  >
-                    Confirm & Upload
-                  </button>
-                </div>
+              <div className="flex justify-end space-x-2 px-5 py-3 border-t border-border bg-secondary/20 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsUploadModalOpen(false)}
+                  className="px-3.5 py-1.5 rounded-xl text-muted-foreground hover:bg-secondary text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmUpload}
+                  className="px-4 py-1.5 bg-primary text-primary-foreground font-semibold rounded-xl text-xs shadow-sm hover:bg-primary/90 cursor-pointer"
+                >
+                  Confirm & Upload
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -842,70 +842,72 @@ export function ClientsFilesView({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
               transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
-              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground cursor-default"
+              className="w-full max-w-md max-h-[85vh] flex flex-col bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-secondary/30">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/30 shrink-0">
                 <div className="flex items-center space-x-2">
                   <Building2 className="w-4 h-4 text-primary" />
                   <h3 className="text-sm font-semibold text-foreground">Add New Client Account</h3>
                 </div>
                 <button
                   onClick={() => setIsClientModalOpen(false)}
-                  className="text-muted-foreground hover:text-foreground p-1 rounded-md"
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-md cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateClient} className="p-5 space-y-3.5 text-xs">
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Client Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Acme Health Corp"
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    className="w-full bg-secondary/30 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground"
-                  />
+              <form onSubmit={handleCreateClient} className="flex-1 flex flex-col overflow-hidden">
+                <div className="p-4 sm:p-5 space-y-3 flex-1 overflow-y-auto text-xs">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground">Client Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Acme Health Corp"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      className="w-full bg-secondary/30 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground">Company Entity</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Acme Health Global Inc."
+                      value={clientCompany}
+                      onChange={(e) => setClientCompany(e.target.value)}
+                      className="w-full bg-secondary/30 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground">Contact Email</label>
+                    <input
+                      type="email"
+                      placeholder="contact@client.com"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      className="w-full bg-secondary/30 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Company Entity</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Acme Health Global Inc."
-                    value={clientCompany}
-                    onChange={(e) => setClientCompany(e.target.value)}
-                    className="w-full bg-secondary/30 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Contact Email</label>
-                  <input
-                    type="email"
-                    placeholder="contact@client.com"
-                    value={clientEmail}
-                    onChange={(e) => setClientEmail(e.target.value)}
-                    className="w-full bg-secondary/30 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground"
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-2 pt-2 border-t border-border">
+                <div className="flex justify-end space-x-2 px-5 py-3 border-t border-border bg-secondary/20 shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsClientModalOpen(false)}
-                    className="px-3 py-1.5 rounded-lg text-muted-foreground hover:bg-secondary text-xs"
+                    className="px-3.5 py-1.5 rounded-xl text-muted-foreground hover:bg-secondary text-xs cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={!clientName.trim() || !clientCompany.trim()}
-                    className="px-4 py-1.5 bg-primary text-primary-foreground font-semibold rounded-lg text-xs shadow-sm hover:bg-primary/90 disabled:opacity-50"
+                    className="px-4 py-1.5 bg-primary text-primary-foreground font-semibold rounded-xl text-xs shadow-sm hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
                   >
                     Create Client
                   </button>

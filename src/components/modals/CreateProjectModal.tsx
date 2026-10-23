@@ -187,10 +187,10 @@ export function CreateProjectModal() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground cursor-default"
+            className="w-full max-w-lg max-h-[88vh] flex flex-col bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-secondary/30">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/30 shrink-0">
               <div className="flex items-center space-x-2">
                 <FolderKanban className="w-4 h-4 text-primary" />
                 <h3 className="text-sm font-bold text-foreground">Create New Project</h3>
@@ -203,30 +203,31 @@ export function CreateProjectModal() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">Project Name *</label>
-                <input
-                  type="text"
-                  required
-                  autoFocus
-                  placeholder="e.g. Mobile App Redesign v3"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-secondary/30 border border-border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary transition-all"
-                />
-              </div>
+            <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 text-xs">
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">Project Name *</label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    placeholder="e.g. Mobile App Redesign v3"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-secondary/30 border border-border rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary transition-all"
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <label className="font-medium text-muted-foreground">Description</label>
-                <textarea
-                  rows={3}
-                  placeholder="Project purpose, target milestones, objectives..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-secondary/30 border border-border rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary resize-none transition-all"
-                />
-              </div>
+                <div className="space-y-1">
+                  <label className="font-medium text-muted-foreground">Description</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Project purpose, target milestones, objectives..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full bg-secondary/30 border border-border rounded-xl p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary resize-none transition-all"
+                  />
+                </div>
 
               {/* Color Palette Picker */}
               <div className="space-y-1.5">
@@ -696,25 +697,26 @@ export function CreateProjectModal() {
                   </div>
                 )}
               </div>
+            </div>
 
-              <div className="flex justify-end space-x-2 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!name.trim()}
-                  className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-xl text-xs shadow-md shadow-primary/20 hover:bg-primary/90 disabled:opacity-50 transition-all cursor-pointer"
-                >
-                  Create Project
-                </button>
-              </div>
-            </form>
-          </motion.div>
+            <div className="flex justify-end space-x-2 px-5 py-3 border-t border-border bg-secondary/20 shrink-0">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-4 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!name.trim()}
+                className="px-4 py-1.5 bg-primary text-primary-foreground font-semibold rounded-xl text-xs shadow-md shadow-primary/20 hover:bg-primary/90 disabled:opacity-50 transition-all cursor-pointer"
+              >
+                Create Project
+              </button>
+            </div>
+          </form>
+        </motion.div>
         </div>
       )}
     </AnimatePresence>

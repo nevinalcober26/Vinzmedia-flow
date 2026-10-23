@@ -542,10 +542,10 @@ export function TeamView() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ type: "spring", damping: 25, stiffness: 350 }}
-              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground space-y-4 p-6 cursor-default"
+              className="w-full max-w-md max-h-[85vh] flex flex-col bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border/60 bg-secondary/30 shrink-0">
                 <div className="flex items-center space-x-2">
                   <UserPlus className="w-4 h-4 text-primary" />
                   <h3 className="text-sm font-bold text-foreground">Invite Teammate</h3>
@@ -558,8 +558,9 @@ export function TeamView() {
                 </button>
               </div>
 
-              {!generatedLink ? (
-                <form onSubmit={handleGenerateInvite} className="space-y-4 text-xs">
+              <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3.5">
+                {!generatedLink ? (
+                  <form onSubmit={handleGenerateInvite} className="space-y-3.5 text-xs">
                   <div className="space-y-1.5">
                     <label className="font-semibold text-foreground">Email Address (Optional)</label>
                     <input
@@ -673,6 +674,7 @@ export function TeamView() {
                   </div>
                 </div>
               )}
+              </div>
             </motion.div>
           </div>
         )}

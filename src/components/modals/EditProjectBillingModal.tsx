@@ -427,30 +427,31 @@ export function EditProjectBillingModal({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-secondary/30">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-border/80 bg-secondary/30 shrink-0">
             <div className="flex items-center space-x-2.5">
-              <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                <Coins className="w-5 h-5" />
+              <div className="p-1.5 rounded-xl bg-primary/10 text-primary">
+                <Coins className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-foreground">
+                <h2 className="text-sm font-bold text-foreground">
                   Edit Project Pricing & Billing
                 </h2>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   Project: <span className="font-semibold text-foreground">{project.name}</span>
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSave} className="p-6 space-y-5 overflow-y-auto">
+          <form onSubmit={handleSave} className="flex-1 flex flex-col overflow-hidden">
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
             {/* Client & Organization Association */}
             <div className="p-3.5 rounded-xl bg-secondary/30 border border-border/70 space-y-2.5">
               <div className="flex items-center justify-between">
@@ -1111,27 +1112,28 @@ export function EditProjectBillingModal({
                 </button>
               </div>
             </div>
+          </div>
 
-            {/* Footer Buttons */}
-            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-border/80">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center space-x-1.5 px-4 py-2 bg-[#0073ea] hover:bg-[#0060c0] text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>{isSubmitting ? "Saving..." : "Save Billing Settings"}</span>
-              </button>
-            </div>
-          </form>
-        </motion.div>
+          {/* Footer Buttons */}
+          <div className="flex items-center justify-end space-x-2 px-5 py-3 border-t border-border/80 bg-secondary/20 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center space-x-1.5 px-4 py-1.5 bg-[#0073ea] hover:bg-[#0060c0] text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>{isSubmitting ? "Saving..." : "Save Billing Settings"}</span>
+            </button>
+          </div>
+        </form>
+      </motion.div>
       </div>
     </AnimatePresence>
   );

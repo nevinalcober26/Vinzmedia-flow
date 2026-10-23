@@ -275,6 +275,7 @@ export interface Note {
   is_pinned: boolean;
   is_private: boolean;
   tags: string[];
+  color?: "yellow" | "green" | "blue" | "pink" | "purple" | "orange" | string;
   created_at: string;
   updated_at: string;
 }

@@ -146,13 +146,13 @@ export function UploadDocumentModal({ isOpen, onClose }: UploadDocumentModalProp
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.94, opacity: 0, y: 12 }}
             transition={{ type: "spring", damping: 28, stiffness: 420 }}
-            className="w-full max-w-lg bg-card border border-border/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-card-foreground cursor-default"
+            className="w-full max-w-lg max-h-[88vh] bg-card border border-border/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-card-foreground cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border/60 bg-muted/30">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border/60 bg-muted/30 shrink-0">
               <div className="flex items-center space-x-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center">
                   <Upload className="w-4 h-4" />
                 </div>
                 <div>
@@ -164,21 +164,21 @@ export function UploadDocumentModal({ isOpen, onClose }: UploadDocumentModalProp
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 space-y-4 text-xs overflow-y-auto max-h-[75vh]">
+            <div className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
               {/* Drag and Drop Box */}
               <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center ${
+                className={`border-2 border-dashed rounded-2xl p-4 sm:p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center ${
                   isDragging
                     ? "border-primary bg-primary/10 scale-[1.01]"
                     : "border-border/80 hover:border-primary/60 bg-secondary/20 hover:bg-secondary/40"
@@ -191,13 +191,13 @@ export function UploadDocumentModal({ isOpen, onClose }: UploadDocumentModalProp
                   className="hidden"
                   onChange={(e) => handleFiles(e.target.files)}
                 />
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-2.5 shadow-xs">
-                  <Upload className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2 shadow-xs">
+                  <Upload className="w-5 h-5" />
                 </div>
                 <p className="font-semibold text-foreground text-xs">
                   Drag & drop your files here, or <span className="text-primary hover:underline">browse</span>
                 </p>
-                <p className="text-[11px] text-muted-foreground mt-1">
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   Supports PDF, DOCX, XLSX, PNG, JPG, ZIP (up to 50MB)
                 </p>
               </div>
@@ -279,11 +279,11 @@ export function UploadDocumentModal({ isOpen, onClose }: UploadDocumentModalProp
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end space-x-2 px-6 py-4 border-t border-border/60 bg-muted/20">
+            <div className="flex items-center justify-end space-x-2 px-5 py-3 border-t border-border/60 bg-muted/20 shrink-0">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                className="px-4 py-1.5 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -291,7 +291,7 @@ export function UploadDocumentModal({ isOpen, onClose }: UploadDocumentModalProp
                 type="button"
                 onClick={handleUpload}
                 disabled={selectedFiles.length === 0 || isUploading}
-                className="px-5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white transition-all shadow-md disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
+                className="px-4 py-1.5 text-xs font-bold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white transition-all shadow-md disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span>{isUploading ? "Uploading..." : `Upload ${selectedFiles.length || ""} Files`}</span>

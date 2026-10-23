@@ -1213,12 +1213,12 @@ export function TimeLogsView() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.94, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 28, stiffness: 420 }}
-              className="w-full max-w-md bg-card border border-border/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-card-foreground cursor-default"
+              className="w-full max-w-md max-h-[88vh] bg-card border border-border/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-card-foreground cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border/60 bg-muted/30">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border/60 bg-muted/30 shrink-0">
                 <div className="flex items-center space-x-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
                     <Clock className="w-4 h-4" />
                   </div>
                   <div>
@@ -1228,21 +1228,22 @@ export function TimeLogsView() {
                 </div>
                 <button
                   onClick={() => setIsLogTimeModalOpen(false)}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveManualTime} className="p-6 space-y-4 text-xs">
+              <form onSubmit={handleSaveManualTime} className="flex-1 flex flex-col overflow-hidden">
+                <div className="p-4 sm:p-5 space-y-3 flex-1 overflow-y-auto text-xs">
                 {/* Select Task */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="font-semibold text-foreground">Target Task</label>
                   <select
                     value={modalTaskId}
                     onChange={(e) => setModalTaskId(e.target.value)}
                     required
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary shadow-xs"
+                    className="w-full bg-background border border-border rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary shadow-xs"
                   >
                     <option value="">Select a task...</option>
                     {tasks.map((t) => {
@@ -1317,35 +1318,36 @@ export function TimeLogsView() {
                 </div>
 
                 {/* Note */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="font-semibold text-foreground">Work Performed Note (Optional)</label>
                   <textarea
-                    rows={3}
+                    rows={2}
                     placeholder="Brief description of work done..."
                     value={modalNote}
                     onChange={(e) => setModalNote(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl p-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary resize-none shadow-xs"
+                    className="w-full bg-background border border-border rounded-xl p-2.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary resize-none shadow-xs"
                   />
                 </div>
+              </div>
 
-                {/* Footer Buttons */}
-                <div className="flex items-center justify-end space-x-2 pt-2 border-t border-border/50">
-                  <button
-                    type="button"
-                    onClick={() => setIsLogTimeModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md flex items-center space-x-1.5 cursor-pointer"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Save Log</span>
-                  </button>
-                </div>
-              </form>
+              {/* Footer Buttons */}
+              <div className="flex items-center justify-end space-x-2 px-5 py-3 border-t border-border/60 bg-secondary/20 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsLogTimeModalOpen(false)}
+                  className="px-4 py-1.5 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Save Log</span>
+                </button>
+              </div>
+            </form>
             </motion.div>
           </div>
         )}
