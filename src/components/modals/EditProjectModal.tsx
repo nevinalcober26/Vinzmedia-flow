@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useStore } from "@/context/StoreContext";
 import { useToast } from "@/context/ToastContext";
 import {
@@ -59,6 +60,11 @@ export function EditProjectModal({ isOpen, onClose, project }: EditProjectModalP
     project.member_ids?.length ? project.member_ids : [currentUser.id]
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -75,7 +81,17 @@ export function EditProjectModal({ isOpen, onClose, project }: EditProjectModalP
     }
   }, [isOpen, project, currentUser.id]);
 
-  if (!isOpen) return null;
+  // Keyboard shortcut: Escape to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !mounted) return null;
 
   const toggleMember = (userId: string) => {
     if (memberIds.includes(userId)) {
@@ -120,7 +136,7 @@ export function EditProjectModal({ isOpen, onClose, project }: EditProjectModalP
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       {/* Backdrop */}
       <div
@@ -129,7 +145,7 @@ export function EditProjectModal({ isOpen, onClose, project }: EditProjectModalP
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-lg bg-card border border-border/80 rounded-2xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-lg bg-card border border-border/80 rounded-2xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150 my-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/70 bg-secondary/30 shrink-0">
           <div className="flex items-center space-x-2.5">
@@ -357,6 +373,7 @@ export function EditProjectModal({ isOpen, onClose, project }: EditProjectModalP
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
