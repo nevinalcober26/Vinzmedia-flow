@@ -4,7 +4,7 @@
 -- https://supabase.com/dashboard/project/yylfprczgqvakkkdctal/sql
 -- ====================================================================
 
--- 1. Add Billing, Weekly Estimates, Pricing & Payment Settlement Columns to public.projects
+-- 1. Ensure projects table has billing & payment settlement columns
 ALTER TABLE public.projects 
   ADD COLUMN IF NOT EXISTS billing_type TEXT DEFAULT 'fixed' CHECK (billing_type IN ('fixed', 'hourly')),
   ADD COLUMN IF NOT EXISTS fixed_price_amount NUMERIC(12, 2) DEFAULT 0,
@@ -15,13 +15,14 @@ ALTER TABLE public.projects
   ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT '$',
   ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'partially_paid', 'paid')),
   ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(12, 2) DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS last_payment_date TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS last_payment_date TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS installments JSONB DEFAULT '[]'::jsonb;
 
--- Fast query filtering indexes
+-- Indexes for projects
 CREATE INDEX IF NOT EXISTS idx_projects_billing_type ON public.projects(billing_type);
 CREATE INDEX IF NOT EXISTS idx_projects_payment_status ON public.projects(payment_status);
 
--- 2. Ensure Tasks Table has Time Tracking and Payment Settlement Columns
+-- 2. Ensure tasks table has time tracking and paid status columns
 ALTER TABLE public.tasks
   ADD COLUMN IF NOT EXISTS tracked_seconds INTEGER DEFAULT 0,
   ADD COLUMN IF NOT EXISTS is_timer_running BOOLEAN DEFAULT false,
@@ -29,6 +30,7 @@ ALTER TABLE public.tasks
   ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT false,
   ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
 
+-- Indexes for tasks
 CREATE INDEX IF NOT EXISTS idx_tasks_tracked_seconds ON public.tasks(tracked_seconds);
 CREATE INDEX IF NOT EXISTS idx_tasks_is_paid ON public.tasks(is_paid);
 
@@ -39,6 +41,7 @@ CREATE TABLE IF NOT EXISTS public.project_payments (
   installment_number INTEGER NOT NULL,
   title TEXT NOT NULL,
   amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  percentage NUMERIC(5, 2) DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'invoiced', 'paid', 'cancelled')),
   due_date DATE,
   paid_at TIMESTAMPTZ,
@@ -46,6 +49,14 @@ CREATE TABLE IF NOT EXISTS public.project_payments (
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+-- Ensure columns exist if table was already created in earlier migration
+ALTER TABLE public.project_payments
+  ADD COLUMN IF NOT EXISTS percentage NUMERIC(5, 2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS due_date DATE,
+  ADD COLUMN IF NOT EXISTS notes TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_project_payments_project ON public.project_payments(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_payments_status ON public.project_payments(status);
@@ -67,6 +78,11 @@ CREATE TABLE IF NOT EXISTS public.project_invoices (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+ALTER TABLE public.project_invoices
+  ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT '$',
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'issued',
+  ADD COLUMN IF NOT EXISTS line_items JSONB DEFAULT '[]'::jsonb;
+
 CREATE INDEX IF NOT EXISTS idx_project_invoices_project ON public.project_invoices(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_invoices_number ON public.project_invoices(invoice_number);
 
@@ -83,6 +99,13 @@ CREATE TABLE IF NOT EXISTS public.task_time_logs (
   note TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+-- Crucial: Ensure is_paid exists even if task_time_logs was created in previous migration without it
+ALTER TABLE public.task_time_logs
+  ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS duration_seconds INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS note TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_task_time_logs_task ON public.task_time_logs(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_time_logs_user ON public.task_time_logs(user_id);

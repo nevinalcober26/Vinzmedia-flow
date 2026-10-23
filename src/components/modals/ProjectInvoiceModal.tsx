@@ -232,40 +232,60 @@ export function ProjectInvoiceModal({
                 </thead>
                 <tbody className="divide-y divide-border/60">
                   {isFixed ? (
-                    /* Fixed Price Installments */
-                    Array.from({ length: installmentsCount }).map((_, idx) => (
-                      <tr key={idx} className="hover:bg-secondary/20 transition-colors">
-                        <td className="py-3 px-4">
-                          <p className="font-bold text-foreground">
-                            Payment Milestone #{idx + 1}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            {idx === 0
+                    /* Fixed Price Installments with Custom Percentage & Titles */
+                    (project.installments && project.installments.length > 0
+                      ? project.installments
+                      : Array.from({ length: installmentsCount }).map((_, idx) => ({
+                          installment_number: idx + 1,
+                          title:
+                            idx === 0
                               ? "Upfront Project Kickoff & Initialization"
                               : idx === installmentsCount - 1
                               ? "Final Delivery & Handover Sign-off"
-                              : `Milestone Phase #${idx + 1} Progress Delivery`}
-                          </p>
-                        </td>
-                        <td className="py-3 px-4 text-center font-mono text-muted-foreground">
-                          1 Installment
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono">
-                          {currencySymbol}
-                          {perInstallmentAmount.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-foreground">
-                          {currencySymbol}
-                          {perInstallmentAmount.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                        </td>
-                      </tr>
-                    ))
+                              : `Milestone Phase #${idx + 1} Progress Delivery`,
+                          percentage: Math.round(100 / installmentsCount),
+                          amount: perInstallmentAmount,
+                          status: "pending",
+                        }))
+                    ).map((inst: any, idx: number) => {
+                      const isInstPaid = inst.status === "paid";
+                      return (
+                        <tr key={idx} className="hover:bg-secondary/20 transition-colors">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center space-x-2">
+                              <p className="font-bold text-foreground">
+                                {inst.title || `Payment Milestone #${idx + 1}`}
+                              </p>
+                              {isInstPaid && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                  PAID
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Milestone #{inst.installment_number || idx + 1} ({inst.percentage || Math.round(100 / installmentsCount)}% of total contract)
+                            </p>
+                          </td>
+                          <td className="py-3 px-4 text-center font-mono text-muted-foreground">
+                            {inst.percentage || Math.round(100 / installmentsCount)}%
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono">
+                            {currencySymbol}
+                            {(Number(inst.amount) || perInstallmentAmount).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-foreground">
+                            {currencySymbol}
+                            {(Number(inst.amount) || perInstallmentAmount).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     /* Hourly Rate Breakdown */
                     <>

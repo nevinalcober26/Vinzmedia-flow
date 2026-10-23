@@ -48,13 +48,24 @@ export function CreateProjectModal() {
     // Generate installments if fixed
     const generatedInstallments = [];
     if (billingType === "fixed" && installmentsCount > 0 && parsedFixed > 0) {
-      const perInstallment = Math.round((parsedFixed / installmentsCount) * 100) / 100;
+      const equalPct = Math.round((100 / installmentsCount) * 10) / 10;
       for (let i = 1; i <= installmentsCount; i++) {
+        const pct =
+          i === installmentsCount
+            ? Math.max(0, Math.round((100 - equalPct * (installmentsCount - 1)) * 10) / 10)
+            : equalPct;
+        const perInstallment = Math.round(((parsedFixed * pct) / 100) * 100) / 100;
         generatedInstallments.push({
           id: `inst_${Date.now()}_${i}`,
           project_id: "",
           installment_number: i,
-          title: i === 1 ? "Deposit / Upfront" : i === installmentsCount ? "Final Milestone / Delivery" : `Milestone ${i}`,
+          title:
+            i === 1
+              ? "Deposit / Upfront Kickoff"
+              : i === installmentsCount
+              ? "Final Milestone / Delivery"
+              : `Milestone #${i} Delivery`,
+          percentage: pct,
           amount: perInstallment,
           status: "pending" as const,
         });

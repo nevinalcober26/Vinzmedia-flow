@@ -15,6 +15,32 @@ export const projectService = {
         console.error("Error fetching projects from Supabase:", error);
         return [];
       }
+
+      // Load associated payment installments from project_payments table
+      const paymentsMap: Record<string, any[]> = {};
+      try {
+        const { data: payRows } = await supabase
+          .from("project_payments")
+          .select("*")
+          .order("installment_number", { ascending: true });
+        if (payRows) {
+          payRows.forEach((p: any) => {
+            if (!paymentsMap[p.project_id]) paymentsMap[p.project_id] = [];
+            paymentsMap[p.project_id].push({
+              id: p.id,
+              project_id: p.project_id,
+              installment_number: p.installment_number,
+              title: p.title || `Payment #${p.installment_number}`,
+              percentage: Number(p.percentage) || 0,
+              amount: Number(p.amount) || 0,
+              status: p.status || "pending",
+              due_date: p.due_date || null,
+              paid_at: p.paid_at || null,
+            });
+          });
+        }
+      } catch {}
+
       return (data || []).map((row: any) => ({
         id: row.id,
         workspace_id: row.workspace_id,
@@ -40,7 +66,7 @@ export const projectService = {
         payment_status: row.payment_status || "unpaid",
         paid_amount: Number(row.paid_amount) || 0,
         last_payment_date: row.last_payment_date || null,
-        installments: row.installments || [],
+        installments: paymentsMap[row.id] || row.installments || [],
         created_at: row.created_at,
         updated_at: row.updated_at || row.created_at || new Date().toISOString(),
       }));
@@ -110,6 +136,23 @@ export const projectService = {
         } catch {}
       }
 
+      // Persist installments to project_payments table
+      if (project.installments && project.installments.length > 0 && data?.id) {
+        try {
+          const rows = project.installments.map((inst) => ({
+            project_id: data.id,
+            installment_number: inst.installment_number,
+            title: inst.title || `Payment #${inst.installment_number}`,
+            amount: Number(inst.amount) || 0,
+            percentage: Number(inst.percentage) || 0,
+            status: inst.status || "pending",
+            due_date: inst.due_date || null,
+            paid_at: inst.paid_at || null,
+          }));
+          await supabase.from("project_payments").insert(rows);
+        } catch {}
+      }
+
       return {
         ...data,
         all_members: project.all_members !== undefined ? project.all_members : true,
@@ -171,6 +214,26 @@ export const projectService = {
               role: "member",
             }));
             await supabase.from("project_members").insert(memberRows);
+          }
+        } catch {}
+      }
+
+      // Persist installments to project_payments table
+      if (updates.installments !== undefined) {
+        try {
+          await supabase.from("project_payments").delete().eq("project_id", id);
+          if (updates.installments.length > 0) {
+            const rows = updates.installments.map((inst) => ({
+              project_id: id,
+              installment_number: inst.installment_number,
+              title: inst.title || `Payment #${inst.installment_number}`,
+              amount: Number(inst.amount) || 0,
+              percentage: Number(inst.percentage) || 0,
+              status: inst.status || "pending",
+              due_date: inst.due_date || null,
+              paid_at: inst.paid_at || null,
+            }));
+            await supabase.from("project_payments").insert(rows);
           }
         } catch {}
       }

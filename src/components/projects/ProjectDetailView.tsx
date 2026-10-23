@@ -403,9 +403,15 @@ export function ProjectDetailView() {
                           (i) => i.installment_number === installmentNum
                         );
                         const isPaid = matchingInst?.status === "paid";
-                        const installmentAmount = (
-                          (activeProject.fixed_price_amount || 0) / totalInstallmentsCount
-                        ).toFixed(2);
+                        const instTitle = matchingInst?.title || `Payment #${installmentNum}`;
+                        const instPercentage =
+                          matchingInst?.percentage !== undefined
+                            ? matchingInst.percentage
+                            : Math.round((100 / totalInstallmentsCount) * 10) / 10;
+                        const installmentAmount =
+                          matchingInst?.amount !== undefined
+                            ? Number(matchingInst.amount)
+                            : ((activeProject.fixed_price_amount || 0) * instPercentage) / 100;
 
                         return (
                           <div
@@ -418,12 +424,17 @@ export function ProjectDetailView() {
                             }`}
                             title="Click to toggle Paid / Pending"
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-bold text-foreground">
-                                Payment #{installmentNum}
-                              </span>
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center space-x-1.5 min-w-0">
+                                <span className="text-[11px] font-bold text-foreground truncate">
+                                  {instTitle}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/10 text-primary font-mono font-bold shrink-0">
+                                  {instPercentage}%
+                                </span>
+                              </div>
                               <span
-                                className={`inline-flex items-center space-x-1 text-[10px] px-2 py-0.5 rounded font-semibold transition-all ${
+                                className={`inline-flex items-center space-x-1 text-[10px] px-2 py-0.5 rounded font-semibold transition-all shrink-0 ${
                                   isPaid
                                     ? "bg-emerald-600 text-white shadow-2xs"
                                     : "bg-secondary text-muted-foreground border border-border hover:border-foreground/30"
@@ -433,7 +444,11 @@ export function ProjectDetailView() {
                               </span>
                             </div>
                             <p className="text-sm font-bold font-mono text-foreground mt-2">
-                              {currencySymbol}{installmentAmount}
+                              {currencySymbol}
+                              {Number(installmentAmount).toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
                             </p>
                             {isPaid && matchingInst?.paid_at ? (
                               <span className="text-[9px] text-emerald-600 dark:text-emerald-400 mt-1 font-mono">

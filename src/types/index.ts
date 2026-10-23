@@ -63,6 +63,7 @@ export interface ProjectPaymentInstallment {
   project_id: string;
   installment_number: number;
   title: string;
+  percentage?: number;
   amount: number;
   status: "pending" | "invoiced" | "paid";
   due_date?: string;
