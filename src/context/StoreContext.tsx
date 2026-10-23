@@ -29,7 +29,7 @@ import {
   initialColumns,
   initialWidgets,
 } from "@/lib/initialData";
-import { generateId } from "@/lib/utils";
+import { generateId, isOverdue, formatShortDate } from "@/lib/utils";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { projectService } from "@/lib/services/projectService";
 import { taskService } from "@/lib/services/taskService";
@@ -188,6 +188,7 @@ interface StoreContextType {
 
   // Notifications
   addNotification: (notification: {
+    id?: string;
     user_id?: string;
     title: string;
     message: string;
@@ -757,6 +758,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setCurrentUserIdState(res.user.id);
         setUsers((prev) => [res.user!, ...prev]);
         logActivity("user_registered", `${res.user.full_name} joined workspace as ${res.user.role}`);
+        addNotification({
+          id: `notif_new_team_${res.user.id}`,
+          title: `New Team Member Added: ${res.user.full_name}`,
+          message: `${res.user.full_name} joined the workspace as ${res.user.role}.`,
+          type: "team",
+          link_url: "/team",
+        });
         return true;
       }
 
@@ -944,6 +952,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const updated = { ...p, ...updates, updated_at: new Date().toISOString() };
             logActivity("project_updated", `Updated project "${updated.name}"`, id);
             projectService.updateProject(id, updates);
+
+            // Notify when team members are added to the project
+            if (updates.member_ids && updates.member_ids.length > 0) {
+              const prevMembers = p.member_ids || [];
+              const added = updates.member_ids.filter((uid) => !prevMembers.includes(uid));
+              if (added.length > 0) {
+                const names = users.filter((u) => added.includes(u.id)).map((u) => u.full_name).join(", ");
+                addNotification({
+                  title: `New Team Added: ${updated.name}`,
+                  message: `${names || "New team member(s)"} joined the ${updated.name} project team.`,
+                  type: "team",
+                  link_url: "/projects",
+                });
+              }
+            }
+
             toast.success("Project Updated", `Updated "${updated.name}"`);
             return updated;
           }
@@ -1650,41 +1674,51 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Notifications ---
   const addNotification = useCallback(
     async (notifData: {
+      id?: string;
       user_id?: string;
       title: string;
       message: string;
       type?: NotificationType;
       link_url?: string;
     }) => {
-      const newNotif: Notification = {
-        id: generateId("notif"),
-        user_id: notifData.user_id || currentUser.id,
-        workspace_id: activeWorkspaceId,
-        title: notifData.title,
-        message: notifData.message,
-        type: notifData.type || "system",
-        link_url: notifData.link_url || "/billing",
-        is_read: false,
-        created_at: new Date().toISOString(),
-      };
+      const notifId = notifData.id || generateId("notif");
 
-      setNotifications((prev) => [newNotif, ...prev]);
-      broadcastSync({ notifications: [newNotif, ...notifications] });
+      setNotifications((prev) => {
+        // Prevent duplicate notification by id or title
+        if (prev.some((n) => n.id === notifId)) return prev;
+        const newNotif: Notification = {
+          id: notifId,
+          user_id: notifData.user_id || currentUser.id,
+          workspace_id: activeWorkspaceId,
+          title: notifData.title,
+          message: notifData.message,
+          type: notifData.type || "system",
+          link_url: notifData.link_url || "/billing",
+          is_read: false,
+          created_at: new Date().toISOString(),
+        };
+        broadcastSync({ notifications: [newNotif, ...prev] });
+        return [newNotif, ...prev];
+      });
 
       if (isSupabaseConfigured && supabase) {
         try {
           const payloadType =
-            newNotif.type === "billing" || newNotif.type === "invoice"
-              ? "system"
-              : newNotif.type;
+            ["billing", "invoice", "delayed_payment", "delayed_task", "team"].includes(notifData.type || "")
+              ? notifData.type === "delayed_task"
+                ? "deadline"
+                : notifData.type === "team"
+                ? "task_assigned"
+                : "system"
+              : notifData.type || "system";
           await supabase.from("notifications").insert({
-            id: newNotif.id,
-            user_id: newNotif.user_id,
-            workspace_id: newNotif.workspace_id,
-            title: newNotif.title,
-            message: newNotif.message,
+            id: notifId.startsWith("notif_") ? undefined : notifId,
+            user_id: notifData.user_id || currentUser.id,
+            workspace_id: activeWorkspaceId,
+            title: notifData.title,
+            message: notifData.message,
             type: payloadType,
-            link_url: newNotif.link_url,
+            link_url: notifData.link_url || "/billing",
             is_read: false,
           });
         } catch (err) {
@@ -1692,8 +1726,122 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [currentUser.id, activeWorkspaceId, notifications, broadcastSync]
+    [currentUser.id, activeWorkspaceId, broadcastSync]
   );
+
+  // Automated Detection Engine for:
+  // 1. Delayed Tasks (Overdue tasks past deadline)
+  // 2. Delayed Payments (Overdue project deliverables, unpaid cycles & milestones)
+  useEffect(() => {
+    if (!isInitialized) return;
+    if (tasks.length === 0 && projects.length === 0) return;
+
+    const newAlerts: Notification[] = [];
+    const now = Date.now();
+
+    // 1. Scan Delayed Tasks
+    tasks.forEach((t) => {
+      if (t.due_date && t.status !== "done" && t.status !== "completed" && isOverdue(t.due_date, t.status)) {
+        const notifId = `notif_delayed_task_${t.id}`;
+        const daysPast = Math.max(1, Math.floor((now - new Date(t.due_date).getTime()) / (1000 * 60 * 60 * 24)));
+        newAlerts.push({
+          id: notifId,
+          user_id: currentUserId || currentUser.id,
+          workspace_id: activeWorkspaceId,
+          title: `Delayed Task: ${t.title}`,
+          message: `Task is ${daysPast} day${daysPast > 1 ? "s" : ""} overdue past target due date (${formatShortDate(t.due_date)}). Priority: ${t.priority.toUpperCase()}.`,
+          type: "delayed_task",
+          link_url: `/tasks/${t.id}`,
+          is_read: false,
+          created_at: new Date().toISOString(),
+        });
+      }
+    });
+
+    // 2. Scan Delayed Payments
+    projects.forEach((p) => {
+      const currency = p.currency || "$";
+
+      // Fixed Price: Target date overdue without full settlement
+      if (p.billing_type === "fixed" && p.payment_status !== "paid" && p.target_date) {
+        const targetTime = new Date(p.target_date).getTime();
+        if (targetTime < now) {
+          const daysPast = Math.max(1, Math.floor((now - targetTime) / (1000 * 60 * 60 * 24)));
+          const unpaid = Math.max(0, (p.fixed_price_amount || 0) - (p.paid_amount || 0));
+          if (unpaid > 0) {
+            newAlerts.push({
+              id: `notif_delayed_pay_${p.id}_target`,
+              user_id: currentUserId || currentUser.id,
+              workspace_id: activeWorkspaceId,
+              title: `Delayed Payment: ${p.name}`,
+              message: `Payment of ${currency}${unpaid.toLocaleString()} is ${daysPast} day${daysPast > 1 ? "s" : ""} overdue past target delivery date (${formatShortDate(p.target_date)}).`,
+              type: "delayed_payment",
+              link_url: `/billing`,
+              is_read: false,
+              created_at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      // Check overdue milestones in installments
+      if (p.installments && p.installments.length > 0) {
+        p.installments.forEach((inst) => {
+          if (inst.status !== "paid" && inst.due_date) {
+            const dueTime = new Date(inst.due_date).getTime();
+            if (dueTime < now) {
+              const daysPast = Math.max(1, Math.floor((now - dueTime) / (1000 * 60 * 60 * 24)));
+              newAlerts.push({
+                id: `notif_delayed_pay_${p.id}_${inst.id}`,
+                user_id: currentUserId || currentUser.id,
+                workspace_id: activeWorkspaceId,
+                title: `Delayed Payment: ${p.name} (${inst.title})`,
+                message: `${inst.title} milestone of ${currency}${Number(inst.amount).toLocaleString()} is ${daysPast} day${daysPast > 1 ? "s" : ""} overdue (was due on ${formatShortDate(inst.due_date)}).`,
+                type: "delayed_payment",
+                link_url: `/billing`,
+                is_read: false,
+                created_at: new Date().toISOString(),
+              });
+            }
+          }
+        });
+      }
+
+      // Check recurring payment cycle delays (weekly / 15_days / 30_days)
+      const sched = p.payment_schedule;
+      if (sched && p.payment_status !== "paid") {
+        const cycleDays = sched === "weekly" ? 7 : sched === "15_days" ? 15 : sched === "30_days" ? 30 : p.payment_terms_days || 30;
+        const refDateStr = p.last_payment_date || p.start_date || p.created_at;
+        if (refDateStr) {
+          const refTime = new Date(refDateStr).getTime();
+          const daysElapsed = Math.floor((now - refTime) / (1000 * 60 * 60 * 24));
+          if (daysElapsed > cycleDays) {
+            const daysOver = daysElapsed - cycleDays;
+            newAlerts.push({
+              id: `notif_delayed_cycle_${p.id}`,
+              user_id: currentUserId || currentUser.id,
+              workspace_id: activeWorkspaceId,
+              title: `Delayed Payment Cycle: ${p.name}`,
+              message: `${sched === "weekly" ? "Weekly (Net 7)" : sched === "15_days" ? "15-Day (Net 15)" : "30-Day (Net 30)"} billing cycle is ${daysOver} day${daysOver > 1 ? "s" : ""} past due date.`,
+              type: "delayed_payment",
+              link_url: `/billing`,
+              is_read: false,
+              created_at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+    });
+
+    if (newAlerts.length > 0) {
+      setNotifications((prev) => {
+        const existingIds = new Set(prev.map((n) => n.id));
+        const toAdd = newAlerts.filter((a) => !existingIds.has(a.id));
+        if (toAdd.length === 0) return prev;
+        return [...toAdd, ...prev];
+      });
+    }
+  }, [isInitialized, tasks, projects, currentUserId, currentUser.id, activeWorkspaceId]);
 
   const markNotificationRead = useCallback((id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
@@ -1865,6 +2013,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           "member_approved",
           `Approved ${applicant.full_name} (@${applicant.username || applicant.email}) as Member`
         );
+        addNotification({
+          id: `notif_new_team_${applicant.id}`,
+          title: `New Team Member Added: ${applicant.full_name}`,
+          message: `${applicant.full_name} (@${applicant.username || applicant.email}) has been approved and joined the workspace.`,
+          type: "team",
+          link_url: "/team",
+        });
         toast.success(
           "Member Approved!",
           `${applicant.full_name} is now an active Member with login access.`

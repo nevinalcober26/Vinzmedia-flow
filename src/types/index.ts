@@ -372,7 +372,10 @@ export type NotificationType =
   | 'announcement'
   | 'system'
   | 'billing'
-  | 'invoice';
+  | 'invoice'
+  | 'delayed_payment'
+  | 'delayed_task'
+  | 'team';
 
 export interface Notification {
   id: string;

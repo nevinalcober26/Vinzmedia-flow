@@ -9,7 +9,7 @@ BEGIN
   -- Drop existing constraint if it exists
   ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
 
-  -- Add updated constraint including 'billing' and 'invoice'
+  -- Add updated constraint including billing, invoice, delayed_payment, delayed_task, and team
   ALTER TABLE public.notifications 
     ADD CONSTRAINT notifications_type_check 
     CHECK (type IN (
@@ -21,7 +21,10 @@ BEGIN
       'announcement', 
       'system', 
       'billing', 
-      'invoice'
+      'invoice',
+      'delayed_payment',
+      'delayed_task',
+      'team'
     ));
 END $$;
 

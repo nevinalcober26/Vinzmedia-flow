@@ -395,6 +395,15 @@ export function ProjectInvoiceModal({
       setBankCurrency(project.bank_currency || DEFAULT_BANK_DETAILS.bank_currency);
       setSwiftBic(project.swift_bic || DEFAULT_BANK_DETAILS.swift_bic);
       setRoutingNumber(project.routing_number || DEFAULT_BANK_DETAILS.routing_number);
+
+      // Notify that invoice is ready to view
+      addNotification({
+        id: `notif_invoice_ready_${project.id}_${generatedNum}`,
+        title: `Invoice Ready to View: ${project.name}`,
+        message: `Invoice #${generatedNum} for ${currencySymbol}${getSubtotalForSchedule(sched).toLocaleString(undefined, { minimumFractionDigits: 2 })} (${sched === "weekly" ? "Weekly" : sched === "15_days" ? "15-Day" : "30-Day"} cycle) is ready to view and export.`,
+        type: "invoice",
+        link_url: "/billing",
+      });
     }
   }, [isOpen, project]);
 
@@ -628,8 +637,8 @@ export function ProjectInvoiceModal({
           : "30 Days (Net 30)";
 
       addNotification({
-        title: `Invoice Configured: ${project.name}`,
-        message: `Invoice #${invoiceNumber} updated to ${schedName} schedule. Subtotal: ${currencySymbol}${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}.`,
+        title: `Invoice Ready to View: ${project.name}`,
+        message: `Invoice #${invoiceNumber} (${schedName}) for ${currencySymbol}${finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} has been saved and is ready to view.`,
         type: "invoice",
         link_url: "/billing",
       });
