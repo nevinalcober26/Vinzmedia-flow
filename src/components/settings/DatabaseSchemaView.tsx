@@ -112,6 +112,18 @@ export function DatabaseSchemaView() {
       rls: "Readable by all members; insert restricted to Admin/Owner/PM",
     },
     {
+      name: "clients",
+      description: "Client directory & enterprise accounts with project links",
+      columns: ["id (UUID, PK)", "workspace_id (UUID, FK)", "name (TEXT)", "company (TEXT)", "email (TEXT)", "status (TEXT)"],
+      rls: "Workspace members only",
+    },
+    {
+      name: "files",
+      description: "Media library, PDF specs, Word documents, Excel sheets associated to clients & projects",
+      columns: ["id (UUID, PK)", "workspace_id (UUID, FK)", "name (TEXT)", "size (BIGINT)", "type (TEXT)", "url (TEXT)", "project_id (UUID)", "client_id (UUID)"],
+      rls: "Workspace members with public storage integration",
+    },
+    {
       name: "time_entries",
       description: "Stopwatch sessions and manual billable time tracking entries",
       columns: ["id (UUID, PK)", "task_id (UUID, FK)", "user_id (UUID, FK)", "duration_seconds (INT)", "is_billable (BOOLEAN)"],
