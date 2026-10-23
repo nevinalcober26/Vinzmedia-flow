@@ -118,6 +118,7 @@ interface StoreContextType {
   isCreateProjectModalOpen: boolean;
   isProfileModalOpen: boolean;
   defaultNewTaskStatus?: string;
+  defaultNewTaskDueDate?: string;
 
   // Actions - Navigation & UI
   setActiveView: (view: ActiveView) => void;
@@ -127,7 +128,7 @@ interface StoreContextType {
   setSearchQuery: (query: string) => void;
   setIsCommandPaletteOpen: (open: boolean) => void;
   setIsQuickNoteOpen: (open: boolean) => void;
-  setIsCreateTaskModalOpen: (open: boolean, defaultStatus?: string) => void;
+  setIsCreateTaskModalOpen: (open: boolean, defaultStatus?: string, defaultDueDate?: string) => void;
   setIsCreateProjectModalOpen: (open: boolean) => void;
   setIsProfileModalOpen: (open: boolean) => void;
   updateUserProfile: (updates: Partial<User>) => Promise<boolean>;
@@ -271,6 +272,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [isQuickNoteOpen, setIsQuickNoteOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [defaultNewTaskStatus, setDefaultNewTaskStatus] = useState<string | undefined>(undefined);
+  const [defaultNewTaskDueDate, setDefaultNewTaskDueDate] = useState<string | undefined>(undefined);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
@@ -803,8 +805,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const openCreateTaskModal = useCallback((open: boolean, defaultStatus?: string) => {
+  const openCreateTaskModal = useCallback((open: boolean, defaultStatus?: string, defaultDueDate?: string) => {
     setDefaultNewTaskStatus(defaultStatus);
+    setDefaultNewTaskDueDate(defaultDueDate);
     setIsCreateTaskModalOpen(open);
   }, []);
 
@@ -2023,6 +2026,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         isCreateProjectModalOpen,
         isProfileModalOpen,
         defaultNewTaskStatus,
+        defaultNewTaskDueDate,
 
         setActiveView: handleSetActiveView,
         setSelectedProjectId,

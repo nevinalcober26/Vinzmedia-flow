@@ -116,6 +116,11 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
   const typeBadge = getTaskTypeBadge(task.task_type || "Development");
   const deptBadge = getDepartmentBadge(task.department || "Engineering");
 
+  // Filter out generic/redundant tags
+  const meaningfulLabels = (task.labels || []).filter(
+    (l) => l && !["task", "general", "default"].includes(l.toLowerCase().trim())
+  );
+
   return (
     <div
       ref={setNodeRef}
@@ -123,56 +128,40 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
         ...style,
         borderLeft: `4px solid ${statusConfig.bg}`,
       }}
-      className={`group relative rounded-xl border bg-card p-3.5 shadow-2xs hover:shadow-md transition-all cursor-pointer ${
+      className={`group relative rounded-2xl border bg-card p-4 shadow-2xs hover:shadow-md transition-all cursor-pointer ${
         isDragging
           ? "opacity-40 border-primary/50 shadow-lg scale-95"
-          : "border-border/80 hover:border-border"
+          : "border-border/70 hover:border-border"
       } ${isOverlay ? "shadow-2xl ring-2 ring-primary rotate-1 cursor-grabbing" : ""}`}
       onClick={() => setEditingTask(task)}
     >
-      {/* Top row: Priority & Drag Handle & Quick Menu */}
-      <div className="flex items-center justify-between gap-1 mb-2">
-        <div className="flex items-center space-x-1.5 flex-wrap">
+      {/* Top row: Priority & Task Type on left, Actions on right */}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-1.5 min-w-0 flex-nowrap overflow-hidden">
           {/* Monday Solid Priority Pill */}
           <span
             style={{
               backgroundColor: priorityConfig.bg,
               color: priorityConfig.textColor,
             }}
-            className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold shadow-2xs"
+            className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold shadow-2xs shrink-0"
           >
             {priorityConfig.label}
           </span>
 
           {/* Task Type Pill */}
           <span
-            className={`inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-bold border ${typeBadge.bg} ${typeBadge.text} ${typeBadge.border}`}
+            className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${typeBadge.bg} ${typeBadge.text} ${typeBadge.border} shrink-0`}
           >
             <span
               className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{ backgroundColor: typeBadge.color }}
             />
-            <span className="truncate max-w-[80px]">{typeBadge.name}</span>
+            <span className="truncate max-w-[100px]">{typeBadge.name}</span>
           </span>
-
-          {/* Department Tag */}
-          <span
-            className={`inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-medium border ${deptBadge.bg} ${deptBadge.text} ${deptBadge.border}`}
-            title={`Department: ${task.department || "Engineering"}`}
-          >
-            <Briefcase className="w-2.5 h-2.5 shrink-0 opacity-70" />
-            <span className="truncate max-w-[85px]">{task.department || "Engineering"}</span>
-          </span>
-
-          {/* First label if exists */}
-          {task.labels?.[0] && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground font-medium">
-              {task.labels[0]}
-            </span>
-          )}
         </div>
 
-        <div className="flex items-center space-x-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center space-x-0.5 opacity-50 group-hover:opacity-100 transition-opacity shrink-0">
           {/* Drag Handle button */}
           <button
             {...attributes}
@@ -269,20 +258,50 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
       </div>
 
       {/* Task Title */}
-      <h4 className="text-xs font-semibold text-foreground line-clamp-2 leading-snug mb-2 group-hover:text-primary transition-colors">
+      <h4 className="text-xs sm:text-[13px] font-semibold text-foreground line-clamp-2 leading-snug my-2 group-hover:text-primary transition-colors tracking-tight">
         {task.title}
       </h4>
 
       {/* Description Snippet if present */}
       {task.description && (
-        <p className="text-[11px] text-muted-foreground line-clamp-1 mb-3">
+        <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mb-2.5 opacity-80">
           {task.description.replace(/<[^>]*>/g, " ").trim()}
         </p>
       )}
 
+      {/* Department & Custom Tags (Clean, uncluttered metadata row) */}
+      {(task.department || meaningfulLabels.length > 0) && (
+        <div className="flex items-center gap-1.5 flex-wrap my-2">
+          {task.department && (
+            <span
+              className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-medium border ${deptBadge.bg} ${deptBadge.text} ${deptBadge.border}`}
+              title={`Department: ${task.department}`}
+            >
+              <Briefcase className="w-2.5 h-2.5 shrink-0 opacity-70" />
+              <span className="truncate max-w-[140px]">{task.department}</span>
+            </span>
+          )}
+
+          {meaningfulLabels.slice(0, 2).map((label, idx) => (
+            <span
+              key={idx}
+              className="text-[10px] px-2 py-0.5 rounded-md bg-secondary/80 text-muted-foreground font-medium border border-border/40"
+            >
+              {label}
+            </span>
+          ))}
+
+          {meaningfulLabels.length > 2 && (
+            <span className="text-[9px] text-muted-foreground font-mono">
+              +{meaningfulLabels.length - 2}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Subtask checklist progress preview */}
       {totalSubtasks > 0 && (
-        <div className="mb-2.5">
+        <div className="my-2.5">
           <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
             <span className="flex items-center space-x-1">
               <CheckSquare className="w-3 h-3 text-muted-foreground" />
@@ -296,7 +315,7 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
           </div>
           <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
             <div
-              className="h-full bg-emerald-500 rounded-full"
+              className="h-full bg-emerald-500 rounded-full transition-all"
               style={{
                 width: `${Math.round((completedSubtasks / totalSubtasks) * 100)}%`,
               }}
@@ -306,9 +325,9 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
       )}
 
       {/* Card Footer: Due Date, Comments, Time, Assignees */}
-      <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px]">
+      <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-border/50 text-[11px] gap-2">
         {/* Left: Metadata badges */}
-        <div className="flex items-center space-x-2 text-muted-foreground">
+        <div className="flex items-center space-x-2 text-muted-foreground min-w-0 flex-wrap gap-y-1">
           {/* Due date */}
           {task.due_date && (
             <span
@@ -318,15 +337,15 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
                   : "text-muted-foreground"
               }`}
             >
-              <Calendar className="w-3 h-3" />
-              <span>{formatShortDate(task.due_date)}</span>
+              <Calendar className="w-3 h-3 shrink-0" />
+              <span className="whitespace-nowrap">{formatShortDate(task.due_date)}</span>
             </span>
           )}
 
           {/* Comments count */}
           {task.comments?.length > 0 && (
             <span className="flex items-center space-x-1">
-              <MessageSquare className="w-3 h-3" />
+              <MessageSquare className="w-3 h-3 shrink-0" />
               <span>{task.comments.length}</span>
             </span>
           )}
@@ -340,7 +359,7 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
         </div>
 
         {/* Right: Assignee Avatars (Stacked) */}
-        <div className="flex items-center -space-x-1.5 overflow-hidden">
+        <div className="flex items-center -space-x-1.5 overflow-hidden shrink-0">
           {assignedUsers.slice(0, 3).map((u) => (
             <UserAvatar
               key={u.id}

@@ -253,7 +253,7 @@ export function KanbanColumn({
 
       {/* Cards List with SortableContext */}
       <div
-        className={`flex-1 overflow-y-auto p-2 space-y-2 min-h-[140px] ${
+        className={`flex-1 overflow-y-auto p-2.5 space-y-3 min-h-[140px] ${
           isRowMode ? "max-h-[380px]" : "max-h-[calc(100vh-220px)]"
         }`}
       >

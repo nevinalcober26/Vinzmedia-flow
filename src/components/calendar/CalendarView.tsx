@@ -122,26 +122,46 @@ export function CalendarView({ projectId }: CalendarViewProps) {
             return (
               <div
                 key={day.toISOString()}
-                className={`min-h-[100px] p-1.5 flex flex-col transition-colors overflow-hidden ${
-                  !isCurMonth ? "bg-secondary/15 opacity-50" : "bg-card"
+                className={`group/day min-h-[105px] p-2 flex flex-col transition-colors overflow-hidden ${
+                  !isCurMonth ? "bg-secondary/15 opacity-50" : "bg-card hover:bg-secondary/10"
                 } ${isCurrentDay ? "ring-1 ring-inset ring-primary/40 bg-primary/5" : ""}`}
               >
                 {/* Day Header */}
-                <div className="flex items-center justify-between mb-1 px-1">
-                  <span
-                    className={`text-xs font-mono font-medium rounded-full w-5 h-5 flex items-center justify-center ${
+                <div className="flex items-center justify-between mb-1.5 px-0.5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsCreateTaskModalOpen(true, "todo", dateStr);
+                    }}
+                    title={`Create task for ${format(day, "MMM d, yyyy")}`}
+                    className={`text-xs font-mono font-semibold rounded-full w-6 h-6 flex items-center justify-center transition-all cursor-pointer ${
                       isCurrentDay
-                        ? "bg-primary text-primary-foreground font-bold"
-                        : "text-foreground"
+                        ? "bg-primary text-primary-foreground font-bold shadow-xs ring-2 ring-primary/20 scale-105 hover:bg-primary/90"
+                        : "text-foreground hover:bg-primary hover:text-primary-foreground hover:scale-110 active:scale-95"
                     }`}
                   >
                     {format(day, "d")}
-                  </span>
-                  {dayTasks.length > 0 && (
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      {dayTasks.length}
-                    </span>
-                  )}
+                  </button>
+
+                  <div className="flex items-center space-x-1">
+                    {dayTasks.length > 0 && (
+                      <span className="text-[10px] text-muted-foreground font-mono font-medium">
+                        {dayTasks.length}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCreateTaskModalOpen(true, "todo", dateStr);
+                      }}
+                      title={`Add task for ${format(day, "MMM d")}`}
+                      className="opacity-0 group-hover/day:opacity-100 p-1 rounded text-muted-foreground hover:text-primary hover:bg-secondary transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Day Task Pills */}

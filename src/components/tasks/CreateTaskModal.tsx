@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useStore } from "@/context/StoreContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +30,7 @@ export function CreateTaskModal() {
     isCreateTaskModalOpen,
     setIsCreateTaskModalOpen,
     defaultNewTaskStatus,
+    defaultNewTaskDueDate,
     createTask,
     projects,
     selectedProjectId,
@@ -43,7 +44,7 @@ export function CreateTaskModal() {
   const [projectId, setProjectId] = useState(selectedProjectId || projects[0]?.id || "");
   const [status, setStatus] = useState(defaultNewTaskStatus || "todo");
   const [priority, setPriority] = useState<PriorityLevel>("medium");
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState(defaultNewTaskDueDate || "");
   const [assigneeIds, setAssigneeIds] = useState<string[]>([currentUser.id]);
   const [labelsInput, setLabelsInput] = useState("Feature");
   const [estimatedHours, setEstimatedHours] = useState(4);
@@ -53,6 +54,22 @@ export function CreateTaskModal() {
   const [isCustomType, setIsCustomType] = useState(false);
   const [customDeptInput, setCustomDeptInput] = useState("");
   const [isCustomDept, setIsCustomDept] = useState(false);
+
+  useEffect(() => {
+    if (isCreateTaskModalOpen) {
+      if (defaultNewTaskStatus) {
+        setStatus(defaultNewTaskStatus);
+      }
+      if (defaultNewTaskDueDate) {
+        setDueDate(defaultNewTaskDueDate);
+      } else {
+        setDueDate("");
+      }
+      if (selectedProjectId) {
+        setProjectId(selectedProjectId);
+      }
+    }
+  }, [isCreateTaskModalOpen, defaultNewTaskStatus, defaultNewTaskDueDate, selectedProjectId]);
 
   const currentProject = projects.find((p) => p.id === projectId);
   const projectDepartments = useMemo(() => {
