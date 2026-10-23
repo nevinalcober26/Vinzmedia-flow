@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useStore } from "@/context/StoreContext";
+import { useConfirm } from "@/context/ToastContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
+import { EditProjectModal } from "@/components/modals/EditProjectModal";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -27,10 +29,14 @@ import {
   Check,
   Shield,
   Briefcase,
+  MoreVertical,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { ActiveView } from "@/types";
 
 export function Sidebar() {
+  const confirm = useConfirm();
   const {
     activeView,
     setActiveView,
@@ -47,12 +53,15 @@ export function Sidebar() {
     activeTimer,
     setIsCreateProjectModalOpen,
     setIsProfileModalOpen,
+    deleteProject,
   } = useStore();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
   const [isProjectsExpanded, setIsProjectsExpanded] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [editingProject, setEditingProject] = useState<any | null>(null);
+  const [activeProjectMenuId, setActiveProjectMenuId] = useState<string | null>(null);
 
   // Floating Tooltip state for collapsed rail mode
   const [hoveredTooltip, setHoveredTooltip] = useState<{
@@ -461,54 +470,140 @@ export function Sidebar() {
                   <div className="space-y-0.5 pl-1">
                     {projects.slice(0, 8).map((proj) => {
                       const isSelected = selectedProjectId === proj.id;
+                      const isMenuOpen = activeProjectMenuId === proj.id;
                       return (
-                        <button
+                        <div
                           key={proj.id}
-                          onClick={() => {
-                            hideTooltip();
-                            setSelectedProjectId(proj.id);
-                            setActiveView("project_detail");
-                          }}
-                          title={
-                            isCollapsed
-                              ? `${proj.name} (${proj.progress > 0 ? `${proj.progress}%` : "0%"}) • Active Workstream`
-                              : undefined
-                          }
-                          aria-label={proj.name}
-                          onMouseEnter={(e) =>
-                            showTooltip(
-                              e,
-                              proj.name,
-                              proj.progress > 0 ? `${proj.progress}%` : undefined,
-                              "Active Workstream"
-                            )
-                          }
-                          onMouseLeave={hideTooltip}
-                          className={`w-full flex items-center ${
-                            isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
-                          } py-1.5 text-xs rounded-xl transition-all cursor-pointer ${
-                            isSelected
-                              ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
-                              : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                          }`}
+                          className="relative group/proj flex items-center w-full"
                         >
-                          <div className="flex items-center space-x-2.5 min-w-0">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-background shadow-2xs"
-                              style={{ backgroundColor: proj.color }}
-                            />
-                            {!isCollapsed && (
-                              <span className="truncate tracking-tight text-[11px]">
-                                {proj.name}
+                          <button
+                            onClick={() => {
+                              hideTooltip();
+                              setSelectedProjectId(proj.id);
+                              setActiveView("project_detail");
+                            }}
+                            title={
+                              isCollapsed
+                                ? `${proj.name} (${proj.progress > 0 ? `${proj.progress}%` : "0%"}) • Active Workstream`
+                                : undefined
+                            }
+                            aria-label={proj.name}
+                            onMouseEnter={(e) =>
+                              showTooltip(
+                                e,
+                                proj.name,
+                                proj.progress > 0 ? `${proj.progress}%` : undefined,
+                                "Active Workstream"
+                              )
+                            }
+                            onMouseLeave={hideTooltip}
+                            className={`w-full flex items-center ${
+                              isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
+                            } py-1.5 text-xs rounded-xl transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2.5 min-w-0 pr-6">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-background shadow-2xs"
+                                style={{ backgroundColor: proj.color }}
+                              />
+                              {!isCollapsed && (
+                                <span className="truncate tracking-tight text-[11px]">
+                                  {proj.name}
+                                </span>
+                              )}
+                            </div>
+                            {!isCollapsed && proj.progress > 0 && !isMenuOpen && (
+                              <span className="text-[10px] text-muted-foreground/80 font-mono group-hover/proj:opacity-0 transition-opacity">
+                                {proj.progress}%
                               </span>
                             )}
-                          </div>
-                          {!isCollapsed && proj.progress > 0 && (
-                            <span className="text-[10px] text-muted-foreground/80 font-mono">
-                              {proj.progress}%
-                            </span>
+                          </button>
+
+                          {/* 3 Dots Actions Button */}
+                          {!isCollapsed && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveProjectMenuId(isMenuOpen ? null : proj.id);
+                              }}
+                              className={`absolute right-1.5 p-1 rounded-lg text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-all cursor-pointer ${
+                                isMenuOpen ? "opacity-100 bg-sidebar-accent text-sidebar-foreground" : "opacity-0 group-hover/proj:opacity-100"
+                              }`}
+                              title={`Options for ${proj.name}`}
+                            >
+                              <MoreVertical className="w-3.5 h-3.5" />
+                            </button>
                           )}
-                        </button>
+
+                          {/* 3 Dots Dropdown Action Menu */}
+                          {!isCollapsed && isMenuOpen && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-40 cursor-default"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveProjectMenuId(null);
+                                }}
+                              />
+                              <div
+                                className="absolute right-1 top-8 w-44 rounded-xl bg-card border border-border shadow-2xl py-1 z-50 text-xs animate-in fade-in zoom-in-95 duration-100 divide-y divide-border/40 text-card-foreground"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="p-1 space-y-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveProjectMenuId(null);
+                                      setEditingProject(proj);
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 hover:bg-secondary rounded-lg flex items-center space-x-2 text-foreground font-medium transition-colors cursor-pointer"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5 text-primary" />
+                                    <span>Edit Project</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveProjectMenuId(null);
+                                      setSelectedProjectId(proj.id);
+                                      setActiveView("billing");
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 hover:bg-secondary rounded-lg flex items-center space-x-2 text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                                  >
+                                    <Receipt className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span>Billing & Invoices</span>
+                                  </button>
+                                </div>
+                                <div className="p-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveProjectMenuId(null);
+                                      confirm({
+                                        title: `Delete "${proj.name}"?`,
+                                        message: `Are you sure you want to delete "${proj.name}" and all associated tasks? This action cannot be undone.`,
+                                        confirmText: "Delete Project",
+                                        variant: "danger",
+                                        onConfirm: () => {
+                                          deleteProject(proj.id);
+                                        },
+                                      });
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 hover:bg-rose-500/10 rounded-lg flex items-center space-x-2 text-rose-500 font-medium transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Delete Project</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       );
                     })}
 
@@ -618,6 +713,15 @@ export function Sidebar() {
           </div>,
           document.body
         )}
+
+      {/* Edit Project Modal */}
+      {editingProject && (
+        <EditProjectModal
+          isOpen={!!editingProject}
+          onClose={() => setEditingProject(null)}
+          project={projects.find((p) => p.id === editingProject.id) || editingProject}
+        />
+      )}
     </aside>
   );
 }
