@@ -313,13 +313,15 @@ export interface Task {
 
 export interface TimeEntry {
   id: string;
-  task_id: string;
+  task_id?: string;
   task_title?: string;
+  workspace_id?: string;
   project_id?: string;
   project_name?: string;
   user_id: string;
   user?: User;
   description: string;
+  work_summary?: string;
   duration_seconds: number;
   started_at: string;
   ended_at?: string;

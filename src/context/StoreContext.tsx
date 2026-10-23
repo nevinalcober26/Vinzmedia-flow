@@ -36,6 +36,7 @@ import { taskService } from "@/lib/services/taskService";
 import { clientService } from "@/lib/services/clientService";
 import { fileService } from "@/lib/services/fileService";
 import { noteService } from "@/lib/services/noteService";
+import { timeEntryService } from "@/lib/services/timeEntryService";
 import { workspaceService } from "@/lib/services/workspaceService";
 import { authService } from "@/lib/services/authService";
 import { inviteService } from "@/lib/services/inviteService";
@@ -49,8 +50,11 @@ import {
 import { hasPermission } from "@/lib/permissions";
 
 interface ActiveTimer {
-  taskId: string;
+  taskId?: string;
+  projectId: string;
+  projectName: string;
   taskTitle: string;
+  summary: string;
   startedAt: number;
   seconds: number;
 }
@@ -201,7 +205,9 @@ interface StoreContextType {
 
   // Time Tracking
   startTimer: (taskId: string) => void;
-  stopTimer: () => void;
+  startProjectTimer: (projectId: string, summary: string) => boolean;
+  updateTimerSummary: (summary: string) => void;
+  stopTimer: (summary?: string) => void;
   addManualTimeEntry: (taskId: string, durationMinutes: number, description?: string, customDate?: string) => void;
 
   // Clients & Files / Media
@@ -256,6 +262,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [widgets, setWidgets] = useState<DashboardWidgetConfig[]>(initialWidgets);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [timeEntriesLoadedFor, setTimeEntriesLoadedFor] = useState<string | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(null);
@@ -435,6 +442,44 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Keep the stopwatch and recent sessions available after a refresh. Supabase is
+  // the shared source once the project timeclock SQL has been installed.
+  useEffect(() => {
+    if (!isInitialized) return;
+    const workspaceId = activeWorkspaceId;
+    setTimeEntriesLoadedFor(null);
+    try {
+      const savedEntries = localStorage.getItem(`vinzflow_time_entries_${workspaceId}`);
+      const legacy = savedEntries ? null : JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+      const cached = savedEntries ? JSON.parse(savedEntries) : (legacy?.timeEntries || []).filter((entry: TimeEntry) =>
+        entry.workspace_id === workspaceId || (legacy?.projects || []).some((project: Project) => project.id === entry.project_id && project.workspace_id === workspaceId));
+      setTimeEntries(Array.isArray(cached) ? cached : []);
+      const savedTimer = JSON.parse(localStorage.getItem(`vinzflow_active_timer_${workspaceId}`) || "null");
+      setActiveTimer(savedTimer?.startedAt && savedTimer?.projectId
+        ? { ...savedTimer, seconds: Math.max(0, Math.floor((Date.now() - savedTimer.startedAt) / 1000)) }
+        : null);
+    } catch {
+      setTimeEntries([]);
+      setActiveTimer(null);
+    }
+    setTimeEntriesLoadedFor(workspaceId);
+    let cancelled = false;
+    timeEntryService.getTimeEntries(workspaceId).then((remote) => {
+      if (cancelled || !remote) return;
+      setTimeEntries((local) => {
+        const entries = new Map(local.map((entry) => [entry.id, entry]));
+        remote.forEach((entry) => entries.set(entry.id, entry));
+        return Array.from(entries.values()).sort((a, b) => b.started_at.localeCompare(a.started_at));
+      });
+    });
+    return () => { cancelled = true; };
+  }, [isInitialized, activeWorkspaceId]);
+
+  useEffect(() => {
+    if (timeEntriesLoadedFor !== activeWorkspaceId) return;
+    localStorage.setItem(`vinzflow_time_entries_${activeWorkspaceId}`, JSON.stringify(timeEntries));
+  }, [timeEntries, activeWorkspaceId, timeEntriesLoadedFor]);
+
   // Save changes to LocalStorage
   useEffect(() => {
     if (!isInitialized) return;
@@ -520,13 +565,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Timer Tick effect
+  const timerStartedAt = activeTimer?.startedAt;
   useEffect(() => {
-    if (!activeTimer) return;
+    if (!timerStartedAt) return;
     const interval = setInterval(() => {
-      setActiveTimer((prev) => (prev ? { ...prev, seconds: prev.seconds + 1 } : null));
+      setActiveTimer((prev) => (prev ? { ...prev, seconds: Math.max(0, Math.floor((Date.now() - prev.startedAt) / 1000)) } : null));
     }, 1000);
     return () => clearInterval(interval);
-  }, [activeTimer]);
+  }, [timerStartedAt]);
 
   // Derived Values
   const currentUser = useMemo((): User => {
@@ -1858,33 +1904,68 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Time Tracking ---
   const startTimer = useCallback(
     (taskId: string) => {
+      if (activeTimer) return;
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return;
-      setActiveTimer({
+      const project = projects.find((p) => p.id === task.project_id);
+      if (!project) return;
+      const timer: ActiveTimer = {
         taskId,
+        projectId: project.id,
+        projectName: project.name,
         taskTitle: task.title,
+        summary: `Worked on ${task.title}`,
         startedAt: Date.now(),
         seconds: 0,
-      });
+      };
+      setActiveTimer(timer);
+      localStorage.setItem(`vinzflow_active_timer_${activeWorkspaceId}`, JSON.stringify(timer));
       updateTask(taskId, { is_timer_running: true });
     },
-    [tasks, updateTask]
+    [activeTimer, tasks, projects, activeWorkspaceId, updateTask]
   );
 
-  const stopTimer = useCallback(() => {
+  const startProjectTimer = useCallback((projectId: string, summary: string): boolean => {
+    const project = visibleProjects.find((item) => item.id === projectId && item.workspace_id === activeWorkspaceId);
+    if (activeTimer || !project || !summary.trim()) return false;
+    const timer: ActiveTimer = {
+      projectId: project.id,
+      projectName: project.name,
+      taskTitle: project.name,
+      summary: summary.trim(),
+      startedAt: Date.now(),
+      seconds: 0,
+    };
+    setActiveTimer(timer);
+    localStorage.setItem(`vinzflow_active_timer_${activeWorkspaceId}`, JSON.stringify(timer));
+    return true;
+  }, [activeTimer, visibleProjects, activeWorkspaceId]);
+
+  const updateTimerSummary = useCallback((summary: string) => {
+    if (!activeTimer || !summary.trim()) return;
+    const updated = { ...activeTimer, summary };
+    setActiveTimer(updated);
+    localStorage.setItem(`vinzflow_active_timer_${activeWorkspaceId}`, JSON.stringify(updated));
+  }, [activeTimer, activeWorkspaceId]);
+
+  const stopTimer = useCallback((summary?: string) => {
     if (!activeTimer) return;
-    const task = tasks.find((t) => t.id === activeTimer.taskId);
-    const durationSeconds = activeTimer.seconds;
+    const task = activeTimer.taskId ? tasks.find((t) => t.id === activeTimer.taskId) : undefined;
+    const project = projects.find((p) => p.id === activeTimer.projectId);
+    const durationSeconds = Math.max(1, Math.floor((Date.now() - activeTimer.startedAt) / 1000));
+    const workSummary = summary?.trim() || activeTimer.summary || (task ? `Worked on ${task.title}` : "Project work");
 
     const newEntry: TimeEntry = {
       id: generateId("te"),
       task_id: activeTimer.taskId,
-      task_title: activeTimer.taskTitle,
-      project_id: task?.project_id,
-      project_name: projects.find((p) => p.id === task?.project_id)?.name,
+      task_title: task?.title,
+      workspace_id: project?.workspace_id || activeWorkspaceId,
+      project_id: activeTimer.projectId,
+      project_name: activeTimer.projectName,
       user_id: currentUser.id,
       user: currentUser,
-      description: `Tracked timer session`,
+      description: workSummary,
+      work_summary: workSummary,
       duration_seconds: durationSeconds,
       started_at: new Date(activeTimer.startedAt).toISOString(),
       ended_at: new Date().toISOString(),
@@ -1892,6 +1973,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
 
     setTimeEntries((prev) => [newEntry, ...prev]);
+    void timeEntryService.createTimeEntry(newEntry).then((saved) => {
+      if (!saved && isSupabaseConfigured) toast.warning("Session saved locally", "Check your Supabase sign-in and run the Timeclock SQL to enable database sync.");
+    });
 
     if (task) {
       updateTask(task.id, {
@@ -1901,8 +1985,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     setActiveTimer(null);
-    logActivity("time_tracked", `Tracked ${Math.round(durationSeconds / 60)}m on "${activeTimer.taskTitle}"`);
-  }, [activeTimer, tasks, projects, currentUser, updateTask, logActivity]);
+    localStorage.removeItem(`vinzflow_active_timer_${activeWorkspaceId}`);
+    logActivity("time_tracked", `Tracked ${Math.round(durationSeconds / 60)}m on "${activeTimer.projectName}": ${workSummary}`, activeTimer.projectId);
+  }, [activeTimer, tasks, projects, activeWorkspaceId, currentUser, updateTask, logActivity, toast]);
 
   const addManualTimeEntry = useCallback(
     (taskId: string, durationMinutes: number, description?: string, customDate?: string) => {
@@ -1919,23 +2004,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         id: generateId("te"),
         task_id: taskId,
         task_title: task?.title,
+        workspace_id: task?.workspace_id || activeWorkspaceId,
         project_id: task?.project_id,
         project_name: projects.find((p) => p.id === task?.project_id)?.name,
         user_id: currentUser.id,
         user: currentUser,
         description: description || "Manual time entry",
+        work_summary: description || "Manual time entry",
         duration_seconds: seconds,
         started_at: startedAt,
         is_billable: true,
       };
       setTimeEntries((prev) => [newEntry, ...prev]);
+      void timeEntryService.createTimeEntry(newEntry).then((saved) => {
+        if (!saved && isSupabaseConfigured) toast.warning("Entry saved locally", "Check your Supabase sign-in and run the Timeclock SQL to enable database sync.");
+      });
       if (task) {
         updateTask(taskId, {
           tracked_seconds: (task.tracked_seconds || 0) + seconds,
         });
       }
     },
-    [tasks, projects, currentUser, updateTask]
+    [tasks, projects, activeWorkspaceId, currentUser, updateTask, toast]
   );
 
   // --- Workspaces & Members ---
@@ -2333,6 +2423,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         clearAllNotifications,
 
         startTimer,
+        startProjectTimer,
+        updateTimerSummary,
         stopTimer,
         addManualTimeEntry,
 

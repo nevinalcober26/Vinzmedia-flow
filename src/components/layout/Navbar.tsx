@@ -218,7 +218,7 @@ export function Navbar() {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
               <span className="font-bold">{formatTimerDisplay(activeTimer.seconds)}</span>
               <button
-                onClick={stopTimer}
+                onClick={() => stopTimer()}
                 title="Stop active timer"
                 className="hover:bg-emerald-500/20 rounded p-0.5 transition-colors cursor-pointer"
               >

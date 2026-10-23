@@ -321,7 +321,7 @@ export function TaskSlideOver() {
                 </div>
                 {isTimerRunning ? (
                   <button
-                    onClick={stopTimer}
+                    onClick={() => stopTimer()}
                     title="Stop timer"
                     className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold flex items-center space-x-1 shadow-xs cursor-pointer animate-pulse"
                   >

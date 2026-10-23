@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useStore } from "@/context/StoreContext";
 import { UploadDocumentModal } from "@/components/modals/UploadDocumentModal";
+import { TimeClockWidget } from "@/components/timelogs/TimeClockWidget";
 
 export function FloatingActionButton() {
   const { setIsCreateProjectModalOpen, setIsCreateTaskModalOpen, setIsQuickNoteOpen } = useStore();
@@ -159,6 +160,8 @@ export function FloatingActionButton() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <TimeClockWidget onOpen={() => setIsOpen(false)} />
 
         <motion.button
           whileHover={{ scale: 1.04 }}
