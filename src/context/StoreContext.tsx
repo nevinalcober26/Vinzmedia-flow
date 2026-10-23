@@ -193,7 +193,7 @@ interface StoreContextType {
   // Time Tracking
   startTimer: (taskId: string) => void;
   stopTimer: () => void;
-  addManualTimeEntry: (taskId: string, durationMinutes: number, description?: string) => void;
+  addManualTimeEntry: (taskId: string, durationMinutes: number, description?: string, customDate?: string) => void;
 
   // Clients & Files / Media
   createClient: (clientData: Partial<Client>) => Client;
@@ -1685,9 +1685,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [activeTimer, tasks, projects, currentUser, updateTask, logActivity]);
 
   const addManualTimeEntry = useCallback(
-    (taskId: string, durationMinutes: number, description?: string) => {
+    (taskId: string, durationMinutes: number, description?: string, customDate?: string) => {
       const task = tasks.find((t) => t.id === taskId);
       const seconds = durationMinutes * 60;
+      let startedAt: string;
+      if (customDate) {
+        const d = new Date(customDate.includes("T") ? customDate : `${customDate}T12:00:00`);
+        startedAt = isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+      } else {
+        startedAt = new Date().toISOString();
+      }
       const newEntry: TimeEntry = {
         id: generateId("te"),
         task_id: taskId,
@@ -1698,7 +1705,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         user: currentUser,
         description: description || "Manual time entry",
         duration_seconds: seconds,
-        started_at: new Date().toISOString(),
+        started_at: startedAt,
         is_billable: true,
       };
       setTimeEntries((prev) => [newEntry, ...prev]);

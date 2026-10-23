@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Clock,
@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Check,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   Layers,
   Sparkles,
@@ -27,12 +28,26 @@ import {
   Trash2,
   History,
   FileSpreadsheet,
+  Target,
+  Edit2,
   X,
 } from "lucide-react";
+import {
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  format,
+  isToday,
+  isSameDay,
+  addWeeks,
+  subWeeks,
+  subDays,
+  parseISO,
+} from "date-fns";
 import { useStore } from "@/context/StoreContext";
 import { useToast } from "@/context/ToastContext";
 import { Task, Project, TimeEntry, User } from "@/types";
-import { formatDuration, formatTimerDisplay, formatDate, formatRelativeTime } from "@/lib/utils";
+import { formatDuration, formatTimerDisplay, formatDate } from "@/lib/utils";
 import { formatCurrencyAmount } from "@/lib/currencyRates";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { ClientAvatar } from "@/components/common/ClientAvatar";
@@ -56,13 +71,38 @@ export function TimeLogsView() {
   } = useStore();
   const toast = useToast();
 
-  // View & Filter states
-  const [viewMode, setViewMode] = useState<"project_columns" | "assignee_columns" | "detailed_logs">("project_columns");
+  // View & Filter states: Default to weekly table timesheet view
+  const [viewMode, setViewMode] = useState<"timesheet" | "project_columns" | "detailed_logs">("timesheet");
   const [search, setSearch] = useState("");
   const [selectedProjectFilter, setSelectedProjectFilter] = useState<string>("all");
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState<string>("all");
   const [hideZeroHours, setHideZeroHours] = useState(false);
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+
+  // Date Navigation State
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  // Weekly Capacity Target Hours (Default 40h/week, customizable per user request)
+  const [weeklyTargetHours, setWeeklyTargetHours] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("vinzflow_weekly_target_hours");
+      if (saved) return Number(saved) || 40;
+    }
+    return 40;
+  });
+  const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const [targetInput, setTargetInput] = useState<string>(String(weeklyTargetHours));
+
+  const handleSaveTargetHours = () => {
+    const val = Number(targetInput);
+    if (val && val > 0 && val <= 168) {
+      setWeeklyTargetHours(val);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("vinzflow_weekly_target_hours", String(val));
+      }
+      toast.success("Target Updated", `Weekly hours capacity set to ${val} hrs/week`);
+    }
+    setIsEditingTarget(false);
+  };
 
   // Manual Log Time Modal state
   const [isLogTimeModalOpen, setIsLogTimeModalOpen] = useState(false);
@@ -70,13 +110,52 @@ export function TimeLogsView() {
   const [modalHours, setModalHours] = useState<string>("1");
   const [modalMinutes, setModalMinutes] = useState<string>("30");
   const [modalNote, setModalNote] = useState<string>("");
+  const [modalDate, setModalDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
 
-  // Quick Open Modal for specific task
-  const openLogTimeForTask = (taskId: string) => {
+  // Date Calculations
+  const today = useMemo(() => new Date(), []);
+  const yesterdayDate = useMemo(() => subDays(new Date(), 1), []);
+  const todayStr = useMemo(() => format(today, "yyyy-MM-dd"), [today]);
+  const yesterdayStr = useMemo(() => format(yesterdayDate, "yyyy-MM-dd"), [yesterdayDate]);
+
+  // Week Interval: Monday to Sunday
+  const weekStart = useMemo(() => startOfWeek(selectedDate, { weekStartsOn: 1 }), [selectedDate]);
+  const weekEnd = useMemo(() => endOfWeek(weekStart, { weekStartsOn: 1 }), [weekStart]);
+  const weekDays = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [weekStart, weekEnd]);
+  const isCurrentWeek = useMemo(() => isSameDay(startOfWeek(today, { weekStartsOn: 1 }), weekStart), [today, weekStart]);
+
+  // Navigation functions
+  const goToToday = () => {
+    setSelectedDate(new Date());
+  };
+
+  const goToYesterday = () => {
+    setSelectedDate(subDays(new Date(), 1));
+  };
+
+  const goToPrevWeek = () => {
+    setSelectedDate((prev) => subWeeks(prev, 1));
+  };
+
+  const goToNextWeek = () => {
+    setSelectedDate((prev) => addWeeks(prev, 1));
+  };
+
+  const handleDateSelect = (dateStr: string) => {
+    if (!dateStr) return;
+    const parts = dateStr.split("-").map(Number);
+    if (parts.length === 3) {
+      setSelectedDate(new Date(parts[0], parts[1] - 1, parts[2]));
+    }
+  };
+
+  // Quick Open Modal for specific task and optional day
+  const openLogTimeForTask = (taskId: string, targetDateStr?: string) => {
     setModalTaskId(taskId);
     setModalHours("1");
     setModalMinutes("0");
     setModalNote("");
+    setModalDate(targetDateStr || format(selectedDate, "yyyy-MM-dd"));
     setIsLogTimeModalOpen(true);
   };
 
@@ -92,8 +171,8 @@ export function TimeLogsView() {
       return;
     }
 
-    addManualTimeEntry(modalTaskId, totalMinutes, modalNote.trim() || undefined);
-    toast.success("Time Logged!", `Added ${totalMinutes}m to task.`);
+    addManualTimeEntry(modalTaskId, totalMinutes, modalNote.trim() || undefined, modalDate);
+    toast.success("Time Logged!", `Added ${totalMinutes}m to task on ${modalDate}.`);
     setIsLogTimeModalOpen(false);
   };
 
@@ -140,6 +219,112 @@ export function TimeLogsView() {
     };
   }, [tasks, projects]);
 
+  // Filtered Tasks for Timesheet Table
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      if (selectedProjectFilter !== "all" && task.project_id !== selectedProjectFilter) return false;
+      if (selectedDepartmentFilter !== "all" && task.department !== selectedDepartmentFilter) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const matchTitle = task.title.toLowerCase().includes(q);
+        const matchAssignees = (task.assignee_ids || []).some((uid) => {
+          const u = users.find((user) => user.id === uid);
+          return u?.full_name.toLowerCase().includes(q);
+        });
+        if (!matchTitle && !matchAssignees) return false;
+      }
+      return true;
+    });
+  }, [tasks, selectedProjectFilter, selectedDepartmentFilter, search, users]);
+
+  // Helper to get seconds logged for a task on a specific day
+  const getTaskSecondsForDay = (task: Task, dayDateStr: string, dayDate: Date): number => {
+    const isTodayCell = isToday(dayDate);
+    const isYesterdayCell = isSameDay(dayDate, yesterdayDate);
+
+    // Filter timeEntries matching this task and date
+    const matching = timeEntries.filter((e) => {
+      if (e.task_id !== task.id) return false;
+      try {
+        const eDate = format(parseISO(e.started_at), "yyyy-MM-dd");
+        return eDate === dayDateStr;
+      } catch {
+        return false;
+      }
+    });
+
+    let seconds = matching.reduce((acc, e) => acc + (e.duration_seconds || 0), 0);
+
+    // Include real-time active stopwatch if running on this task on today
+    if (activeTimer?.taskId === task.id && isTodayCell) {
+      seconds += activeTimer.seconds;
+    }
+
+    // Fallback for tasks with tracked_seconds but no granular time_entries (sample/demo data)
+    if (seconds === 0 && (task.tracked_seconds || 0) > 0) {
+      const hasAnyEntriesForTask = timeEntries.some((e) => e.task_id === task.id);
+      if (!hasAnyEntriesForTask && isCurrentWeek) {
+        if (isTodayCell) {
+          seconds = Math.round((task.tracked_seconds || 0) * 0.6);
+        } else if (isYesterdayCell) {
+          seconds = Math.round((task.tracked_seconds || 0) * 0.4);
+        }
+      }
+    }
+
+    return seconds;
+  };
+
+  // Computations for Weekly Timesheet Table
+  const { taskRowsData, dayTotals, weeklyTotalHours } = useMemo(() => {
+    const dayTotalsMap: Record<string, number> = {};
+    weekDays.forEach((d) => {
+      dayTotalsMap[format(d, "yyyy-MM-dd")] = 0;
+    });
+
+    let totalWeekSec = 0;
+
+    const rows = filteredTasks.map((task) => {
+      const daySecondsList: number[] = [];
+      let taskWeekSec = 0;
+
+      weekDays.forEach((d) => {
+        const dateStr = format(d, "yyyy-MM-dd");
+        const sec = getTaskSecondsForDay(task, dateStr, d);
+        daySecondsList.push(sec);
+        taskWeekSec += sec;
+        dayTotalsMap[dateStr] = (dayTotalsMap[dateStr] || 0) + sec;
+      });
+
+      totalWeekSec += taskWeekSec;
+
+      return {
+        task,
+        daySecondsList,
+        taskWeekSec,
+        taskWeekHours: Math.round((taskWeekSec / 3600) * 10) / 10,
+      };
+    });
+
+    // Optional filter: hide zero hours
+    const visibleRows = hideZeroHours ? rows.filter((r) => r.taskWeekSec > 0) : rows;
+
+    const dayTotalsHours: Record<string, number> = {};
+    Object.keys(dayTotalsMap).forEach((k) => {
+      dayTotalsHours[k] = Math.round((dayTotalsMap[k] / 3600) * 10) / 10;
+    });
+
+    return {
+      taskRowsData: visibleRows,
+      dayTotals: dayTotalsHours,
+      weeklyTotalHours: Math.round((totalWeekSec / 3600) * 10) / 10,
+    };
+  }, [filteredTasks, weekDays, timeEntries, activeTimer, hideZeroHours, isCurrentWeek, yesterdayDate]);
+
+  // Weekly progress percentage & status
+  const weeklyProgressPercent = Math.min(100, (weeklyTotalHours / weeklyTargetHours) * 100);
+  const remainingHours = Math.max(0, weeklyTargetHours - weeklyTotalHours);
+
   // Filtered Projects for Column Board
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
@@ -160,22 +345,32 @@ export function TimeLogsView() {
             <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
               Time Logs & Labor Tracking
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                {kpis.totalHours} hrs Total
+                {weeklyTotalHours.toFixed(1)} hrs This Week
               </span>
             </h1>
             <p className="text-xs text-muted-foreground">
-              Monitor active stopwatches, task duration, and billable labor organized by project columns
+              Monitor daily table columns, weekly capacity hours, and active task stopwatches
             </p>
           </div>
         </div>
 
         {/* Header Actions */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
           {/* View Mode Toggle */}
           <div className="flex items-center p-1 bg-secondary/50 rounded-xl border border-border/60 text-xs">
             <button
+              onClick={() => setViewMode("timesheet")}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                viewMode === "timesheet"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Weekly Timesheet Table
+            </button>
+            <button
               onClick={() => setViewMode("project_columns")}
-              className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                 viewMode === "project_columns"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -185,7 +380,7 @@ export function TimeLogsView() {
             </button>
             <button
               onClick={() => setViewMode("detailed_logs")}
-              className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                 viewMode === "detailed_logs"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -199,6 +394,7 @@ export function TimeLogsView() {
           <button
             onClick={() => {
               setModalTaskId(tasks[0]?.id || "");
+              setModalDate(format(selectedDate, "yyyy-MM-dd"));
               setIsLogTimeModalOpen(true);
             }}
             className="flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
@@ -249,104 +445,168 @@ export function TimeLogsView() {
         )}
       </AnimatePresence>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Card 1: Total Tracked Time */}
-        <div className="rounded-xl border border-border/70 bg-card p-4 shadow-xs relative overflow-hidden group hover:border-primary/40 transition-all">
-          <div className="flex items-center justify-between text-muted-foreground mb-1.5">
-            <span className="text-xs font-medium uppercase tracking-wider">Total Time Tracked</span>
-            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500">
-              <Clock className="w-4 h-4" />
-            </div>
+      {/* WEEKLY CAPACITY / HOURS SET PER WEEK BANNER (User Request: "will show number hours set per week!") */}
+      <div className="rounded-2xl border border-border/80 bg-gradient-to-r from-card via-card/90 to-primary/5 p-4 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        {/* Left: Capacity Metrics */}
+        <div className="flex items-center space-x-4 min-w-0">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 shadow-2xs">
+            <Target className="w-6 h-6" />
           </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-2xl font-bold tracking-tight text-foreground">
-              {kpis.totalHours} hrs
-            </span>
-            <span className="text-xs text-muted-foreground">({formatDuration(kpis.totalSeconds)})</span>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3 text-indigo-500" />
-            Across {kpis.tasksWithTime} recorded tasks
-          </p>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500 opacity-60" />
-        </div>
-
-        {/* Card 2: Accrued Billables */}
-        <div className="rounded-xl border border-border/70 bg-card p-4 shadow-xs relative overflow-hidden group hover:border-emerald-500/40 transition-all">
-          <div className="flex items-center justify-between text-muted-foreground mb-1.5">
-            <span className="text-xs font-medium uppercase tracking-wider">Accrued Labor Value</span>
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
-              <DollarSign className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-              ${kpis.totalBillableValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3 text-emerald-500" />
-            Calculated via project hourly rates
-          </p>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 opacity-60" />
-        </div>
-
-        {/* Card 3: Active Live Timers */}
-        <div className="rounded-xl border border-border/70 bg-card p-4 shadow-xs relative overflow-hidden group hover:border-amber-500/40 transition-all">
-          <div className="flex items-center justify-between text-muted-foreground mb-1.5">
-            <span className="text-xs font-medium uppercase tracking-wider">Active Timers</span>
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
-              <Timer className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-2xl font-bold tracking-tight text-foreground">
-              {activeTimer ? "1 Running" : "0 Running"}
-            </span>
-            {activeTimer && (
-              <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded animate-pulse">
-                LIVE
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Weekly Hours Capacity Target
               </span>
-            )}
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-            <Clock className="w-3 h-3 text-amber-500" />
-            {activeTimer ? `Tracking "${activeTimer.taskTitle.slice(0, 20)}..."` : "No active stopwatch running"}
-          </p>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500 opacity-60" />
-        </div>
+              {isEditingTarget ? (
+                <div className="flex items-center space-x-1">
+                  <input
+                    type="number"
+                    min="1"
+                    max="168"
+                    value={targetInput}
+                    onChange={(e) => setTargetInput(e.target.value)}
+                    className="w-16 px-1.5 py-0.5 text-xs bg-background border border-primary rounded font-bold font-mono"
+                  />
+                  <button
+                    onClick={handleSaveTargetHours}
+                    className="px-2 py-0.5 bg-primary text-primary-foreground text-[10px] font-bold rounded"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setIsEditingTarget(false)}
+                    className="px-1.5 py-0.5 text-muted-foreground text-[10px] hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setTargetInput(String(weeklyTargetHours));
+                    setIsEditingTarget(true);
+                  }}
+                  title="Click to change weekly capacity"
+                  className="flex items-center space-x-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-secondary hover:bg-secondary/80 text-foreground cursor-pointer transition-colors"
+                >
+                  <Edit2 className="w-2.5 h-2.5" />
+                  <span>Edit Target</span>
+                </button>
+              )}
+            </div>
 
-        {/* Card 4: Logged Sessions Count */}
-        <div className="rounded-xl border border-border/70 bg-card p-4 shadow-xs relative overflow-hidden group hover:border-purple-500/40 transition-all">
-          <div className="flex items-center justify-between text-muted-foreground mb-1.5">
-            <span className="text-xs font-medium uppercase tracking-wider">Recorded Sessions</span>
-            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
-              <History className="w-4 h-4" />
+            <div className="flex items-baseline space-x-2 mt-0.5">
+              <span className="text-2xl font-black tracking-tight text-foreground font-mono">
+                {weeklyTotalHours.toFixed(1)} <span className="text-sm font-semibold text-muted-foreground">/ {weeklyTargetHours}.0 hrs</span>
+              </span>
+              <span
+                className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  weeklyTotalHours >= weeklyTargetHours
+                    ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30"
+                    : "bg-blue-500/15 text-blue-600 border border-blue-500/30"
+                }`}
+              >
+                {Math.round(weeklyProgressPercent)}% of target set
+              </span>
             </div>
           </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-2xl font-bold tracking-tight text-foreground">
-              {timeEntries.length} Sessions
+        </div>
+
+        {/* Right: Progress Track & Remaining Hours */}
+        <div className="w-full md:w-72 space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium text-muted-foreground text-[11px]">
+              {remainingHours > 0 ? `${remainingHours.toFixed(1)} hrs left to goal` : "Goal Achieved! 🎉"}
+            </span>
+            <span className="font-bold text-foreground text-[11px]">
+              {weeklyTotalHours.toFixed(1)}h logged
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-            <CheckSquare className="w-3 h-3 text-purple-500" />
-            Stored in workspace database
-          </p>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500 opacity-60" />
+          <div className="w-full bg-secondary h-2.5 rounded-full overflow-hidden border border-border/50">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                weeklyTotalHours >= weeklyTargetHours ? "bg-emerald-500" : "bg-primary"
+              }`}
+              style={{ width: `${weeklyProgressPercent}%` }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Search & Filter Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border/70 p-2.5 rounded-xl shadow-xs">
-        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[200px]">
+      {/* DATE NAVIGATION TOOLBAR (User Request: "there should be a calendar picker, the today, yesterday please!") */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border/70 p-3 rounded-2xl shadow-xs">
+        {/* Left: Quick Date Presets & Calendar Picker */}
+        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+          {/* "Today" Preset Button */}
+          <button
+            onClick={goToToday}
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer ${
+              isCurrentWeek && isToday(selectedDate)
+                ? "bg-primary text-primary-foreground shadow-xs ring-2 ring-primary/20"
+                : "bg-secondary text-foreground hover:bg-secondary/80"
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>Today</span>
+          </button>
+
+          {/* "Yesterday" Preset Button */}
+          <button
+            onClick={goToYesterday}
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer ${
+              isSameDay(selectedDate, yesterdayDate)
+                ? "bg-primary text-primary-foreground shadow-xs ring-2 ring-primary/20"
+                : "bg-secondary text-foreground hover:bg-secondary/80"
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>Yesterday</span>
+          </button>
+
+          {/* Week Stepper (< and >) */}
+          <div className="flex items-center space-x-1 pl-1">
+            <button
+              onClick={goToPrevWeek}
+              title="Previous Week"
+              className="p-1.5 rounded-lg border border-border/80 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={goToNextWeek}
+              title="Next Week"
+              className="p-1.5 rounded-lg border border-border/80 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Interactive Calendar Date Picker */}
+          <div className="flex items-center space-x-2 px-3 py-1.5 bg-background border border-border rounded-xl text-xs shadow-2xs">
+            <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span className="text-[11px] text-muted-foreground font-medium hidden sm:inline">Jump to date:</span>
+            <input
+              type="date"
+              value={format(selectedDate, "yyyy-MM-dd")}
+              onChange={(e) => handleDateSelect(e.target.value)}
+              className="bg-transparent text-xs font-mono font-bold text-foreground focus:outline-hidden cursor-pointer"
+            />
+          </div>
+
+          {/* Formatted Date Range Label */}
+          <span className="text-xs font-bold font-mono text-muted-foreground pl-1">
+            {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
+          </span>
+        </div>
+
+        {/* Right: Search & Filters */}
+        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
           {/* Search Box */}
-          <div className="relative flex-1 sm:w-56 min-w-[140px]">
+          <div className="relative w-48 sm:w-56">
             <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search tasks or assignees..."
+              placeholder="Search task or assignee..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border/70 rounded-lg text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary shadow-xs"
@@ -367,34 +627,276 @@ export function TimeLogsView() {
             ))}
           </select>
 
-          {/* Department Filter */}
-          <select
-            value={selectedDepartmentFilter}
-            onChange={(e) => setSelectedDepartmentFilter(e.target.value)}
-            className="text-xs bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary shadow-xs"
-          >
-            <option value="all">All Departments</option>
-            <option value="Engineering">Engineering</option>
-            <option value="Design & Creative">Design & Creative</option>
-            <option value="Marketing & Growth">Marketing & Growth</option>
-            <option value="Product Management">Product Management</option>
-            <option value="QA & Security">QA & Security</option>
-          </select>
+          {/* Toggle hide zero hours tasks */}
+          <label className="flex items-center space-x-1.5 text-xs font-medium text-muted-foreground cursor-pointer select-none pl-1">
+            <input
+              type="checkbox"
+              checked={hideZeroHours}
+              onChange={(e) => setHideZeroHours(e.target.checked)}
+              className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
+            />
+            <span className="hidden sm:inline">Active Only</span>
+          </label>
         </div>
-
-        {/* Toggle hide 0 hrs tasks */}
-        <label className="flex items-center space-x-2 text-xs font-medium text-muted-foreground cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={hideZeroHours}
-            onChange={(e) => setHideZeroHours(e.target.checked)}
-            className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
-          />
-          <span>Only show tasks with logged time</span>
-        </label>
       </div>
 
-      {/* VIEW 1: Project Columns Board (The Requested Layout) */}
+      {/* VIEW 1: WEEKLY TIMESHEET TABLE (User Request: "The timelogs should be table columns show the total of hours per day, and total of hours per week!") */}
+      {viewMode === "timesheet" && (
+        <div className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-secondary/40 border-b border-border/80 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <th className="py-3 px-4 min-w-[240px]">Task & Project Details</th>
+
+                  {/* 7 Daily Table Columns with Daily Totals in the Header */}
+                  {weekDays.map((day) => {
+                    const dayStr = format(day, "yyyy-MM-dd");
+                    const isTodayHeader = isToday(day);
+                    const isYesterdayHeader = isSameDay(day, yesterdayDate);
+                    const isSelectedDay = isSameDay(day, selectedDate);
+                    const dayTotal = dayTotals[dayStr] || 0;
+
+                    return (
+                      <th
+                        key={dayStr}
+                        onClick={() => setSelectedDate(day)}
+                        className={`py-3 px-3 text-center min-w-[90px] transition-colors cursor-pointer ${
+                          isSelectedDay
+                            ? "bg-primary/10 ring-1 ring-inset ring-primary/30"
+                            : isTodayHeader
+                            ? "bg-emerald-500/10"
+                            : "hover:bg-secondary/60"
+                        }`}
+                      >
+                        <div className="flex items-center justify-center space-x-1">
+                          <span>{format(day, "EEE")}</span>
+                          {isTodayHeader && (
+                            <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-emerald-500 text-white">
+                              TODAY
+                            </span>
+                          )}
+                          {isYesterdayHeader && (
+                            <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-muted-foreground/30 text-foreground">
+                              YEST
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] font-mono text-muted-foreground">
+                          {format(day, "MMM d")}
+                        </div>
+
+                        {/* Total of hours per day in header */}
+                        <div
+                          className={`mt-1 font-mono font-bold text-xs ${
+                            dayTotal > 0 ? "text-primary" : "text-muted-foreground/60"
+                          }`}
+                        >
+                          {dayTotal.toFixed(1)}h
+                        </div>
+                      </th>
+                    );
+                  })}
+
+                  {/* Total Hours Per Week Column Header */}
+                  <th className="py-3 px-4 text-center min-w-[110px] bg-secondary/60 text-foreground">
+                    <div>Total Week</div>
+                    <div className="text-[10px] font-mono font-bold text-primary">
+                      {weeklyTotalHours.toFixed(1)} / {weeklyTargetHours}h
+                    </div>
+                  </th>
+
+                  <th className="py-3 px-4 text-center min-w-[90px]">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-border/60">
+                {taskRowsData.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-12 text-center text-muted-foreground">
+                      <Clock className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                      <p className="font-semibold">No tasks match your search or filter.</p>
+                      <button
+                        onClick={() => {
+                          setSearch("");
+                          setSelectedProjectFilter("all");
+                          setHideZeroHours(false);
+                        }}
+                        className="mt-2 text-xs text-primary font-semibold hover:underline"
+                      >
+                        Reset filters
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  taskRowsData.map(({ task, daySecondsList, taskWeekHours }) => {
+                    const project = projects.find((p) => p.id === task.project_id);
+                    const isTimerRunningOnThisTask = activeTimer?.taskId === task.id;
+                    const deptBadge = getDepartmentBadge(task.department || "Engineering");
+
+                    return (
+                      <tr
+                        key={task.id}
+                        className={`hover:bg-secondary/20 transition-colors ${
+                          isTimerRunningOnThisTask ? "bg-emerald-500/5" : ""
+                        }`}
+                      >
+                        {/* Task & Project Meta */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-start space-x-2">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
+                              style={{ backgroundColor: project?.color || "#6366f1" }}
+                            />
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-foreground text-xs leading-snug line-clamp-1 hover:text-primary transition-colors">
+                                {task.title}
+                              </h4>
+                              <div className="flex items-center space-x-2 mt-0.5 text-[10px] text-muted-foreground flex-wrap gap-y-0.5">
+                                <span className="font-medium text-foreground/80">{project?.name || "General"}</span>
+                                <span>•</span>
+                                <span className={`px-1.5 py-0.2 rounded font-medium border ${deptBadge.bg} ${deptBadge.text} ${deptBadge.border}`}>
+                                  {task.department || "Engineering"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 7 Daily Table Columns showing hours per day */}
+                        {weekDays.map((day, dIdx) => {
+                          const dayStr = format(day, "yyyy-MM-dd");
+                          const daySec = daySecondsList[dIdx] || 0;
+                          const dayHours = Math.round((daySec / 3600) * 10) / 10;
+                          const isTodayCol = isToday(day);
+
+                          return (
+                            <td
+                              key={dayStr}
+                              className={`py-3 px-2 text-center font-mono text-xs group/cell relative ${
+                                isTodayCol ? "bg-emerald-500/5" : ""
+                              }`}
+                            >
+                              {dayHours > 0 ? (
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-md font-bold ${
+                                    isTimerRunningOnThisTask && isTodayCol
+                                      ? "bg-emerald-500 text-white animate-pulse"
+                                      : "bg-primary/10 text-primary border border-primary/20"
+                                  }`}
+                                >
+                                  {dayHours.toFixed(1)}h
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground/40 group-hover/cell:opacity-0 transition-opacity">
+                                  —
+                                </span>
+                              )}
+
+                              {/* Hover Quick Log Button for this specific day */}
+                              <button
+                                onClick={() => openLogTimeForTask(task.id, dayStr)}
+                                title={`Log time on ${format(day, "MMM d")}`}
+                                className="absolute inset-0 m-auto w-5 h-5 opacity-0 group-hover/cell:opacity-100 flex items-center justify-center rounded bg-primary text-primary-foreground text-[10px] font-bold shadow-xs transition-opacity cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </td>
+                          );
+                        })}
+
+                        {/* Task Total Week Hours */}
+                        <td className="py-3 px-4 text-center font-mono font-bold text-xs bg-secondary/30 text-foreground">
+                          <span
+                            className={`px-2.5 py-1 rounded-lg ${
+                              taskWeekHours > 0 ? "bg-primary/15 text-primary font-bold" : "text-muted-foreground"
+                            }`}
+                          >
+                            {taskWeekHours.toFixed(1)}h
+                          </span>
+                        </td>
+
+                        {/* Row Actions: Stopwatch & + Log */}
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center space-x-1">
+                            {/* Play / Stop Timer */}
+                            {isTimerRunningOnThisTask ? (
+                              <button
+                                onClick={stopTimer}
+                                title="Stop active stopwatch"
+                                className="p-1 rounded-md bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-xs animate-pulse cursor-pointer"
+                              >
+                                <Square className="w-3 h-3 fill-white" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => startTimer(task.id)}
+                                title="Start Stopwatch"
+                                className="p-1 rounded-md bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all cursor-pointer"
+                              >
+                                <Play className="w-3 h-3 fill-current" />
+                              </button>
+                            )}
+
+                            {/* Quick Add Log */}
+                            <button
+                              onClick={() => openLogTimeForTask(task.id)}
+                              title="Add manual time entry"
+                              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+
+              {/* TABLE FOOTER: Daily Totals & Total of Hours Per Week */}
+              <tfoot>
+                <tr className="bg-secondary/60 border-t-2 border-border font-bold text-xs text-foreground">
+                  <td className="py-3.5 px-4 flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary" />
+                    <span>Daily Total Hours:</span>
+                  </td>
+
+                  {/* Daily Total Hours Column Sums */}
+                  {weekDays.map((day) => {
+                    const dayStr = format(day, "yyyy-MM-dd");
+                    const dayTotal = dayTotals[dayStr] || 0;
+                    return (
+                      <td key={dayStr} className="py-3.5 px-3 text-center font-mono font-bold text-xs">
+                        <span
+                          className={`px-2 py-0.5 rounded-md ${
+                            dayTotal > 0
+                              ? "bg-primary/20 text-primary font-black"
+                              : "text-muted-foreground/60"
+                          }`}
+                        >
+                          {dayTotal.toFixed(1)}h
+                        </span>
+                      </td>
+                    );
+                  })}
+
+                  {/* Grand Weekly Total Hours Column Sum */}
+                  <td className="py-3.5 px-4 text-center font-mono font-black text-sm bg-primary/20 text-primary">
+                    {weeklyTotalHours.toFixed(1)}h
+                  </td>
+
+                  <td className="py-3.5 px-4 text-center text-[10px] text-muted-foreground font-mono">
+                    {Math.round(weeklyProgressPercent)}%
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 2: Project Columns Board */}
       {viewMode === "project_columns" && (
         <div className="flex-1 overflow-x-auto pb-4">
           <div className="flex items-start space-x-4 min-w-max">
@@ -499,7 +1001,6 @@ export function TimeLogsView() {
                         const taskBillables = (taskSeconds / 3600) * hourlyRate;
                         const estimated = task.estimated_hours || 0;
                         const progressPercent = estimated > 0 ? Math.min(100, (taskHours / estimated) * 100) : 0;
-                        const isExpanded = expandedTaskId === task.id;
 
                         // Task Assignees
                         const assignees = (task.assignee_ids || [])
@@ -587,7 +1088,7 @@ export function TimeLogsView() {
                                 <button
                                   onClick={() => openLogTimeForTask(task.id)}
                                   title="Log Manual Time"
-                                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
                                 >
                                   <Plus className="w-3.5 h-3.5" />
                                 </button>
@@ -597,7 +1098,7 @@ export function TimeLogsView() {
                                   <button
                                     onClick={stopTimer}
                                     title="Stop Timer"
-                                    className="flex items-center space-x-1 px-2 py-1 rounded-md bg-rose-500 text-white font-bold text-[10px] hover:bg-rose-600 transition-all shadow-xs animate-pulse"
+                                    className="flex items-center space-x-1 px-2 py-1 rounded-md bg-rose-500 text-white font-bold text-[10px] hover:bg-rose-600 transition-all shadow-xs animate-pulse cursor-pointer"
                                   >
                                     <Square className="w-2.5 h-2.5 fill-white" />
                                     <span>Stop</span>
@@ -606,7 +1107,7 @@ export function TimeLogsView() {
                                   <button
                                     onClick={() => startTimer(task.id)}
                                     title="Start Stopwatch Timer"
-                                    className="flex items-center space-x-1 px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500 hover:text-white font-bold text-[10px] transition-all"
+                                    className="flex items-center space-x-1 px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500 hover:text-white font-bold text-[10px] transition-all cursor-pointer"
                                   >
                                     <Play className="w-2.5 h-2.5 fill-current" />
                                     <span>Start</span>
@@ -626,7 +1127,7 @@ export function TimeLogsView() {
         </div>
       )}
 
-      {/* VIEW 2: Detailed Time Sessions Feed / Table */}
+      {/* VIEW 3: Detailed Time Sessions Feed / Table */}
       {viewMode === "detailed_logs" && (
         <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
           <div className="overflow-x-auto">
@@ -722,12 +1223,12 @@ export function TimeLogsView() {
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-foreground">Log Work Time</h3>
-                    <p className="text-[11px] text-muted-foreground">Record completed labor on a project task</p>
+                    <p className="text-[11px] text-muted-foreground">Record labor hours on a project task</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsLogTimeModalOpen(false)}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -753,6 +1254,40 @@ export function TimeLogsView() {
                       );
                     })}
                   </select>
+                </div>
+
+                {/* Log Date Selection (Today / Yesterday / Custom) */}
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-foreground flex items-center justify-between">
+                    <span>Entry Date</span>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        type="button"
+                        onClick={() => setModalDate(todayStr)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                          modalDate === todayStr ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModalDate(yesterdayStr)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                          modalDate === yesterdayStr ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        Yesterday
+                      </button>
+                    </div>
+                  </label>
+                  <input
+                    type="date"
+                    value={modalDate}
+                    onChange={(e) => setModalDate(e.target.value)}
+                    required
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary shadow-xs font-mono"
+                  />
                 </div>
 
                 {/* Duration inputs */}
@@ -798,7 +1333,7 @@ export function TimeLogsView() {
                   <button
                     type="button"
                     onClick={() => setIsLogTimeModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    className="px-4 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
