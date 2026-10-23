@@ -14,6 +14,8 @@ import {
   Megaphone,
   ExternalLink,
   X,
+  Receipt,
+  CreditCard,
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import { NotificationType } from "@/types";
@@ -50,7 +52,7 @@ export function NotificationsPopover({ onClose }: NotificationsPopoverProps) {
     (n) => n.user_id === currentUser.id || !n.user_id
   );
 
-  const getIcon = (type: NotificationType) => {
+  const getIcon = (type: NotificationType, title?: string) => {
     switch (type) {
       case "task_assigned":
         return <UserPlus className="w-3.5 h-3.5 text-blue-500" />;
@@ -60,9 +62,15 @@ export function NotificationsPopover({ onClose }: NotificationsPopoverProps) {
         return <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />;
       case "announcement":
         return <Megaphone className="w-3.5 h-3.5 text-purple-500" />;
+      case "billing":
+      case "invoice":
+        return <Receipt className="w-3.5 h-3.5 text-blue-500" />;
       case "status_change":
       case "system":
       default:
+        if (title?.toLowerCase().includes("billing") || title?.toLowerCase().includes("invoice")) {
+          return <Receipt className="w-3.5 h-3.5 text-blue-500" />;
+        }
         return <Bell className="w-3.5 h-3.5 text-emerald-500" />;
     }
   };
@@ -78,7 +86,16 @@ export function NotificationsPopover({ onClose }: NotificationsPopoverProps) {
         }
       } else if (notif.link_url.includes("announcement")) {
         setActiveView("announcements");
+      } else if (
+        notif.link_url.includes("billing") ||
+        notif.link_url.includes("invoice") ||
+        notif.type === "billing" ||
+        notif.type === "invoice"
+      ) {
+        setActiveView("billing");
       }
+    } else if (notif.type === "billing" || notif.type === "invoice") {
+      setActiveView("billing");
     }
     onClose();
   };
@@ -146,7 +163,7 @@ export function NotificationsPopover({ onClose }: NotificationsPopoverProps) {
               }`}
             >
               <div className="p-1.5 rounded-lg bg-secondary flex-shrink-0 mt-0.5">
-                {getIcon(notif.type)}
+                {getIcon(notif.type, notif.title)}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">

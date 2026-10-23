@@ -57,7 +57,7 @@ export function ProjectInvoiceModal({
   onClose,
   project,
 }: ProjectInvoiceModalProps) {
-  const { tasks, activeWorkspace, users, clients, toast, togglePaymentPaid, updateProject } = useStore();
+  const { tasks, activeWorkspace, users, clients, toast, togglePaymentPaid, updateProject, addNotification } = useStore();
 
   // Mode: "preview" (Executive Printable Document) vs "form" (Interactive Invoice Form Editor)
   const [activeTab, setActiveTab] = useState<"preview" | "form">("preview");
@@ -155,6 +155,22 @@ export function ProjectInvoiceModal({
         const end = new Date(proj.target_date).getTime();
         const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
         if (diff > 0) durationDays = diff;
+      }
+
+      // If project has installments configured in Edit Billing matching this schedule, use that installment
+      if (proj.installments && proj.installments.length > 0 && sched === proj.payment_schedule) {
+        const pendingInst = proj.installments.find((i) => i.status !== "paid") || proj.installments[0];
+        if (pendingInst && (Number(pendingInst.amount) || 0) > 0) {
+          return [
+            {
+              id: pendingInst.id || `item_inst_${pendingInst.installment_number}`,
+              description: `${pendingInst.title || `Payment Milestone #${pendingInst.installment_number}`} (${pendingInst.percentage || 100}% of ${currencySymbol}${fixedTotal.toLocaleString()} contract)`,
+              quantity: 1,
+              rate: Number(pendingInst.amount) || 0,
+              amount: Number(pendingInst.amount) || 0,
+            },
+          ];
+        }
       }
 
       if (sched === "weekly") {
@@ -261,6 +277,15 @@ export function ProjectInvoiceModal({
         const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
         if (diff > 0) durationDays = diff;
       }
+
+      // If project has installments configured in Edit Billing matching this schedule, use that installment amount
+      if (project?.installments && project.installments.length > 0 && sched === project.payment_schedule) {
+        const pendingInst = project.installments.find((i) => i.status !== "paid") || project.installments[0];
+        if (pendingInst && (Number(pendingInst.amount) || 0) > 0) {
+          return Number(pendingInst.amount);
+        }
+      }
+
       if (sched === "weekly") {
         const weeks = Math.max(1, Math.round(durationDays / 7));
         return Math.round((fixedTotal / weeks) * 100) / 100;
@@ -382,6 +407,12 @@ export function ProjectInvoiceModal({
       bank_currency: bankCurrency.trim() || undefined,
       swift_bic: swiftBic.trim() || undefined,
       routing_number: routingNumber.trim() || undefined,
+    });
+    addNotification({
+      title: `Bank Details Updated: ${project.name}`,
+      message: `Default remittance bank details updated (${bankName || "Wire Details"}).`,
+      type: "billing",
+      link_url: "/billing",
     });
     toast?.success("Bank Details Saved", `Updated default bank details for ${project.name}`);
   };
@@ -565,6 +596,12 @@ export function ProjectInvoiceModal({
     setInvoiceStatus(newStatus);
     if (newStatus === "Paid") {
       togglePaymentPaid(project.id, true);
+      addNotification({
+        title: `Payment Received: ${project.name}`,
+        message: `Invoice #${invoiceNumber} for ${currencySymbol}${finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} has been settled and marked Paid.`,
+        type: "billing",
+        link_url: "/billing",
+      });
       toast?.success("Marked Paid", `Project ${project.name} payment registered.`);
     } else if (invoiceStatus === "Paid") {
       togglePaymentPaid(project.id, false);
@@ -582,7 +619,22 @@ export function ProjectInvoiceModal({
         conversion_rate: parsedFxRate,
         client_id: selectedClientId || undefined,
       });
-      toast?.success("Invoice Settings Saved", "Payment terms & billing cycle updated on project.");
+
+      const schedName =
+        paymentSchedule === "weekly"
+          ? "Weekly (Net 7)"
+          : paymentSchedule === "15_days"
+          ? "Every 15 Days (Net 15)"
+          : "30 Days (Net 30)";
+
+      addNotification({
+        title: `Invoice Configured: ${project.name}`,
+        message: `Invoice #${invoiceNumber} updated to ${schedName} schedule. Subtotal: ${currencySymbol}${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}.`,
+        type: "invoice",
+        link_url: "/billing",
+      });
+
+      toast?.success("Invoice Settings Saved", "Payment terms & billing cycle updated and logged to Notification Center.");
       setActiveTab("preview");
     } catch (err: any) {
       toast?.error("Error", err?.message || "Failed to save invoice settings.");

@@ -12,6 +12,7 @@ import {
   Note,
   Announcement,
   Notification,
+  NotificationType,
   ActivityLog,
   DashboardWidgetConfig,
   TimeEntry,
@@ -186,6 +187,13 @@ interface StoreContextType {
   addAnnouncementReaction: (id: string, emoji: string) => void;
 
   // Notifications
+  addNotification: (notification: {
+    user_id?: string;
+    title: string;
+    message: string;
+    type?: NotificationType;
+    link_url?: string;
+  }) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   clearAllNotifications: () => void;
@@ -341,6 +349,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (dbNotes) setNotes(dbNotes);
           if (dbAnnouncements) setAnnouncements(dbAnnouncements);
           if (dbLogs) setActivityLogs(dbLogs);
+
+          if (isSupabaseConfigured && supabase) {
+            try {
+              const { data: dbNotifs } = await supabase
+                .from("notifications")
+                .select("*")
+                .eq("workspace_id", targetWsId)
+                .order("created_at", { ascending: false })
+                .limit(50);
+              if (dbNotifs && dbNotifs.length > 0) {
+                setNotifications(dbNotifs);
+              }
+            } catch {}
+          }
         } catch (err) {
           console.error("Failed to fetch dynamic data from Supabase:", err);
         }
@@ -1626,6 +1648,53 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   // --- Notifications ---
+  const addNotification = useCallback(
+    async (notifData: {
+      user_id?: string;
+      title: string;
+      message: string;
+      type?: NotificationType;
+      link_url?: string;
+    }) => {
+      const newNotif: Notification = {
+        id: generateId("notif"),
+        user_id: notifData.user_id || currentUser.id,
+        workspace_id: activeWorkspaceId,
+        title: notifData.title,
+        message: notifData.message,
+        type: notifData.type || "system",
+        link_url: notifData.link_url || "/billing",
+        is_read: false,
+        created_at: new Date().toISOString(),
+      };
+
+      setNotifications((prev) => [newNotif, ...prev]);
+      broadcastSync({ notifications: [newNotif, ...notifications] });
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const payloadType =
+            newNotif.type === "billing" || newNotif.type === "invoice"
+              ? "system"
+              : newNotif.type;
+          await supabase.from("notifications").insert({
+            id: newNotif.id,
+            user_id: newNotif.user_id,
+            workspace_id: newNotif.workspace_id,
+            title: newNotif.title,
+            message: newNotif.message,
+            type: payloadType,
+            link_url: newNotif.link_url,
+            is_read: false,
+          });
+        } catch (err) {
+          console.error("Failed to insert notification into Supabase:", err);
+        }
+      }
+    },
+    [currentUser.id, activeWorkspaceId, notifications, broadcastSync]
+  );
+
   const markNotificationRead = useCallback((id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
   }, []);
@@ -2103,6 +2172,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         markAnnouncementRead,
         addAnnouncementReaction,
 
+        addNotification,
         markNotificationRead,
         markAllNotificationsRead,
         clearAllNotifications,

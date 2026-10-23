@@ -370,7 +370,9 @@ export type NotificationType =
   | 'deadline'
   | 'status_change'
   | 'announcement'
-  | 'system';
+  | 'system'
+  | 'billing'
+  | 'invoice';
 
 export interface Notification {
   id: string;

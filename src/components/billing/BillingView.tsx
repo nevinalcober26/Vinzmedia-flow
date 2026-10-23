@@ -1281,7 +1281,7 @@ export function BillingView() {
         <EditProjectBillingModal
           isOpen={!!editingBillingProject}
           onClose={() => setEditingBillingProject(null)}
-          project={editingBillingProject}
+          project={projects.find((p) => p.id === editingBillingProject.id) || editingBillingProject}
         />
       )}
 
@@ -1290,7 +1290,7 @@ export function BillingView() {
         <ProjectInvoiceModal
           isOpen={!!invoicingProject}
           onClose={() => setInvoicingProject(null)}
-          project={invoicingProject}
+          project={projects.find((p) => p.id === invoicingProject.id) || invoicingProject}
         />
       )}
     </div>

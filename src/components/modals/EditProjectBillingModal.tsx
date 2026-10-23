@@ -48,7 +48,7 @@ export function EditProjectBillingModal({
   onClose,
   project,
 }: EditProjectBillingModalProps) {
-  const { updateProject, clients, createClient } = useStore();
+  const { updateProject, clients, createClient, addNotification } = useStore();
   const toast = useToast();
 
   // Client association & inline creator
@@ -526,7 +526,48 @@ export function EditProjectBillingModal({
       updates.routing_number = routingNumber.trim() || undefined;
 
       updateProject(project.id, updates);
-      toast?.success("Billing Updated", `Updated pricing model for ${project.name}`);
+
+      // Compute cycle subtotal for Notification Center details
+      const schedLabel =
+        paymentSchedule === "weekly"
+          ? "Weekly (Net 7)"
+          : paymentSchedule === "15_days"
+          ? "Every 15 Days (Net 15)"
+          : paymentSchedule === "30_days"
+          ? "30 Days (Net 30)"
+          : `Custom (Net ${paymentTermsDays} Days)`;
+
+      let cycleSubtotalText = "";
+      if (billingType === "fixed") {
+        const cycleAmt =
+          paymentSchedule === "weekly"
+            ? Math.round((parsedFixed / (weeksToDeadline ? Math.max(2, Math.min(12, Math.round(weeksToDeadline))) : 4)) * 100) / 100
+            : paymentSchedule === "15_days"
+            ? Math.round((parsedFixed / 2) * 100) / 100
+            : parsedFixed;
+        cycleSubtotalText = `${currency}${cycleAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })} / cycle (${milestones.length} installments, Total: ${currency}${parsedFixed.toLocaleString()})`;
+      } else {
+        const cycleAmt =
+          paymentSchedule === "weekly"
+            ? weeklyAmount
+            : paymentSchedule === "15_days"
+            ? Math.round(((weeklyAmount * 15) / 7) * 100) / 100
+            : Math.round(((weeklyAmount * 30) / 7) * 100) / 100;
+        cycleSubtotalText = `${currency}${cycleAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })} / cycle (${parsedHoursPerWeek} hrs/wk @ ${currency}${parsedRate}/hr)`;
+      }
+
+      // Add rich notification to Notification Center
+      addNotification({
+        title: `Billing Updated: ${project.name}`,
+        message: `Payment cycle set to ${schedLabel} with subtotal ${cycleSubtotalText}. Invoices will automatically reflect this billing schedule.`,
+        type: "billing",
+        link_url: "/billing",
+      });
+
+      toast?.success(
+        "Billing Updated",
+        `Payment cycle updated to ${schedLabel}. Invoices updated & notification logged.`
+      );
       onClose();
     } catch (err: any) {
       toast?.error("Update Failed", err?.message || "Failed to update project billing");
