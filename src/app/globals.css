@@ -474,3 +474,5 @@
 }
 
 body:has(.invoice-overlay) .workspace-quick-actions { display: none; }
+body:has(.quick-note-drawer) .workspace-quick-actions { display: none; }
+.dark .quick-note-drawer > div { background-color: hsl(var(--card)) !important; }

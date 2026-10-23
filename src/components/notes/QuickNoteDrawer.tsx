@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useStore } from "@/context/StoreContext";
 import { useConfirm, useToast } from "@/context/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,6 +39,9 @@ export function QuickNoteDrawer() {
   const [newContent, setNewContent] = useState("");
   const [newColor, setNewColor] = useState("yellow");
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const startNewNote = () => setIsCreatingNew(true);
@@ -86,11 +90,13 @@ export function QuickNoteDrawer() {
     isCreatingNew ? newColor : currentNote?.color || "yellow"
   );
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isQuickNoteOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end cursor-pointer"
+          className="quick-note-drawer fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex justify-end cursor-pointer"
           onClick={() => setIsQuickNoteOpen(false)}
         >
           <motion.div
@@ -291,6 +297,7 @@ export function QuickNoteDrawer() {
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
