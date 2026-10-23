@@ -1,5 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import localFont from "next/font/local";
+
+const inter = localFont({
+  src: "./fonts/InterVariable.woff2",
+  variable: "--font-inter",
+  weight: "100 900",
+  display: "swap",
+});
 import { StoreProvider } from "@/context/StoreContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { PwaInstaller } from "@/components/pwa/PwaInstaller";
@@ -45,7 +53,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen bg-background font-sans antialiased text-foreground">
+      <body className={`${inter.variable} ${inter.className} min-h-screen bg-background antialiased text-foreground`}>
         <ToastProvider>
           <StoreProvider>
             {children}

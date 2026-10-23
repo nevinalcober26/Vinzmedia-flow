@@ -32,6 +32,9 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
+  Search,
+  ChevronsUpDown,
+  Layers,
 } from "lucide-react";
 import { ActiveView } from "@/types";
 
@@ -53,12 +56,14 @@ export function Sidebar() {
     activeTimer,
     setIsCreateProjectModalOpen,
     setIsProfileModalOpen,
+    setIsCommandPaletteOpen,
+    setIsCreateTaskModalOpen,
     deleteProject,
   } = useStore();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
-  const [isProjectsExpanded, setIsProjectsExpanded] = useState(true);
+  const [isProjectsExpanded, setIsProjectsExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [editingProject, setEditingProject] = useState<any | null>(null);
   const [activeProjectMenuId, setActiveProjectMenuId] = useState<string | null>(null);
@@ -78,7 +83,12 @@ export function Sidebar() {
     setIsCollapsed(media.matches);
     const handleResize = (event: MediaQueryListEvent) => setIsCollapsed(event.matches);
     const handleShortcut = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && media.matches) setIsCollapsed(true);
+      if (event.key === "Escape") {
+        setIsWorkspaceMenuOpen(false);
+        setActiveProjectMenuId(null);
+        setHoveredTooltip(null);
+        if (media.matches) setIsCollapsed(true);
+      }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
         const target = event.target as HTMLElement;
         if (target.closest("input, textarea, [contenteditable=true]")) return;
@@ -160,7 +170,7 @@ export function Sidebar() {
         },
         {
           id: "calendar" as ActiveView,
-          label: "Master Calendar",
+          label: "Calendar",
           icon: Calendar,
           badge: null,
           badgeType: "default",
@@ -169,7 +179,7 @@ export function Sidebar() {
     },
     {
       id: "execution",
-      title: "Projects & Work",
+      title: "Projects",
       isProjectsGroup: true,
       items: [
         {
@@ -183,11 +193,11 @@ export function Sidebar() {
     },
     {
       id: "finance_ops",
-      title: "Operations & Finance",
+      title: "Business",
       items: [
         {
           id: "timelogs" as ActiveView,
-          label: "Time Logs & Timesheet",
+          label: "Time tracking",
           icon: Clock,
           badge: activeTimer ? "LIVE" : null,
           badgeType: "live",
@@ -228,7 +238,7 @@ export function Sidebar() {
         },
         {
           id: "notes" as ActiveView,
-          label: "Quick Notes & Docs",
+          label: "Notes & docs",
           icon: FileText,
           badge: null,
           badgeType: "default",
@@ -237,7 +247,7 @@ export function Sidebar() {
     },
     {
       id: "admin_insights",
-      title: "Insights & Admin",
+      title: "Insights",
       items: [
         {
           id: "workload" as ActiveView,
@@ -253,37 +263,71 @@ export function Sidebar() {
           badge: null,
           badgeType: "default",
         },
-        {
-          id: "settings" as ActiveView,
-          label: "Workspace Settings",
-          icon: Settings,
-          badge: null,
-          badgeType: "default",
-        },
       ],
     },
   ];
 
   return (
+    <>
+    {!isCollapsed && (
+      <button
+        aria-label="Close navigation"
+        onClick={() => setIsCollapsed(true)}
+        className="fixed inset-0 z-30 bg-black/35 backdrop-blur-[2px] md:hidden"
+      />
+    )}
     <aside
       aria-label="Workspace navigation"
       className={`workspace-sidebar relative shrink-0 flex flex-col border-r border-sidebar-border/70 bg-sidebar/95 backdrop-blur-xl text-sidebar-foreground transition-all duration-300 z-40 select-none shadow-xs ${
-        isCollapsed ? "w-16" : "w-64 lg:w-[248px]"
+        isCollapsed ? "w-16" : "w-[264px]"
       }`}
     >
-      {/* Premium Workspace Header Switcher */}
-      <div className="flex h-16 items-center justify-between border-b border-sidebar-border/60 px-3 shrink-0">
+      <div className={`flex h-16 shrink-0 items-center border-b border-sidebar-border/70 ${isCollapsed ? "justify-center px-2" : "justify-between px-4"}`}>
+        {!isCollapsed && (
+          <button onClick={() => handleNavClick("dashboard")} aria-label="VinzFlow home" className="flex items-center gap-2.5 rounded-lg">
+            <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary text-primary-foreground shadow-sm"><Layers className="h-4 w-4" /></span>
+            <span className="text-[17px] font-semibold tracking-[-0.04em]">VinzFlow<span className="text-primary">.</span></span>
+          </button>
+        )}
+        {/* Toggle Collapse Button */}
+        <button
+          onClick={() => {
+            hideTooltip();
+            setIsWorkspaceMenuOpen(false);
+            setActiveProjectMenuId(null);
+            setIsCollapsed(!isCollapsed);
+          }}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!isCollapsed}
+          title={isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
+          onMouseEnter={(e) =>
+            showTooltip(e, isCollapsed ? "Expand Sidebar" : "Collapse Sidebar", undefined, "Toggle Sidebar (⌘B)")
+          }
+          onMouseLeave={hideTooltip}
+          className="text-muted-foreground hover:text-sidebar-foreground p-1.5 rounded-lg hover:bg-sidebar-accent/70 transition-colors cursor-pointer"
+        >
+          {isCollapsed ? (
+            <PanelLeftOpen className="w-4 h-4" />
+          ) : (
+            <PanelLeftClose className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+      {/* Workspace switcher */}
+      <div className="flex items-center justify-between px-3 pt-4 pb-2 shrink-0">
         {!isCollapsed ? (
-          <div className="relative flex-1 min-w-0 pr-1">
+          <div className="relative flex-1 min-w-0">
             <button
+              aria-label="Switch workspace"
+              aria-expanded={isWorkspaceMenuOpen}
               onClick={() => setIsWorkspaceMenuOpen(!isWorkspaceMenuOpen)}
-              className="flex items-center space-x-2.5 w-full text-left p-1.5 rounded-xl hover:bg-sidebar-accent/60 transition-all border border-transparent hover:border-sidebar-border/50 group cursor-pointer"
+              className="flex items-center space-x-2.5 w-full text-left p-2.5 rounded-xl hover:bg-sidebar-accent/60 transition-all border border-sidebar-border/70 bg-card group cursor-pointer shadow-sm"
             >
               <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shadow-sm shadow-indigo-500/20 flex-shrink-0 group-hover:scale-105 transition-transform">
                 {activeWorkspace.name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center space-x-1.5">
+                <div className="flex flex-col items-start gap-1">
                   <p className="text-xs font-bold truncate text-sidebar-foreground tracking-tight">
                     {activeWorkspace.name}
                   </p>
@@ -292,10 +336,10 @@ export function Sidebar() {
                   </span>
                 </div>
                 <p className="text-[10px] text-muted-foreground truncate">
-                  Team workspace
+                  Workspace
                 </p>
               </div>
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground group-hover:text-sidebar-foreground transition-colors flex-shrink-0" />
+              <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             </button>
 
             {/* Workspace Switcher dropdown */}
@@ -346,7 +390,10 @@ export function Sidebar() {
             )}
           </div>
         ) : (
-          <div
+          <button
+            type="button"
+            onClick={() => { setIsCollapsed(false); setIsWorkspaceMenuOpen(true); }}
+            aria-label="Switch workspace"
             className="mx-auto cursor-pointer"
             title={activeWorkspace.name}
             onMouseEnter={(e) =>
@@ -357,41 +404,31 @@ export function Sidebar() {
             <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shadow-sm shadow-indigo-500/20">
               {activeWorkspace.name.charAt(0)}
             </div>
-          </div>
+          </button>
         )}
 
-        {/* Toggle Collapse Button */}
-        <button
-          onClick={() => {
-            hideTooltip();
-            setIsCollapsed(!isCollapsed);
-          }}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!isCollapsed}
-          title={isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
-          onMouseEnter={(e) =>
-            showTooltip(e, isCollapsed ? "Expand Sidebar" : "Collapse Sidebar", undefined, "Toggle Sidebar (⌘B)")
-          }
-          onMouseLeave={hideTooltip}
-          className="text-muted-foreground hover:text-sidebar-foreground p-1.5 rounded-lg hover:bg-sidebar-accent/70 transition-colors cursor-pointer"
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen className="w-4 h-4" />
-          ) : (
-            <PanelLeftClose className="w-4 h-4" />
-          )}
-        </button>
+
       </div>
 
+      <div className={`shrink-0 space-y-2 pb-2 pt-2 ${isCollapsed ? "px-3" : "px-4"}`}>
+        <button onClick={() => setIsCommandPaletteOpen(true)} aria-label="Search workspace" title="Search workspace (⌘K)" className={`flex h-9 w-full items-center rounded-lg border border-sidebar-border/70 text-muted-foreground transition-colors hover:bg-sidebar-accent ${isCollapsed ? "justify-center" : "gap-2 px-2.5"}`}>
+          <Search className="h-4 w-4 shrink-0" />
+          {!isCollapsed && <><span className="flex-1 text-left text-xs">Search anything…</span><kbd className="rounded border border-sidebar-border px-1 text-[10px]">⌘K</kbd></>}
+        </button>
+        <button onClick={() => setIsCreateTaskModalOpen(true)} aria-label="Create task" title="Create task" className={`flex h-9 w-full items-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 ${isCollapsed ? "justify-center" : "gap-2 px-2.5"}`}>
+          <Plus className="h-4 w-4 shrink-0" />
+          {!isCollapsed && <span className="text-xs font-medium">Create task</span>}
+        </button>
+      </div>
       {/* Main Navigation Scroll Area */}
       <div
         onScroll={hideTooltip}
-        className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-4"
+        className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-3"
       >
         {navSections.map((section) => (
           <div key={section.id} className="space-y-1">
             {!isCollapsed ? (
-              <div className="px-2 pt-2 pb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90">
+              <div className="px-2 pt-2 pb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/75">
                 <span>{section.title}</span>
                 {section.isProjectsGroup && (
                   <button
@@ -407,7 +444,7 @@ export function Sidebar() {
               <div className="h-px w-full bg-sidebar-border/50 my-2" />
             )}
 
-            <nav className="space-y-0.5">
+            <nav aria-label={section.title} className="space-y-1">
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeView === item.id && !selectedProjectId;
@@ -425,15 +462,15 @@ export function Sidebar() {
                     onMouseLeave={hideTooltip}
                     className={`w-full relative flex items-center ${
                       isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
-                    } py-2 text-[13px] rounded-lg font-medium transition-all group cursor-pointer ${
+                    } min-h-9 py-2 text-[13px] rounded-lg font-medium transition-all group cursor-pointer ${
                       isActive
-                        ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm ring-1 ring-sidebar-border"
+                        ? "sidebar-nav-active font-semibold"
                         : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
                     }`}
                   >
                     <div className="flex items-center space-x-2.5 min-w-0">
                       <Icon
-                        className={`w-4 h-4 flex-shrink-0 transition-colors ${
+                        className={`w-[17px] h-[17px] stroke-[1.7] flex-shrink-0 transition-colors ${
                           isActive
                             ? "text-primary stroke-[2.2]"
                             : "text-muted-foreground group-hover:text-sidebar-foreground"
@@ -472,6 +509,7 @@ export function Sidebar() {
               <div className="pt-0.5 space-y-0.5">
                 {!isCollapsed && (
                   <button
+                    aria-expanded={isProjectsExpanded}
                     onClick={() => setIsProjectsExpanded(!isProjectsExpanded)}
                     className="w-full flex items-center justify-between px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-sidebar-foreground rounded-lg hover:bg-sidebar-accent/40 transition-colors"
                   >
@@ -481,7 +519,7 @@ export function Sidebar() {
                       ) : (
                         <ChevronRight className="w-3 h-3 text-muted-foreground" />
                       )}
-                      <span>Active Workstreams</span>
+                      <span>Project shortcuts</span>
                     </div>
                     <span className="text-[10px] font-mono text-muted-foreground/70">
                       {projects.length}
@@ -504,6 +542,7 @@ export function Sidebar() {
                               hideTooltip();
                               setSelectedProjectId(proj.id);
                               setActiveView("project_detail");
+                              if (window.matchMedia("(max-width: 767px)").matches) setIsCollapsed(true);
                             }}
                             title={
                               isCollapsed
@@ -511,6 +550,7 @@ export function Sidebar() {
                                 : undefined
                             }
                             aria-label={proj.name}
+                            aria-current={isSelected ? "page" : undefined}
                             onMouseEnter={(e) =>
                               showTooltip(
                                 e,
@@ -524,17 +564,17 @@ export function Sidebar() {
                               isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
                             } py-1.5 text-xs rounded-xl transition-all cursor-pointer ${
                               isSelected
-                                ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                                ? "sidebar-nav-active font-semibold"
                                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                             }`}
                           >
-                            <div className="flex items-center space-x-2.5 min-w-0 pr-6">
+                            <div className={`flex items-center gap-2.5 min-w-0 ${isCollapsed ? "" : "pr-6"}`}>
                               <span
-                                className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-background shadow-2xs"
-                                style={{ backgroundColor: proj.color }}
-                              />
+                                className={isCollapsed ? "flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-semibold" : "h-2 w-2 rounded-full shrink-0"}
+                                style={{ backgroundColor: isCollapsed ? `${proj.color}20` : proj.color, color: proj.color }}
+                              >{isCollapsed ? proj.name.slice(0, 2).toUpperCase() : null}</span>
                               {!isCollapsed && (
-                                <span className="truncate tracking-tight text-[11px]">
+                                <span className="truncate tracking-tight text-xs">
                                   {proj.name}
                                 </span>
                               )}
@@ -644,7 +684,7 @@ export function Sidebar() {
       </div>
 
       {/* Footer / User Profile & Settings */}
-      <div className="border-t border-sidebar-border/60 p-2.5 space-y-1 bg-sidebar/50 shrink-0">
+      <div className="border-t border-sidebar-border/70 p-3 space-y-2 shrink-0">
         <button
           onClick={() => {
             hideTooltip();
@@ -696,7 +736,7 @@ export function Sidebar() {
           } py-1.5 text-xs rounded-xl text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer`}
         >
           <Settings className="w-4 h-4 flex-shrink-0" />
-          {!isCollapsed && <span className="font-medium">Settings & Preferences</span>}
+          {!isCollapsed && <span className="font-medium">Settings & preferences</span>}
         </button>
       </div>
 
@@ -746,5 +786,6 @@ export function Sidebar() {
         />
       )}
     </aside>
+    </>
   );
 }

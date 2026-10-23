@@ -124,30 +124,39 @@
 /* Shared workspace system: quiet surfaces, clear hierarchy, deliberate contrast. */
 @layer components {
   .app-shell {
-    font-family: "Avenir Next", "Segoe UI", sans-serif;
-    letter-spacing: -0.012em;
+    font-family: var(--font-inter), sans-serif;
+    letter-spacing: -0.015em;
   }
 
   .workspace-sidebar {
-    --sidebar-background: 222 29% 13%;
-    --sidebar-foreground: 220 25% 94%;
-    --sidebar-accent: 222 22% 21%;
-    --sidebar-border: 222 19% 27%;
-    --muted-foreground: 219 15% 70%;
-    --foreground: 220 25% 94%;
-    --background: 222 29% 13%;
-    --card: 222 25% 17%;
-    --card-foreground: 220 25% 94%;
-    --secondary: 222 22% 21%;
-    --border: 222 19% 27%;
-    --primary: 222 95% 76%;
-    --primary-foreground: 222 35% 14%;
+    --sidebar-background: 220 20% 99%;
+    --sidebar-foreground: 222 30% 19%;
+    --sidebar-accent: 220 18% 94%;
+    --sidebar-border: 220 18% 90%;
     background: hsl(var(--sidebar-background));
-    box-shadow: none;
+    box-shadow: 1px 0 0 hsl(var(--sidebar-border) / 0.3);
+  }
+
+  .dark .workspace-sidebar {
+    --sidebar-background: 224 23% 11%;
+    --sidebar-foreground: 220 25% 94%;
+    --sidebar-accent: 224 18% 17%;
+    --sidebar-border: 224 17% 20%;
+  }
+
+  .sidebar-nav-active {
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.09);
+    box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.07);
+  }
+
+  .dark .sidebar-nav-active {
+    color: hsl(222 95% 80%);
+    background: hsl(var(--primary) / 0.15);
   }
 
   .workspace-sidebar nav button[aria-current="page"] svg {
-    color: hsl(var(--sidebar-foreground));
+    color: inherit;
   }
 
   .workspace-navbar {
