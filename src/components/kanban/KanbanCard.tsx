@@ -16,6 +16,7 @@ import {
   Copy,
   Trash2,
   ChevronRight,
+  Briefcase,
 } from "lucide-react";
 import {
   formatShortDate,
@@ -26,6 +27,7 @@ import {
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { MONDAY_STATUSES, MONDAY_PRIORITIES } from "@/lib/mondayTheme";
 import { TaskTimeClock } from "@/components/common/TaskTimeClock";
+import { getTaskTypeBadge, getDepartmentBadge } from "@/lib/taskTypes";
 
 interface KanbanCardProps {
   task: Task;
@@ -88,6 +90,9 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
     bg: "#797e93",
   };
 
+  const typeBadge = getTaskTypeBadge(task.task_type || "Development");
+  const deptBadge = getDepartmentBadge(task.department || "Engineering");
+
   return (
     <div
       ref={setNodeRef}
@@ -114,6 +119,26 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
             className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold shadow-2xs"
           >
             {priorityConfig.label}
+          </span>
+
+          {/* Task Type Pill */}
+          <span
+            className={`inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-bold border ${typeBadge.bg} ${typeBadge.text} ${typeBadge.border}`}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: typeBadge.color }}
+            />
+            <span className="truncate max-w-[80px]">{typeBadge.name}</span>
+          </span>
+
+          {/* Department Tag */}
+          <span
+            className={`inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-medium border ${deptBadge.bg} ${deptBadge.text} ${deptBadge.border}`}
+            title={`Department: ${task.department || "Engineering"}`}
+          >
+            <Briefcase className="w-2.5 h-2.5 shrink-0 opacity-70" />
+            <span className="truncate max-w-[85px]">{task.department || "Engineering"}</span>
           </span>
 
           {/* First label if exists */}

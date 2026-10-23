@@ -31,7 +31,7 @@ export function ProjectInvoiceModal({
   onClose,
   project,
 }: ProjectInvoiceModalProps) {
-  const { tasks, currentWorkspace, users, toast, togglePaymentPaid } = useStore();
+  const { tasks, activeWorkspace, users, toast, togglePaymentPaid } = useStore();
   const [invoiceStatus, setInvoiceStatus] = useState<"Draft" | "Issued" | "Paid">(
     project.payment_status === "paid" ? "Paid" : "Issued"
   );
@@ -73,7 +73,7 @@ export function ProjectInvoiceModal({
     setInvoiceStatus(newStatus);
     if (newStatus === "Paid") {
       togglePaymentPaid(project.id, true);
-    } else if (invoiceStatus === "Paid" && newStatus !== "Paid") {
+    } else if (invoiceStatus === "Paid") {
       togglePaymentPaid(project.id, false);
     }
   };
@@ -150,7 +150,7 @@ export function ProjectInvoiceModal({
                   </h1>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Workspace: {currentWorkspace?.name || "Corporate Internal App"}
+                  Workspace: {activeWorkspace?.name || "Corporate Internal App"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Professional Services & Software Development

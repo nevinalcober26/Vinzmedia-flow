@@ -66,6 +66,8 @@ export const projectService = {
         payment_status: row.payment_status || "unpaid",
         paid_amount: Number(row.paid_amount) || 0,
         last_payment_date: row.last_payment_date || null,
+        task_types: row.task_types || undefined,
+        departments: row.departments || undefined,
         installments: paymentsMap[row.id] || row.installments || [],
         created_at: row.created_at,
         updated_at: row.updated_at || row.created_at || new Date().toISOString(),
@@ -112,6 +114,8 @@ export const projectService = {
       if (project.payment_status !== undefined) payload.payment_status = project.payment_status;
       if (project.paid_amount !== undefined) payload.paid_amount = project.paid_amount;
       if (project.last_payment_date !== undefined) payload.last_payment_date = project.last_payment_date;
+      if (project.task_types !== undefined) payload.task_types = project.task_types;
+      if (project.departments !== undefined) payload.departments = project.departments;
 
       const { data, error } = await supabase
         .from("projects")
@@ -193,6 +197,8 @@ export const projectService = {
       if (updates.payment_status !== undefined) payload.payment_status = updates.payment_status;
       if (updates.paid_amount !== undefined) payload.paid_amount = updates.paid_amount;
       if (updates.last_payment_date !== undefined) payload.last_payment_date = updates.last_payment_date;
+      if (updates.task_types !== undefined) payload.task_types = updates.task_types;
+      if (updates.departments !== undefined) payload.departments = updates.departments;
 
       const { error } = await supabase
         .from("projects")

@@ -96,6 +96,8 @@ export const taskService = {
         estimated_hours: t.estimated_hours ? Number(t.estimated_hours) : undefined,
         tracked_seconds: t.tracked_seconds || 0,
         is_timer_running: t.is_timer_running || false,
+        task_type: t.task_type || "Development",
+        department: t.department || "Engineering",
         dependencies: t.dependencies || [],
         created_at: t.created_at,
         updated_at: t.updated_at,
@@ -124,6 +126,8 @@ export const taskService = {
         labels: task.labels || [],
         estimated_hours: task.estimated_hours || 0,
         tracked_seconds: task.tracked_seconds || 0,
+        task_type: task.task_type || "Development",
+        department: task.department || "Engineering",
       };
 
       const { data, error } = await supabase.from("tasks").insert(payload).select().single();
@@ -170,6 +174,8 @@ export const taskService = {
       if (updates.estimated_hours !== undefined) payload.estimated_hours = updates.estimated_hours || 0;
       if (updates.tracked_seconds !== undefined) payload.tracked_seconds = updates.tracked_seconds;
       if (updates.is_timer_running !== undefined) payload.is_timer_running = updates.is_timer_running;
+      if (updates.task_type !== undefined) payload.task_type = updates.task_type;
+      if (updates.department !== undefined) payload.department = updates.department;
 
       const { error } = await supabase.from("tasks").update(payload).eq("id", id);
       if (error) {

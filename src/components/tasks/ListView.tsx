@@ -26,7 +26,10 @@ import { UserAvatar } from "@/components/common/UserAvatar";
 import { MondayStatusCell } from "@/components/common/MondayStatusCell";
 import { MondayPriorityCell } from "@/components/common/MondayPriorityCell";
 import { MondayBatteryBar } from "@/components/common/MondayBatteryBar";
+import { MondayTaskTypeCell } from "@/components/common/MondayTaskTypeCell";
+import { MondayDepartmentCell } from "@/components/common/MondayDepartmentCell";
 import { TaskTimeClock } from "@/components/common/TaskTimeClock";
+import { DEFAULT_TASK_TYPES, DEFAULT_DEPARTMENTS } from "@/lib/taskTypes";
 import {
   calculateStatusBattery,
   calculatePriorityBattery,
@@ -58,6 +61,8 @@ export function ListView({ projectId }: ListViewProps) {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   // Quick Inline Add state per group
@@ -82,9 +87,21 @@ export function ListView({ projectId }: ListViewProps) {
       ) {
         return false;
       }
+      if (
+        typeFilter !== "all" &&
+        (task.task_type || "Development").toLowerCase() !== typeFilter.toLowerCase()
+      ) {
+        return false;
+      }
+      if (
+        departmentFilter !== "all" &&
+        (task.department || "Engineering").toLowerCase() !== departmentFilter.toLowerCase()
+      ) {
+        return false;
+      }
       return true;
     });
-  }, [tasks, projectId, searchFilter, priorityFilter, statusFilter, assigneeFilter]);
+  }, [tasks, projectId, searchFilter, priorityFilter, statusFilter, assigneeFilter, typeFilter, departmentFilter]);
 
   // Group by status
   const groupedTasks = useMemo(() => {
@@ -130,6 +147,8 @@ export function ListView({ projectId }: ListViewProps) {
       status: statusKey,
       project_id: projectId || activeProject?.id,
       priority: "medium",
+      task_type: "Development",
+      department: "Engineering",
     });
 
     setInlineTaskTitles((prev) => ({ ...prev, [statusKey]: "" }));
@@ -187,6 +206,34 @@ export function ListView({ projectId }: ListViewProps) {
             <option value="high">High</option>
             <option value="medium">Medium</option>
             <option value="low">Low</option>
+          </select>
+
+          {/* Filter by Type */}
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="bg-secondary/40 hover:bg-secondary/60 border border-border/70 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-[#0073ea] cursor-pointer"
+          >
+            <option value="all">🏷️ All Types</option>
+            {DEFAULT_TASK_TYPES.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Filter by Department */}
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="bg-secondary/40 hover:bg-secondary/60 border border-border/70 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-[#0073ea] cursor-pointer"
+          >
+            <option value="all">🏛️ All Departments</option>
+            {DEFAULT_DEPARTMENTS.map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -333,6 +380,12 @@ export function ListView({ projectId }: ListViewProps) {
                         <th className="px-4 py-2 border-r border-border/50 min-w-[220px]">
                           Item
                         </th>
+                        <th className="w-36 px-2 py-2 text-center border-r border-border/50">
+                          Type
+                        </th>
+                        <th className="w-40 px-2 py-2 text-center border-r border-border/50">
+                          Department
+                        </th>
                         <th className="w-14 px-2 py-2 text-center border-r border-border/50">
                           Updates
                         </th>
@@ -399,6 +452,28 @@ export function ListView({ projectId }: ListViewProps) {
                                   </span>
                                 )}
                               </div>
+                            </td>
+
+                            {/* Task Type Column */}
+                            <td className="p-1 border-r border-border/40 min-w-[130px]" onClick={(e) => e.stopPropagation()}>
+                              <MondayTaskTypeCell
+                                taskType={task.task_type || "Development"}
+                                onChange={(newType) =>
+                                  updateTask(task.id, { task_type: newType })
+                                }
+                                availableTypes={activeProject?.task_types}
+                              />
+                            </td>
+
+                            {/* Assigned Department Column */}
+                            <td className="p-1 border-r border-border/40 min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+                              <MondayDepartmentCell
+                                department={task.department || "Engineering"}
+                                onChange={(newDept) =>
+                                  updateTask(task.id, { department: newDept })
+                                }
+                                availableDepartments={activeProject?.departments}
+                              />
                             </td>
 
                             {/* Monday Conversation / Updates Bubble */}
@@ -514,7 +589,7 @@ export function ListView({ projectId }: ListViewProps) {
                         <td className="px-3 py-2 text-center text-muted-foreground border-r border-border/40">
                           <Plus className="w-3.5 h-3.5 mx-auto" />
                         </td>
-                        <td colSpan={7} className="p-1">
+                        <td colSpan={9} className="p-1">
                           <form
                             onSubmit={(e) => handleInlineSubmit(column.status_key, e)}
                             className="flex items-center space-x-2 px-2"
@@ -551,6 +626,8 @@ export function ListView({ projectId }: ListViewProps) {
                         <td className="px-4 py-2 font-bold text-muted-foreground uppercase tracking-wider text-[10px] border-r border-border/40">
                           Summary
                         </td>
+                        <td className="border-r border-border/40" />
+                        <td className="border-r border-border/40" />
                         <td className="border-r border-border/40" />
                         <td className="border-r border-border/40" />
                         {/* Status Battery Bar */}

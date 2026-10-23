@@ -99,6 +99,8 @@ export interface Project {
   payment_status?: "unpaid" | "partially_paid" | "paid";
   paid_amount?: number;
   last_payment_date?: string;
+  task_types?: string[];
+  departments?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -228,6 +230,8 @@ export interface Task {
   estimated_hours?: number;
   tracked_seconds: number;
   is_timer_running?: boolean;
+  task_type?: string;
+  department?: string;
   dependencies: string[]; // task IDs
   created_at: string;
   updated_at: string;

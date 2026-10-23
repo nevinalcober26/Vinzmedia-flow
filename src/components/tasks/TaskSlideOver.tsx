@@ -26,7 +26,15 @@ import {
   ChevronDown,
   Sparkles,
   Link as LinkIcon,
+  Layers,
+  Briefcase,
 } from "lucide-react";
+import {
+  DEFAULT_TASK_TYPES,
+  DEFAULT_DEPARTMENTS,
+  getTaskTypeBadge,
+  getDepartmentBadge,
+} from "@/lib/taskTypes";
 import {
   formatDate,
   formatDuration,
@@ -344,6 +352,67 @@ export function TaskSlideOver() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Task Type */}
+            <div className="space-y-1">
+              <label className="text-muted-foreground font-medium flex items-center space-x-1.5">
+                <Layers className="w-3.5 h-3.5" />
+                <span>Task Type</span>
+              </label>
+              <select
+                value={editingTask.task_type || "Development"}
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  const found = DEFAULT_TASK_TYPES.find((t) => t.id === newType || t.name === newType);
+                  const updates: Partial<Task> = { task_type: newType };
+                  // If task currently has default or empty department, sync with new type's default department
+                  if (found?.defaultDepartment && (!editingTask.department || editingTask.department === "Engineering")) {
+                    updates.department = found.defaultDepartment;
+                  }
+                  updateTask(editingTask.id, updates);
+                }}
+                className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-medium"
+              >
+                {DEFAULT_TASK_TYPES.map((t) => (
+                  <option key={t.id} value={t.name}>
+                    {t.name}
+                  </option>
+                ))}
+                {currentProject?.task_types
+                  ?.filter((t) => !DEFAULT_TASK_TYPES.some((d) => d.name === t))
+                  .map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Department */}
+            <div className="space-y-1">
+              <label className="text-muted-foreground font-medium flex items-center space-x-1.5">
+                <Briefcase className="w-3.5 h-3.5" />
+                <span>Department</span>
+              </label>
+              <select
+                value={editingTask.department || "Engineering"}
+                onChange={(e) => updateTask(editingTask.id, { department: e.target.value })}
+                className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-medium"
+              >
+                {DEFAULT_DEPARTMENTS.map((dept) => (
+                  <option key={dept} value={dept}>
+                    🏛️ {dept}
+                  </option>
+                ))}
+                {currentProject?.departments
+                  ?.filter((d) => !DEFAULT_DEPARTMENTS.includes(d))
+                  .map((d) => (
+                    <option key={d} value={d}>
+                      🏛️ {d}
+                    </option>
+                  ))}
+              </select>
             </div>
           </div>
 

@@ -6,6 +6,7 @@ import { UserAvatar } from "@/components/common/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, FolderKanban, Calendar, AlertCircle, Palette, Check, Globe, Lock, Users, Info, DollarSign, Clock, Coins } from "lucide-react";
 import { PriorityLevel, ProjectStatus, ProjectBillingType } from "@/types";
+import { DEFAULT_TASK_TYPES, DEFAULT_DEPARTMENTS } from "@/lib/taskTypes";
 
 export function CreateProjectModal() {
   const {
@@ -88,6 +89,8 @@ export function CreateProjectModal() {
       hourly_rate: billingType === "hourly" ? parsedRate : 0,
       estimated_hours: billingType === "hourly" ? parsedEst : 0,
       estimated_hours_per_week: billingType === "hourly" ? parsedEst : 0,
+      task_types: DEFAULT_TASK_TYPES.map((t) => t.name),
+      departments: DEFAULT_DEPARTMENTS,
     });
 
     if (newProj) {

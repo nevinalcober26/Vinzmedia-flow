@@ -13,8 +13,16 @@ import {
   Tag,
   Check,
   Clock,
+  Layers,
+  Briefcase,
 } from "lucide-react";
 import { PriorityLevel } from "@/types";
+import {
+  DEFAULT_TASK_TYPES,
+  DEFAULT_DEPARTMENTS,
+  getTaskTypeBadge,
+  getDepartmentBadge,
+} from "@/lib/taskTypes";
 
 export function CreateTaskModal() {
   const {
@@ -38,6 +46,21 @@ export function CreateTaskModal() {
   const [assigneeIds, setAssigneeIds] = useState<string[]>([currentUser.id]);
   const [labelsInput, setLabelsInput] = useState("Feature");
   const [estimatedHours, setEstimatedHours] = useState(4);
+  const [taskType, setTaskType] = useState<string>("Development");
+  const [department, setDepartment] = useState<string>("Engineering");
+  const [customTypeInput, setCustomTypeInput] = useState("");
+  const [isCustomType, setIsCustomType] = useState(false);
+  const [customDeptInput, setCustomDeptInput] = useState("");
+  const [isCustomDept, setIsCustomDept] = useState(false);
+
+  const handleSelectTaskType = (typeId: string) => {
+    setIsCustomType(false);
+    setTaskType(typeId);
+    const found = DEFAULT_TASK_TYPES.find((t) => t.id === typeId || t.name === typeId);
+    if (found && found.defaultDepartment) {
+      setDepartment(found.defaultDepartment);
+    }
+  };
 
   const handleClose = () => {
     setIsCreateTaskModalOpen(false);
@@ -52,6 +75,9 @@ export function CreateTaskModal() {
       .map((l) => l.trim())
       .filter(Boolean);
 
+    const chosenType = isCustomType && customTypeInput.trim() ? customTypeInput.trim() : taskType;
+    const chosenDept = isCustomDept && customDeptInput.trim() ? customDeptInput.trim() : department;
+
     createTask({
       title: title.trim(),
       description: description.trim(),
@@ -62,6 +88,8 @@ export function CreateTaskModal() {
       assignee_ids: assigneeIds,
       labels: labels.length ? labels : ["General"],
       estimated_hours: Number(estimatedHours) || 0,
+      task_type: chosenType,
+      department: chosenDept,
     });
 
     setTitle("");
@@ -197,6 +225,99 @@ export function CreateTaskModal() {
                     className="w-full bg-secondary/30 border border-border rounded-xl px-2.5 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer"
                   />
                 </div>
+              </div>
+
+              {/* Task Type Selection */}
+              <div className="space-y-1.5 p-3 rounded-2xl bg-secondary/20 border border-border/60">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-foreground flex items-center space-x-1.5">
+                    <Layers className="w-3.5 h-3.5 text-primary" />
+                    <span>Task Type</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomType(!isCustomType)}
+                    className="text-[10px] text-primary hover:underline font-medium cursor-pointer"
+                  >
+                    {isCustomType ? "← Choose Default" : "+ Custom Type"}
+                  </button>
+                </div>
+
+                {isCustomType ? (
+                  <div className="flex items-center space-x-2 pt-1">
+                    <input
+                      type="text"
+                      placeholder="e.g. DevOps, Infrastructure, Growth..."
+                      value={customTypeInput}
+                      onChange={(e) => setCustomTypeInput(e.target.value)}
+                      className="flex-1 bg-background border border-border rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {DEFAULT_TASK_TYPES.map((t) => {
+                      const isSelected = taskType === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleSelectTaskType(t.id)}
+                          className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border cursor-pointer ${
+                            isSelected
+                              ? `${t.bg} ${t.text} ${t.border} shadow-2xs ring-1 ring-primary/40`
+                              : "bg-background/80 text-muted-foreground border-border/60 hover:bg-secondary/40"
+                          }`}
+                        >
+                          <span
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ backgroundColor: t.color }}
+                          />
+                          <span>{t.name}</span>
+                          {isSelected && <Check className="w-3 h-3 ml-0.5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Department Assignment */}
+              <div className="space-y-1.5 p-3 rounded-2xl bg-secondary/20 border border-border/60">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-foreground flex items-center space-x-1.5">
+                    <Briefcase className="w-3.5 h-3.5 text-primary" />
+                    <span>Assigned Department</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomDept(!isCustomDept)}
+                    className="text-[10px] text-primary hover:underline font-medium cursor-pointer"
+                  >
+                    {isCustomDept ? "← Choose Preset" : "+ Custom Dept"}
+                  </button>
+                </div>
+
+                {isCustomDept ? (
+                  <input
+                    type="text"
+                    placeholder="e.g. Legal & Compliance, Data Science..."
+                    value={customDeptInput}
+                    onChange={(e) => setCustomDeptInput(e.target.value)}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                  />
+                ) : (
+                  <select
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer font-medium"
+                  >
+                    {DEFAULT_DEPARTMENTS.map((dept) => (
+                      <option key={dept} value={dept}>
+                        🏛️ {dept}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Assignees */}

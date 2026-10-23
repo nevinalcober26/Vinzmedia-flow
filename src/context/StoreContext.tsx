@@ -22,6 +22,7 @@ import {
   Client,
   ProjectFile,
   WorkspaceInvite,
+  ProjectPaymentInstallment,
 } from "@/types";
 import {
   initialColumns,
@@ -1053,6 +1054,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         comments: [],
         estimated_hours: data.estimated_hours || 4,
         tracked_seconds: 0,
+        task_type: data.task_type || "Development",
+        department: data.department || "Engineering",
         dependencies: data.dependencies || [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
