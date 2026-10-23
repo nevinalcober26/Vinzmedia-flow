@@ -22,6 +22,7 @@ import {
   Layers,
   Archive,
   Compass,
+  FolderArchive,
 } from "lucide-react";
 import { ActiveView } from "@/types";
 
@@ -38,6 +39,7 @@ export function Sidebar() {
     setSelectedProjectId,
     tasks,
     currentUser,
+    files,
     unreadNotificationCount,
     setIsCreateProjectModalOpen,
   } = useStore();
@@ -74,6 +76,12 @@ export function Sidebar() {
       label: "Projects",
       icon: FolderKanban,
       badge: projects.length,
+    },
+    {
+      id: "clients" as ActiveView,
+      label: "Clients & Files",
+      icon: FolderArchive,
+      badge: files.length > 0 ? files.length : null,
     },
     {
       id: "calendar" as ActiveView,

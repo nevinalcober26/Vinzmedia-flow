@@ -22,6 +22,7 @@ import { TeamView } from "@/components/team/TeamView";
 import { ActivityView } from "@/components/activity/ActivityView";
 import { WorkloadView } from "@/components/team/WorkloadView";
 import { WorkspaceSettingsView } from "@/components/settings/WorkspaceSettingsView";
+import { ClientsFilesView } from "@/components/files/ClientsFilesView";
 
 export default function Home() {
   const { activeView } = useStore();
@@ -48,6 +49,8 @@ export default function Home() {
         return <ActivityView />;
       case "workload":
         return <WorkloadView />;
+      case "clients":
+        return <ClientsFilesView />;
       case "settings":
         return <WorkspaceSettingsView />;
       default:

@@ -25,6 +25,7 @@ import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { ListView } from "@/components/tasks/ListView";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { TimelineGanttView } from "@/components/timeline/TimelineGanttView";
+import { ClientsFilesView } from "@/components/files/ClientsFilesView";
 import { ProjectSubTab } from "@/types";
 import { formatDate, getPriorityBadgeColor, getProjectStatusBadge } from "@/lib/utils";
 
@@ -36,6 +37,7 @@ export function ProjectDetailView() {
     setSelectedProjectId,
     setActiveView,
     tasks,
+    files,
     users,
     notes,
     activityLogs,
@@ -60,14 +62,16 @@ export function ProjectDetailView() {
   const doneTasks = projectTasks.filter((t) => t.status === "done").length;
   const projectNotes = notes.filter((n) => n.project_id === activeProject.id);
   const projectLogs = activityLogs.filter((l) => l.project_id === activeProject.id);
+  const projectFiles = files.filter((f) => f.project_id === activeProject.id);
 
-  const tabs: { id: ProjectSubTab; label: string; icon: any }[] = [
+  const tabs: { id: ProjectSubTab; label: string; icon: any; count?: number }[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
-    { id: "board", label: "Board", icon: Kanban },
+    { id: "board", label: "Board", icon: Kanban, count: projectTasks.length },
     { id: "list", label: "List", icon: ListIcon },
     { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "timeline", label: "Gantt Timeline", icon: BarChart3 },
-    { id: "notes", label: "Notes", icon: StickyNote },
+    { id: "files", label: "Files & Media", icon: Paperclip, count: projectFiles.length },
+    { id: "notes", label: "Notes", icon: StickyNote, count: projectNotes.length },
     { id: "activity", label: "Activity", icon: Activity },
   ];
 
@@ -143,9 +147,9 @@ export function ProjectDetailView() {
             >
               <Icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
-              {tab.id === "board" && (
+              {tab.count !== undefined && (
                 <span className="text-[10px] font-mono text-muted-foreground">
-                  ({projectTasks.length})
+                  ({tab.count})
                 </span>
               )}
             </button>
@@ -257,6 +261,11 @@ export function ProjectDetailView() {
         {projectSubTab === "list" && <ListView projectId={activeProject.id} />}
         {projectSubTab === "calendar" && <CalendarView projectId={activeProject.id} />}
         {projectSubTab === "timeline" && <TimelineGanttView projectId={activeProject.id} />}
+        {projectSubTab === "files" && (
+          <div className="h-full overflow-hidden">
+            <ClientsFilesView initialProjectId={activeProject.id} hideClientTab={true} />
+          </div>
+        )}
 
         {projectSubTab === "notes" && (
           <div className="h-full overflow-y-auto space-y-3 max-w-4xl">

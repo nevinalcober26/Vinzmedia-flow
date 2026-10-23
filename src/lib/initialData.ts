@@ -10,6 +10,8 @@ import {
   ActivityLog,
   DashboardWidgetConfig,
   TimeEntry,
+  Client,
+  ProjectFile,
 } from "@/types";
 
 export const initialUsers: User[] = [
@@ -939,5 +941,114 @@ export const initialTimeEntries: TimeEntry[] = [
     started_at: "2026-10-22T10:00:00Z",
     ended_at: "2026-10-22T13:00:00Z",
     is_billable: true,
+  },
+];
+
+export const initialClients: Client[] = [
+  {
+    id: "client_1",
+    workspace_id: "ws_main",
+    name: "Nexus Financial Group",
+    company: "Nexus Financial Holdings Inc.",
+    email: "enterprise@nexusfin.com",
+    avatar_url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
+    status: "active",
+    project_ids: ["proj_mobile", "proj_ai"],
+    created_at: "2026-08-01T00:00:00Z",
+  },
+  {
+    id: "client_2",
+    workspace_id: "ws_main",
+    name: "Aether Health Systems",
+    company: "Aether Health Labs",
+    email: "compliance@aetherhealth.org",
+    avatar_url: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+    status: "active",
+    project_ids: ["proj_ai", "proj_cloud"],
+    created_at: "2026-08-15T00:00:00Z",
+  },
+  {
+    id: "client_3",
+    workspace_id: "ws_main",
+    name: "Horizon Global Logistics",
+    company: "Horizon Freight & Rail",
+    email: "partners@horizonlogistics.com",
+    avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+    status: "active",
+    project_ids: ["proj_cloud", "proj_analytics"],
+    created_at: "2026-09-01T00:00:00Z",
+  },
+];
+
+export const initialFiles: ProjectFile[] = [
+  {
+    id: "file_1",
+    workspace_id: "ws_main",
+    project_id: "proj_mobile",
+    client_id: "client_1",
+    name: "Mobile_App_Architecture_Specification_v3.pdf",
+    size: 4404019, // 4.2 MB
+    type: "application/pdf",
+    url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    uploaded_by: "user_alex",
+    uploaded_at: "2026-10-18T14:30:00Z",
+  },
+  {
+    id: "file_2",
+    workspace_id: "ws_main",
+    project_id: "proj_mobile",
+    client_id: "client_1",
+    name: "Client_Master_Services_Agreement_Signed.docx",
+    size: 1887436, // 1.8 MB
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    url: "#",
+    uploaded_by: "user_alex",
+    uploaded_at: "2026-10-19T09:15:00Z",
+  },
+  {
+    id: "file_3",
+    workspace_id: "ws_main",
+    project_id: "proj_ai",
+    client_id: "client_2",
+    name: "AI_Copilot_Prompt_Tuning_Benchmarks.xlsx",
+    size: 870400, // 850 KB
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    url: "#",
+    uploaded_by: "user_marcus",
+    uploaded_at: "2026-10-21T11:45:00Z",
+  },
+  {
+    id: "file_4",
+    workspace_id: "ws_main",
+    project_id: "proj_cloud",
+    client_id: "client_3",
+    name: "SOC2_Security_Audit_Report_2026.pdf",
+    size: 5347737, // 5.1 MB
+    type: "application/pdf",
+    url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    uploaded_by: "user_david",
+    uploaded_at: "2026-10-16T16:20:00Z",
+  },
+  {
+    id: "file_5",
+    workspace_id: "ws_main",
+    project_id: "proj_design_system",
+    name: "Design_Tokens_and_UI_Spec_v2.pdf",
+    size: 3200000,
+    type: "application/pdf",
+    url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    uploaded_by: "user_elena",
+    uploaded_at: "2026-10-14T10:00:00Z",
+  },
+  {
+    id: "file_6",
+    workspace_id: "ws_main",
+    client_id: "client_1",
+    name: "Nexus_Executive_Project_Pitch_Deck.pptx",
+    size: 12897484, // 12.3 MB
+    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    url: "#",
+    uploaded_by: "user_sarah",
+    uploaded_at: "2026-10-20T17:00:00Z",
   },
 ];

@@ -19,6 +19,8 @@ import {
   ProjectSubTab,
   Role,
   PriorityLevel,
+  Client,
+  ProjectFile,
 } from "@/types";
 import {
   initialUsers,
@@ -32,6 +34,8 @@ import {
   initialActivityLogs,
   initialWidgets,
   initialTimeEntries,
+  initialClients,
+  initialFiles,
 } from "@/lib/initialData";
 import { generateId } from "@/lib/utils";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -85,6 +89,8 @@ interface StoreContextType {
   activityLogs: ActivityLog[];
   widgets: DashboardWidgetConfig[];
   timeEntries: TimeEntry[];
+  clients: Client[];
+  files: ProjectFile[];
   activeTimer: ActiveTimer | null;
   theme: "light" | "dark";
   onlineUsers: string[];
@@ -171,6 +177,21 @@ interface StoreContextType {
   stopTimer: () => void;
   addManualTimeEntry: (taskId: string, durationMinutes: number, description?: string) => void;
 
+  // Clients & Files / Media
+  createClient: (clientData: Partial<Client>) => Client;
+  updateClient: (id: string, updates: Partial<Client>) => void;
+  deleteClient: (id: string) => void;
+  uploadFile: (fileData: {
+    name: string;
+    size: number;
+    type: string;
+    url: string;
+    project_id?: string;
+    client_id?: string;
+    task_id?: string;
+  }) => ProjectFile;
+  deleteFile: (id: string) => void;
+
   // Dashboard customization
   updateWidgets: (widgets: DashboardWidgetConfig[]) => void;
   resetAllData: () => void;
@@ -202,6 +223,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(initialActivityLogs);
   const [widgets, setWidgets] = useState<DashboardWidgetConfig[]>(initialWidgets);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(initialTimeEntries);
+  const [clients, setClients] = useState<Client[]>(initialClients);
+  const [files, setFiles] = useState<ProjectFile[]>(initialFiles);
   const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [onlineUsers] = useState<string[]>(["user_alex", "user_elena", "user_marcus", "user_sarah"]);
@@ -236,6 +259,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (parsed.activityLogs) setActivityLogs(parsed.activityLogs);
         if (parsed.widgets) setWidgets(parsed.widgets);
         if (parsed.timeEntries) setTimeEntries(parsed.timeEntries);
+        if (parsed.clients) setClients(parsed.clients);
+        if (parsed.files) setFiles(parsed.files);
         if (parsed.theme) setTheme(parsed.theme);
         if (parsed.isAuthenticated !== undefined) setIsAuthenticated(parsed.isAuthenticated);
       }
@@ -291,6 +316,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         activityLogs,
         widgets,
         timeEntries,
+        clients,
+        files,
         theme,
         isAuthenticated,
       };
@@ -313,6 +340,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     activityLogs,
     widgets,
     timeEntries,
+    clients,
+    files,
     theme,
     isAuthenticated,
   ]);
@@ -331,6 +360,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (d.activityLogs) setActivityLogs(d.activityLogs);
         if (d.notifications) setNotifications(d.notifications);
         if (d.timeEntries) setTimeEntries(d.timeEntries);
+        if (d.clients) setClients(d.clients);
+        if (d.files) setFiles(d.files);
         if (d.users) setUsers(d.users);
       }
     };
@@ -1321,6 +1352,90 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setUsers((prev) => prev.filter((u) => u.id !== userId));
   }, []);
 
+  // --- Clients & Files ---
+  const createClient = useCallback(
+    (clientData: Partial<Client>): Client => {
+      const newClient: Client = {
+        id: generateId("client"),
+        workspace_id: activeWorkspaceId,
+        name: clientData.name || "Untitled Client",
+        company: clientData.company || "",
+        email: clientData.email || "",
+        avatar_url:
+          clientData.avatar_url ||
+          `https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80`,
+        status: clientData.status || "active",
+        project_ids: clientData.project_ids || [],
+        created_at: new Date().toISOString(),
+      };
+      setClients((prev) => [newClient, ...prev]);
+      logActivity("client_created", `Added client "${newClient.name}"`);
+      broadcastSync({ clients: [newClient, ...clients] });
+      return newClient;
+    },
+    [activeWorkspaceId, logActivity, broadcastSync, clients]
+  );
+
+  const updateClient = useCallback(
+    (id: string, updates: Partial<Client>) => {
+      setClients((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
+      );
+      logActivity("client_updated", `Updated client details`);
+    },
+    [logActivity]
+  );
+
+  const deleteClient = useCallback(
+    (id: string) => {
+      const target = clients.find((c) => c.id === id);
+      setClients((prev) => prev.filter((c) => c.id !== id));
+      logActivity("client_deleted", `Removed client "${target?.name || id}"`);
+    },
+    [clients, logActivity]
+  );
+
+  const uploadFile = useCallback(
+    (fileData: {
+      name: string;
+      size: number;
+      type: string;
+      url: string;
+      project_id?: string;
+      client_id?: string;
+      task_id?: string;
+    }): ProjectFile => {
+      const newFile: ProjectFile = {
+        id: generateId("file"),
+        workspace_id: activeWorkspaceId,
+        project_id: fileData.project_id || selectedProjectId || undefined,
+        client_id: fileData.client_id || undefined,
+        task_id: fileData.task_id || undefined,
+        name: fileData.name,
+        size: fileData.size,
+        type: fileData.type,
+        url: fileData.url,
+        uploaded_by: currentUser.id,
+        uploader: currentUser,
+        uploaded_at: new Date().toISOString(),
+      };
+      setFiles((prev) => [newFile, ...prev]);
+      logActivity("file_uploaded", `Uploaded "${newFile.name}"`);
+      broadcastSync({ files: [newFile, ...files] });
+      return newFile;
+    },
+    [activeWorkspaceId, selectedProjectId, currentUser, logActivity, broadcastSync, files]
+  );
+
+  const deleteFile = useCallback(
+    (id: string) => {
+      const target = files.find((f) => f.id === id);
+      setFiles((prev) => prev.filter((f) => f.id !== id));
+      logActivity("file_deleted", `Deleted file "${target?.name || id}"`);
+    },
+    [files, logActivity]
+  );
+
   const updateWidgets = useCallback((newWidgets: DashboardWidgetConfig[]) => {
     setWidgets(newWidgets);
   }, []);
@@ -1372,6 +1487,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         activityLogs,
         widgets,
         timeEntries,
+        clients,
+        files,
         activeTimer,
         theme,
         onlineUsers,
@@ -1446,6 +1563,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         startTimer,
         stopTimer,
         addManualTimeEntry,
+
+        createClient,
+        updateClient,
+        deleteClient,
+        uploadFile,
+        deleteFile,
 
         updateWidgets,
         resetAllData,

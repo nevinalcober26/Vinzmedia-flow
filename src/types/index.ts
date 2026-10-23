@@ -88,6 +88,33 @@ export interface Subtask {
   due_date?: string;
 }
 
+export interface Client {
+  id: string;
+  workspace_id: string;
+  name: string;
+  company: string;
+  email: string;
+  avatar_url?: string;
+  status: "active" | "lead" | "past";
+  project_ids: string[];
+  created_at: string;
+}
+
+export interface ProjectFile {
+  id: string;
+  workspace_id: string;
+  project_id?: string;
+  client_id?: string;
+  task_id?: string;
+  name: string;
+  size: number;
+  type: string;
+  url: string;
+  uploaded_by: string;
+  uploader?: User;
+  uploaded_at: string;
+}
+
 export interface Attachment {
   id: string;
   name: string;
@@ -256,6 +283,7 @@ export type ActiveView =
   | 'team'
   | 'activity'
   | 'workload'
+  | 'clients'
   | 'settings';
 
 export type ProjectSubTab =
