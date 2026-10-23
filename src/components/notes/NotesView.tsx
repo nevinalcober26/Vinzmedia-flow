@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
+import { useConfirm, useToast } from "@/context/ToastContext";
 import {
   StickyNote,
   Plus,
@@ -17,6 +18,8 @@ import {
 import { formatRelativeTime } from "@/lib/utils";
 
 export function NotesView() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const {
     notes,
     createNote,
@@ -54,7 +57,7 @@ export function NotesView() {
     if (!activeNote) return;
     const targetProjId = activeNote.project_id || projects[0]?.id || "proj_mobile";
     convertNoteToTask(activeNote.id, targetProjId);
-    alert(`Converted note "${activeNote.title}" to a task!`);
+    toast.success("Converted to Task", `Note "${activeNote.title}" converted to a task.`);
   };
 
   return (
@@ -177,11 +180,17 @@ export function NotesView() {
 
                 <button
                   onClick={() => {
-                    if (confirm("Delete this note?")) {
-                      deleteNote(activeNote.id);
-                    }
+                    confirm({
+                      title: "Delete Note?",
+                      message: `Are you sure you want to delete "${activeNote.title}"?`,
+                      confirmText: "Delete Note",
+                      variant: "danger",
+                      onConfirm: () => {
+                        deleteNote(activeNote.id);
+                      },
+                    });
                   }}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

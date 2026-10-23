@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { useStore } from "@/context/StoreContext";
+import { useConfirm } from "@/context/ToastContext";
 import {
   FolderKanban,
   FileText,
@@ -37,6 +38,7 @@ export function ClientsFilesView({
   initialProjectId,
   hideClientTab = false,
 }: ClientsFilesViewProps = {}) {
+  const confirm = useConfirm();
   const {
     files,
     uploadFile,
@@ -426,9 +428,15 @@ export function ClientsFilesView({
                           {/* Delete button */}
                           <button
                             onClick={() => {
-                              if (confirm(`Delete "${file.name}"?`)) {
-                                deleteFile(file.id);
-                              }
+                              confirm({
+                                title: "Delete File?",
+                                message: `Are you sure you want to delete "${file.name}"? This file will be removed permanently.`,
+                                confirmText: "Delete File",
+                                variant: "danger",
+                                onConfirm: () => {
+                                  deleteFile(file.id);
+                                },
+                              });
                             }}
                             title="Delete file"
                             className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"

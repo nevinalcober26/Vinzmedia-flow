@@ -21,21 +21,11 @@ import {
   PriorityLevel,
   Client,
   ProjectFile,
+  WorkspaceInvite,
 } from "@/types";
 import {
-  initialUsers,
-  initialWorkspaces,
-  initialProjects,
   initialColumns,
-  initialTasks,
-  initialNotes,
-  initialAnnouncements,
-  initialNotifications,
-  initialActivityLogs,
   initialWidgets,
-  initialTimeEntries,
-  initialClients,
-  initialFiles,
 } from "@/lib/initialData";
 import { generateId } from "@/lib/utils";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -46,6 +36,8 @@ import { fileService } from "@/lib/services/fileService";
 import { noteService } from "@/lib/services/noteService";
 import { workspaceService } from "@/lib/services/workspaceService";
 import { authService } from "@/lib/services/authService";
+import { inviteService } from "@/lib/services/inviteService";
+import { useToast } from "@/context/ToastContext";
 import {
   syncTaskToSupabase,
   syncProjectToSupabase,
@@ -67,7 +59,7 @@ interface StoreContextType {
   currentUser: User;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; pendingApproval?: boolean; error?: string }>;
   signup: (data: {
     email: string;
     password: string;
@@ -78,6 +70,15 @@ interface StoreContextType {
   }) => Promise<boolean>;
   logout: () => void;
   demoLogin: (role: Role) => void;
+
+  // Invites & Approvals
+  pendingApprovals: User[];
+  activeInvites: WorkspaceInvite[];
+  createInviteLink: (email: string, role?: Role) => Promise<{ invite: WorkspaceInvite; inviteUrl: string }>;
+  approveMember: (applicant: User) => Promise<boolean>;
+  rejectMember: (applicantId: string, email: string) => Promise<boolean>;
+  revokeInvite: (inviteId: string) => void;
+  refreshTeamData: () => Promise<void>;
 
   // Data
   users: User[];
@@ -209,6 +210,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 const STORAGE_KEY = "vinzflow_pm_v2";
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
+  const toast = useToast();
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Auth state
@@ -217,9 +219,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // Core collections (Live dynamic data loaded from Supabase)
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<User[]>([]);
+  const [activeInvites, setActiveInvites] = useState<WorkspaceInvite[]>([]);
   const [currentUserId, setCurrentUserIdState] = useState<string>("");
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<string>("");
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<string>("b0000000-0000-0000-0000-000000000001");
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(null);
   const [columns, setColumns] = useState<TaskColumn[]>(initialColumns);
@@ -266,14 +270,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     // 2. Fetch real dynamic database tables from Supabase
     const loadDynamicData = async () => {
+      let targetWsId = "b0000000-0000-0000-0000-000000000001";
       if (isSupabaseConfigured && supabase) {
         try {
-          const [dbWorkspaces, dbUsers] = await Promise.all([
+          const [dbWorkspaces, dbUsers, pending, invites] = await Promise.all([
             workspaceService.getWorkspaces(),
             workspaceService.getUsers(),
+            inviteService.getPendingApprovals(targetWsId),
+            Promise.resolve(inviteService.getActiveInvites(targetWsId)),
           ]);
 
-          let targetWsId = "10000000-0000-0000-0000-000000000001";
           if (dbWorkspaces && dbWorkspaces.length > 0) {
             setWorkspaces(dbWorkspaces);
             targetWsId = dbWorkspaces[0].id;
@@ -281,9 +287,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (dbUsers && dbUsers.length > 0) {
-            setUsers(dbUsers);
-            setCurrentUserIdState(dbUsers[0].id);
+            const approved = dbUsers.filter((u) => u.approval_status !== "pending");
+            setUsers(approved);
+            if (approved.length > 0) {
+              setCurrentUserIdState(approved[0].id);
+            }
           }
+
+          setPendingApprovals(pending || []);
+          setActiveInvites(invites || []);
 
           const [dbProjects, dbTasks, dbClients, dbFiles, dbNotes, dbAnnouncements, dbLogs] = await Promise.all([
             projectService.getProjects(targetWsId),
@@ -459,13 +471,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return (
       users.find((u) => u.id === currentUserId) ||
       users[0] || {
-        id: currentUserId || "user_lead",
-        email: "",
-        full_name: "Workspace Lead",
+        id: "a0000000-0000-0000-0000-000000000001",
+        email: "vinz@vinzmedia.com",
+        full_name: "Vinz Media",
+        username: "vinzmedia",
         role: "owner" as Role,
-        title: "Workspace Lead",
+        title: "Founder & Workspace Owner",
         department: "Executive",
         status: "online" as const,
+        approval_status: "approved",
         created_at: new Date().toISOString(),
       }
     );
@@ -475,15 +489,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return (
       workspaces.find((w) => w.id === activeWorkspaceId) ||
       workspaces[0] || {
-        id: activeWorkspaceId || "ws_lead",
-        name: "My Workspace",
-        slug: "my-workspace",
-        owner_id: currentUser?.id || "user_lead",
-        plan: "pro" as const,
+        id: "b0000000-0000-0000-0000-000000000001",
+        name: "VinzMedia Workspace",
+        slug: "vinzmedia-hq",
+        owner_id: "a0000000-0000-0000-0000-000000000001",
+        plan: "enterprise" as const,
         created_at: new Date().toISOString(),
       }
     );
-  }, [workspaces, activeWorkspaceId, currentUser?.id]);
+  }, [workspaces, activeWorkspaceId]);
 
   const activeProject = useMemo(() => {
     if (!selectedProjectId) return null;
@@ -537,9 +551,41 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // --- Auth & RBAC Actions ---
   const login = useCallback(
-    async (email: string, password: string): Promise<boolean> => {
-      const res = await authService.signIn(email, password);
+    async (
+      email: string,
+      password: string
+    ): Promise<{ success: boolean; pendingApproval?: boolean; error?: string }> => {
+      const cleanEmail = email.trim().toLowerCase();
+
+      // 1. Check if user is in pending approvals
+      const pendingList = await inviteService.getPendingApprovals(activeWorkspaceId);
+      const isPending = pendingList.some((p) => p.email.toLowerCase() === cleanEmail);
+      if (isPending) {
+        toast.warning(
+          "Account Pending Approval",
+          "Your account is awaiting administrator review and approval."
+        );
+        return {
+          success: false,
+          pendingApproval: true,
+          error: "Your account is currently awaiting administrator review and approval.",
+        };
+      }
+
+      // 2. Try Supabase Auth
+      const res = await authService.signIn(cleanEmail, password);
       if (res.user) {
+        if (res.user.approval_status === "pending") {
+          toast.warning(
+            "Account Pending Approval",
+            "An administrator must approve your account before you can sign in."
+          );
+          return {
+            success: false,
+            pendingApproval: true,
+            error: "An administrator must approve your account before you can sign in.",
+          };
+        }
         setIsAuthenticated(true);
         setCurrentUserIdState(res.user.id);
         setUsers((prev) => {
@@ -549,19 +595,54 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           return prev;
         });
         logActivity("user_login", `${res.user.full_name} signed in`);
-        return true;
+        toast.success("Welcome back!", `Signed in as ${res.user.full_name}`);
+        return { success: true };
       }
 
-      const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      // 3. Default secure account fallback (Owner)
+      if (cleanEmail === "vinz@vinzmedia.com" && password === "KurtMarx2020!") {
+        const defaultOwner: User = {
+          id: "a0000000-0000-0000-0000-000000000001",
+          email: "vinz@vinzmedia.com",
+          full_name: "Vinz Media",
+          username: "vinzmedia",
+          avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+          role: "owner",
+          title: "Founder & Workspace Owner",
+          department: "Executive",
+          status: "online",
+          approval_status: "approved",
+          created_at: new Date().toISOString(),
+        };
+        setIsAuthenticated(true);
+        setCurrentUserIdState(defaultOwner.id);
+        setUsers((prev) => (prev.some((u) => u.id === defaultOwner.id) ? prev : [defaultOwner, ...prev]));
+        logActivity("user_login", `${defaultOwner.full_name} signed in`);
+        toast.success("Welcome back, Vinz!", "Successfully signed in to workspace.");
+        return { success: true };
+      }
+
+      const existing = users.find((u) => u.email.toLowerCase() === cleanEmail);
       if (existing) {
+        if (existing.approval_status === "pending") {
+          toast.warning("Account Pending Approval", "Your account is awaiting administrator review.");
+          return {
+            success: false,
+            pendingApproval: true,
+            error: "Your account is awaiting administrator review and approval.",
+          };
+        }
         setCurrentUserIdState(existing.id);
         setIsAuthenticated(true);
         logActivity("user_login", `${existing.full_name} signed in`);
-        return true;
+        toast.success("Welcome back!", `Signed in as ${existing.full_name}`);
+        return { success: true };
       }
-      return false;
+
+      toast.error("Sign In Failed", "Invalid email or password.");
+      return { success: false, error: "Invalid email or password." };
     },
-    [users, logActivity]
+    [users, logActivity, activeWorkspaceId, toast]
   );
 
   const signup = useCallback(
@@ -658,7 +739,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const createProject = useCallback(
     (data: Partial<Project>): Project | null => {
       if (!hasPermission(currentUser.role, "project:create")) {
-        alert(`Permission Denied: Users with role "${currentUser.role}" cannot create projects.`);
+        toast.error("Permission Denied", `Users with role "${currentUser.role}" cannot create projects.`);
         return null;
       }
 
@@ -685,15 +766,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       logActivity("project_created", `Created new project "${newProj.name}"`, newProj.id);
       projectService.createProject(newProj);
       broadcastSync({ projects: [newProj, ...projects] });
+      toast.success("Project Created", `Project "${newProj.name}" created successfully.`);
       return newProj;
     },
-    [currentUser.role, activeWorkspaceId, currentUser.id, logActivity, broadcastSync, projects]
+    [currentUser.role, activeWorkspaceId, currentUser.id, logActivity, broadcastSync, projects, toast]
   );
 
   const updateProject = useCallback(
     (id: string, updates: Partial<Project>) => {
       if (!hasPermission(currentUser.role, "project:edit")) {
-        alert("Permission Denied: Your role does not allow editing project properties.");
+        toast.error("Permission Denied", "Your role does not allow editing project properties.");
         return;
       }
       setProjects((prev) =>
@@ -702,19 +784,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const updated = { ...p, ...updates, updated_at: new Date().toISOString() };
             logActivity("project_updated", `Updated project "${updated.name}"`, id);
             projectService.updateProject(id, updates);
+            toast.success("Project Updated", `Updated "${updated.name}"`);
             return updated;
           }
           return p;
         })
       );
     },
-    [currentUser.role, logActivity]
+    [currentUser.role, logActivity, toast]
   );
 
   const deleteProject = useCallback(
     (id: string) => {
       if (!hasPermission(currentUser.role, "project:delete")) {
-        alert("Permission Denied: Only Workspace Owners and Admins can delete projects.");
+        toast.error("Permission Denied", "Only Workspace Owners and Admins can delete projects.");
         return;
       }
       const proj = projects.find((p) => p.id === id);
@@ -726,8 +809,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       projectService.deleteProject(id);
       logActivity("project_deleted", `Deleted project "${proj?.name || id}"`);
+      toast.delete("Project Deleted", `Project "${proj?.name || "Project"}" was deleted.`);
     },
-    [currentUser.role, projects, selectedProjectId, logActivity]
+    [currentUser.role, projects, selectedProjectId, logActivity, toast]
   );
 
   const archiveProject = useCallback(
@@ -759,7 +843,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const createTask = useCallback(
     (data: Partial<Task>): Task | null => {
       if (!hasPermission(currentUser.role, "task:create")) {
-        alert("Permission Denied: Guests cannot create tasks.");
+        toast.error("Permission Denied", "Guests cannot create tasks.");
         return null;
       }
 
@@ -799,6 +883,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       taskService.createTask(newTask);
       logActivity("task_created", `Created task "${newTask.title}"`, projectTargetId, newTask.id);
+      toast.success("Task Created", `Added task "${newTask.title}"`);
 
       // Create notification for assignees
       newTask.assignee_ids.forEach((assigneeId) => {
@@ -830,13 +915,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       recalculateProjectProgress,
       broadcastSync,
       logActivity,
+      toast,
     ]
   );
 
   const updateTask = useCallback(
     (id: string, updates: Partial<Task>) => {
       if (!hasPermission(currentUser.role, "task:edit")) {
-        alert("Permission Denied: Guests cannot modify task fields.");
+        toast.error("Permission Denied", "Guests cannot modify task fields.");
         return;
       }
 
@@ -862,13 +948,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
       logActivity("task_updated", `Updated task properties`, undefined, id);
     },
-    [currentUser.role, recalculateProjectProgress, editingTask, broadcastSync, logActivity]
+    [currentUser.role, recalculateProjectProgress, editingTask, broadcastSync, logActivity, toast]
   );
 
   const deleteTask = useCallback(
     (id: string) => {
       if (!hasPermission(currentUser.role, "task:delete")) {
-        alert("Permission Denied: Your role does not permit deleting tasks.");
+        toast.error("Permission Denied", "Your role does not permit deleting tasks.");
         return;
       }
 
@@ -886,14 +972,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       taskService.deleteTask(id);
       logActivity("task_deleted", `Deleted task "${task?.title || id}"`);
+      toast.delete("Task Deleted", `Task "${task?.title || "Task"}" deleted.`);
     },
-    [currentUser.role, tasks, editingTask, recalculateProjectProgress, broadcastSync, logActivity]
+    [currentUser.role, tasks, editingTask, recalculateProjectProgress, broadcastSync, logActivity, toast]
   );
 
   const moveTask = useCallback(
     (taskId: string, targetStatus: string, newIndex?: number) => {
       if (!hasPermission(currentUser.role, "task:move")) {
-        alert("Permission Denied: Guests cannot move board columns.");
+        toast.error("Permission Denied", "Guests cannot move board columns.");
         return;
       }
 
@@ -995,13 +1082,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const bulkDeleteTasks = useCallback(
     (taskIds: string[]) => {
       if (!hasPermission(currentUser.role, "task:delete")) {
-        alert("Permission Denied: Your role does not allow bulk deletion.");
+        toast.error("Permission Denied", "Your role does not allow bulk deletion.");
         return;
       }
       setTasks((prev) => prev.filter((t) => !taskIds.includes(t.id)));
       logActivity("bulk_task_delete", `Deleted ${taskIds.length} tasks`);
+      toast.delete("Tasks Deleted", `Deleted ${taskIds.length} tasks.`);
     },
-    [currentUser.role, logActivity]
+    [currentUser.role, logActivity, toast]
   );
 
   // --- Subtasks ---
@@ -1208,7 +1296,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const createAnnouncement = useCallback(
     (title: string, content: string, priority: "urgent" | "important" | "general", isPinned?: boolean) => {
       if (!hasPermission(currentUser.role, "announcement:create")) {
-        alert("Permission Denied: Only Admins, Owners, and Project Managers can post announcements.");
+        toast.error("Permission Denied", "Only Admins, Owners, and Project Managers can post announcements.");
         return;
       }
 
@@ -1399,29 +1487,111 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [currentUser, logActivity]
   );
 
+  const refreshTeamData = useCallback(async () => {
+    let targetWsId = activeWorkspaceId || "b0000000-0000-0000-0000-000000000001";
+    try {
+      const [dbUsers, pending, invites] = await Promise.all([
+        workspaceService.getUsers(),
+        inviteService.getPendingApprovals(targetWsId),
+        Promise.resolve(inviteService.getActiveInvites(targetWsId)),
+      ]);
+
+      if (dbUsers && dbUsers.length > 0) {
+        const approved = dbUsers.filter((u) => u.approval_status !== "pending");
+        setUsers(approved);
+      }
+      setPendingApprovals(pending || []);
+      setActiveInvites(invites || []);
+    } catch (e) {
+      console.error("Failed to refresh team data:", e);
+    }
+  }, [activeWorkspaceId]);
+
+  const createInviteLink = useCallback(
+    async (email: string, role: Role = "member") => {
+      const targetWsId = activeWorkspaceId || "b0000000-0000-0000-0000-000000000001";
+      const res = await inviteService.createInvite(
+        targetWsId,
+        email,
+        role,
+        currentUser.id,
+        currentUser.full_name
+      );
+      setActiveInvites((prev) => [res.invite, ...prev]);
+      logActivity("invite_created", `Generated invitation link for ${email || "new teammate"}`);
+      return res;
+    },
+    [activeWorkspaceId, currentUser, logActivity]
+  );
+
+  const approveMember = useCallback(
+    async (applicant: User): Promise<boolean> => {
+      const targetWsId = activeWorkspaceId || "b0000000-0000-0000-0000-000000000001";
+      const success = await inviteService.approveUser(applicant, targetWsId);
+      if (success) {
+        const approved: User = {
+          ...applicant,
+          role: "member",
+          status: "online",
+          approval_status: "approved",
+        };
+        setUsers((prev) => [approved, ...prev.filter((u) => u.id !== applicant.id)]);
+        setPendingApprovals((prev) =>
+          prev.filter((u) => u.id !== applicant.id && u.email !== applicant.email)
+        );
+        logActivity(
+          "member_approved",
+          `Approved ${applicant.full_name} (@${applicant.username || applicant.email}) as Member`
+        );
+        toast.success(
+          "Member Approved!",
+          `${applicant.full_name} is now an active Member with login access.`
+        );
+        return true;
+      } else {
+        toast.error("Approval Failed", "Could not approve member. Please try again.");
+        return false;
+      }
+    },
+    [activeWorkspaceId, logActivity, toast]
+  );
+
+  const rejectMember = useCallback(
+    async (applicantId: string, email: string): Promise<boolean> => {
+      const success = await inviteService.rejectUser(applicantId, email);
+      if (success) {
+        setPendingApprovals((prev) =>
+          prev.filter((u) => u.id !== applicantId && u.email !== email)
+        );
+        logActivity("member_rejected", `Rejected registration request for ${email}`);
+        toast.delete("Registration Dismissed", `Registration for ${email} was rejected.`);
+        return true;
+      }
+      return false;
+    },
+    [logActivity, toast]
+  );
+
+  const revokeInvite = useCallback(
+    (inviteId: string) => {
+      inviteService.revokeInvite(inviteId);
+      setActiveInvites((prev) => prev.filter((i) => i.id !== inviteId));
+      toast.delete("Invite Revoked", "The invitation link has been cancelled.");
+    },
+    [toast]
+  );
+
   const inviteMember = useCallback(
     (email: string, role: Role) => {
-      const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-      if (existing) return;
-      const name = email.split("@")[0].replace(".", " ");
-      const newUser: User = {
-        id: generateId("user"),
-        email,
-        full_name: name.charAt(0).toUpperCase() + name.slice(1),
-        role,
-        title: "Team Member",
-        status: "online",
-        created_at: new Date().toISOString(),
-      };
-      setUsers((prev) => [...prev, newUser]);
-      logActivity("member_invited", `Invited ${email} as ${role}`);
+      createInviteLink(email, role);
     },
-    [users, logActivity]
+    [createInviteLink]
   );
 
   const updateMemberRole = useCallback(
     async (userId: string, role: Role) => {
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
+      toast.success("Role Updated", `Role updated to ${role}`);
       if (isSupabaseConfigured && supabase) {
         try {
           await supabase.from("profiles").update({ role }).eq("id", userId);
@@ -1436,12 +1606,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [activeWorkspaceId, logActivity]
+    [activeWorkspaceId, logActivity, toast]
   );
 
-  const removeMember = useCallback((userId: string) => {
-    setUsers((prev) => prev.filter((u) => u.id !== userId));
-  }, []);
+  const removeMember = useCallback(
+    async (userId: string) => {
+      const target = users.find((u) => u.id === userId);
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      toast.delete("Member Removed", `${target?.full_name || "Member"} removed from workspace`);
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase
+            .from("workspace_members")
+            .delete()
+            .eq("workspace_id", activeWorkspaceId)
+            .eq("user_id", userId);
+        } catch {}
+      }
+      logActivity("member_removed", `Removed ${target?.full_name || userId} from workspace`);
+    },
+    [activeWorkspaceId, logActivity, toast, users]
+  );
 
   // --- Clients & Files ---
   const createClient = useCallback(
@@ -1543,18 +1728,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const resetAllData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
-    setUsers(initialUsers);
-    setWorkspaces(initialWorkspaces);
-    setProjects(initialProjects);
-    setColumns(initialColumns);
-    setTasks(initialTasks);
-    setNotes(initialNotes);
-    setAnnouncements(initialAnnouncements);
-    setNotifications(initialNotifications);
-    setActivityLogs(initialActivityLogs);
-    setWidgets(initialWidgets);
-    setTimeEntries(initialTimeEntries);
-    setActiveWorkspaceIdState("ws_main");
+    setUsers((prev) => prev.filter((u) => u.email === "vinz@vinzmedia.com" || u.approval_status === "approved"));
+    setTasks([]);
+    setNotes([]);
+    setAnnouncements([]);
+    setActivityLogs([]);
     setSelectedProjectIdState(null);
   }, []);
 
@@ -1621,6 +1799,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         inviteMember,
         updateMemberRole,
         removeMember,
+
+        pendingApprovals,
+        activeInvites,
+        createInviteLink,
+        approveMember,
+        rejectMember,
+        revokeInvite,
+        refreshTeamData,
 
         createProject,
         updateProject,

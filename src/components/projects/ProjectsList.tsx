@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
+import { useConfirm } from "@/context/ToastContext";
 import {
   FolderKanban,
   Plus,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/utils";
 
 export function ProjectsList() {
+  const confirm = useConfirm();
   const {
     projects,
     tasks,
@@ -147,10 +149,16 @@ export function ProjectsList() {
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm("Delete this project and all its tasks?")) {
-                              deleteProject(proj.id);
-                            }
                             setActiveMenuId(null);
+                            confirm({
+                              title: "Delete Project?",
+                              message: `Are you sure you want to delete "${proj.name}" and all its tasks? This action cannot be undone.`,
+                              confirmText: "Delete Project",
+                              variant: "danger",
+                              onConfirm: () => {
+                                deleteProject(proj.id);
+                              },
+                            });
                           }}
                           className="w-full text-left px-3 py-1.5 hover:bg-destructive/10 flex items-center space-x-1.5 text-destructive"
                         >

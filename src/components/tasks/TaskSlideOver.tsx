@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
+import { useConfirm } from "@/context/ToastContext";
 import {
   X,
   Calendar,
@@ -34,6 +35,7 @@ import {
 import { PriorityLevel, Task } from "@/types";
 
 export function TaskSlideOver() {
+  const confirm = useConfirm();
   const {
     editingTask,
     setEditingTask,
@@ -153,9 +155,15 @@ export function TaskSlideOver() {
             {/* Delete button */}
             <button
               onClick={() => {
-                if (confirm("Are you sure you want to delete this task?")) {
-                  deleteTask(editingTask.id);
-                }
+                confirm({
+                  title: "Delete Task?",
+                  message: `Are you sure you want to delete "${editingTask.title}"? This cannot be undone.`,
+                  confirmText: "Delete Task",
+                  variant: "danger",
+                  onConfirm: () => {
+                    deleteTask(editingTask.id);
+                  },
+                });
               }}
               title="Delete task"
               className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"

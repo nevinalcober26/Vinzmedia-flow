@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { StoreProvider } from "@/context/StoreContext";
+import { ToastProvider } from "@/context/ToastContext";
 
 export const metadata: Metadata = {
   title: "VinzFlow — Modern Project Management & Team Collaboration",
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-background font-sans antialiased text-foreground">
-        <StoreProvider>{children}</StoreProvider>
+        <ToastProvider>
+          <StoreProvider>{children}</StoreProvider>
+        </ToastProvider>
       </body>
     </html>
   );

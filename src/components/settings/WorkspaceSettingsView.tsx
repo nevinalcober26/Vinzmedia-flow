@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
+import { useConfirm, useToast } from "@/context/ToastContext";
 import {
   Settings,
   Shield,
@@ -21,6 +22,8 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { DatabaseSchemaView } from "./DatabaseSchemaView";
 
 export function WorkspaceSettingsView() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const {
     activeWorkspace,
     createWorkspace,
@@ -40,6 +43,7 @@ export function WorkspaceSettingsView() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaved(true);
+    toast.success("Settings Saved", "Workspace profile updated successfully.");
     setTimeout(() => setIsSaved(false), 2000);
   };
 
@@ -48,7 +52,7 @@ export function WorkspaceSettingsView() {
     if (!newWsName.trim()) return;
     createWorkspace(newWsName.trim());
     setNewWsName("");
-    alert(`Created workspace "${newWsName.trim()}"!`);
+    toast.success("Workspace Created", `Created workspace "${newWsName.trim()}".`);
   };
 
   const rbacMatrix = [
@@ -225,28 +229,34 @@ export function WorkspaceSettingsView() {
 
       {/* Tab: Danger */}
       {activeTab === "danger" && (
-        <div className="p-6 rounded-2xl bg-red-500/5 border border-red-500/20 shadow-2xs space-y-4">
-          <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+        <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/20 shadow-2xs space-y-4">
+          <div className="flex items-center space-x-2 text-amber-600 dark:text-amber-400">
             <AlertTriangle className="w-4 h-4" />
-            <h3 className="text-sm font-bold">Danger Zone</h3>
+            <h3 className="text-sm font-bold">Workspace Synchronization</h3>
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Reset all demo data back to the clean initial seed state (all sample projects, tasks, comments, notes, and activity logs).
+            Clear locally cached workspace data and resynchronize directly with the live Supabase database tables.
           </p>
 
           <div>
             <button
               onClick={() => {
-                if (confirm("Reset all project and task data back to the original demo state?")) {
-                  resetAllData();
-                  alert("Data reset to clean demo state!");
-                }
+                confirm({
+                  title: "Resynchronize with Database?",
+                  message: "This will refresh your local cache and reload all live data from Supabase.",
+                  confirmText: "Sync Now",
+                  variant: "warning",
+                  onConfirm: () => {
+                    resetAllData();
+                    toast.success("Cache Cleared", "Workspace resynchronized with live database.");
+                  },
+                });
               }}
-              className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 rounded-lg text-xs font-semibold transition-colors flex items-center space-x-1.5"
+              className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl text-xs font-semibold transition-colors flex items-center space-x-1.5 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Reset All Data to Demo Seed</span>
+              <span>Resync Local Cache with Live Supabase</span>
             </button>
           </div>
         </div>

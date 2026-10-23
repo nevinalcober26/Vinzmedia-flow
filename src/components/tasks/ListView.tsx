@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useStore } from "@/context/StoreContext";
+import { useConfirm } from "@/context/ToastContext";
 import { Task, PriorityLevel } from "@/types";
 import {
   Search,
@@ -31,6 +32,7 @@ interface ListViewProps {
 }
 
 export function ListView({ projectId }: ListViewProps) {
+  const confirm = useConfirm();
   const {
     tasks,
     columns,
@@ -209,10 +211,16 @@ export function ListView({ projectId }: ListViewProps) {
             {/* Bulk Delete */}
             <button
               onClick={() => {
-                if (confirm(`Delete ${selectedTaskIds.length} selected tasks?`)) {
-                  bulkDeleteTasks(selectedTaskIds);
-                  setSelectedTaskIds([]);
-                }
+                confirm({
+                  title: "Delete Selected Tasks?",
+                  message: `Are you sure you want to delete ${selectedTaskIds.length} tasks? This action cannot be undone.`,
+                  confirmText: "Delete Tasks",
+                  variant: "danger",
+                  onConfirm: () => {
+                    bulkDeleteTasks(selectedTaskIds);
+                    setSelectedTaskIds([]);
+                  },
+                });
               }}
               className="px-2.5 py-1 bg-destructive text-destructive-foreground rounded-lg text-xs font-medium hover:bg-destructive/90 flex items-center space-x-1"
             >

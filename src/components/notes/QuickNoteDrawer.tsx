@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
+import { useConfirm, useToast } from "@/context/ToastContext";
 import {
   X,
   Pin,
@@ -15,6 +16,8 @@ import {
 } from "lucide-react";
 
 export function QuickNoteDrawer() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const {
     isQuickNoteOpen,
     setIsQuickNoteOpen,
@@ -53,7 +56,7 @@ export function QuickNoteDrawer() {
     if (!currentNote) return;
     const targetProjId = currentNote.project_id || projects[0]?.id || "proj_mobile";
     convertNoteToTask(currentNote.id, targetProjId);
-    alert(`Note "${currentNote.title}" converted to task!`);
+    toast.success("Converted to Task", `Note "${currentNote.title}" converted to task!`);
   };
 
   return (
@@ -174,11 +177,17 @@ export function QuickNoteDrawer() {
 
                 <button
                   onClick={() => {
-                    if (confirm("Delete this note?")) {
-                      deleteNote(currentNote.id);
-                    }
+                    confirm({
+                      title: "Delete Note?",
+                      message: `Are you sure you want to delete "${currentNote.title}"?`,
+                      confirmText: "Delete Note",
+                      variant: "danger",
+                      onConfirm: () => {
+                        deleteNote(currentNote.id);
+                      },
+                    });
                   }}
-                  className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-colors"
+                  className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

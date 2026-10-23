@@ -4,20 +4,24 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/context/StoreContext";
-import { Sparkles, Mail, Lock, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
+import { Sparkles, Mail, Lock, ArrowRight, AlertCircle, Clock, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useStore();
+  const toast = useToast();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+    setIsPendingApproval(false);
 
     if (!email.trim() || !password) {
       setErrorMsg("Please enter both email and password.");
@@ -26,11 +30,14 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      const success = await login(email.trim(), password);
-      if (success) {
+      const res = await login(email.trim(), password);
+      if (res.success) {
         router.push("/");
+      } else if (res.pendingApproval) {
+        setIsPendingApproval(true);
+        setErrorMsg("Your registration is pending administrator review. Once the workspace owner or admin approves your account, you will be able to log in.");
       } else {
-        setErrorMsg("Invalid email or password. Please verify your credentials or create an account.");
+        setErrorMsg(res.error || "Invalid email or password. Please verify your credentials or create an account.");
       }
     } catch (err: any) {
       setErrorMsg(err?.message || "An unexpected error occurred while signing in.");
@@ -61,9 +68,19 @@ export default function LoginPage() {
         {/* Card Frame */}
         <div className="rounded-2xl border border-border bg-card p-6 md:p-8 shadow-xl backdrop-blur-xs space-y-5">
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start space-x-2.5 text-xs text-red-500">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{errorMsg}</span>
+            <div
+              className={`p-3 rounded-xl border flex items-start space-x-2.5 text-xs ${
+                isPendingApproval
+                  ? "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                  : "bg-red-500/10 border-red-500/20 text-red-500"
+              }`}
+            >
+              {isPendingApproval ? (
+                <Clock className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
+              ) : (
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-500" />
+              )}
+              <span className="leading-relaxed">{errorMsg}</span>
             </div>
           )}
 

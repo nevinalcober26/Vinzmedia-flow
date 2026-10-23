@@ -1,17 +1,36 @@
 export type Role = 'owner' | 'admin' | 'project_manager' | 'member' | 'guest';
 
 export type UserStatus = 'online' | 'busy' | 'away' | 'offline';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 export interface User {
   id: string;
   email: string;
   full_name: string;
+  username?: string;
   avatar_url?: string;
   role: Role;
   title?: string;
   department?: string;
   status: UserStatus;
+  approval_status?: ApprovalStatus;
   created_at: string;
+}
+
+export interface WorkspaceInvite {
+  id: string;
+  workspace_id: string;
+  email: string;
+  token: string;
+  role: Role;
+  invited_by: string;
+  invited_by_name?: string;
+  status: 'pending' | 'accepted' | 'approved' | 'rejected' | 'expired';
+  username?: string;
+  full_name?: string;
+  password?: string;
+  created_at: string;
+  expires_at: string;
 }
 
 export interface Workspace {
