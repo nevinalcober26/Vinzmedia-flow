@@ -47,6 +47,7 @@ import { ClientAvatar } from "@/components/common/ClientAvatar";
 import { EditProjectBillingModal } from "@/components/modals/EditProjectBillingModal";
 import { ProjectInvoiceModal } from "@/components/modals/ProjectInvoiceModal";
 import { formatDate } from "@/lib/utils";
+import { getConfiguredPaymentMilestones } from "@/lib/paymentMilestones";
 
 export function BillingView() {
   const {
@@ -147,7 +148,9 @@ export function BillingView() {
 
       // Fixed price calculations
       const fixedTotal = proj.fixed_price_amount || 0;
-      const installments = proj.installments || [];
+      const installments = !isHourly && proj.installments?.length
+        ? getConfiguredPaymentMilestones(proj)
+        : [];
       const paidInstallments = installments.filter((i) => i.status === "paid");
       const paidMilestonesAmount = paidInstallments.reduce(
         (sum, i) => sum + (Number(i.amount) || 0),
@@ -179,7 +182,9 @@ export function BillingView() {
       } else if (paidAmount > 0) {
         effectiveStatus = "partially_paid";
       } else {
-        effectiveStatus = proj.payment_status || "unpaid";
+        effectiveStatus = !isHourly && installments.length > 0
+          ? "unpaid"
+          : proj.payment_status || "unpaid";
       }
 
       // Currency conversion
@@ -746,8 +751,8 @@ export function BillingView() {
                                   <div className="flex items-center space-x-1 text-[10px] text-muted-foreground font-medium">
                                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500/70" />
                                     <span>
-                                      {project.installments && project.installments.length > 0
-                                        ? `${project.installments.length} Milestones`
+                                      {installments.length > 0
+                                        ? `${totalInstallmentsCount} Milestones`
                                         : "Full Contract"}
                                     </span>
                                   </div>
@@ -1047,8 +1052,8 @@ export function BillingView() {
                                   : item.project.payment_schedule === "15_days"
                                   ? "Net 15 Days"
                                   : "Net 30 Days"
-                                : item.project.installments && item.project.installments.length > 0
-                                ? `${item.project.installments.length} Milestones`
+                                : item.installments.length > 0
+                                ? `${item.totalInstallmentsCount} Milestones`
                                 : "Contract Delivery"}
                             </span>
                           </div>
