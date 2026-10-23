@@ -331,9 +331,6 @@ export function Sidebar() {
                   <p className="text-xs font-bold truncate text-sidebar-foreground tracking-tight">
                     {activeWorkspace.name}
                   </p>
-                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider">
-                    {activeWorkspace.plan || "PRO"}
-                  </span>
                 </div>
                 <p className="text-[10px] text-muted-foreground truncate">
                   Workspace
@@ -397,7 +394,7 @@ export function Sidebar() {
             className="mx-auto cursor-pointer"
             title={activeWorkspace.name}
             onMouseEnter={(e) =>
-              showTooltip(e, activeWorkspace.name, activeWorkspace.plan?.toUpperCase() || "PRO", "Active Workspace")
+              showTooltip(e, activeWorkspace.name, undefined, "Active Workspace")
             }
             onMouseLeave={hideTooltip}
           >
