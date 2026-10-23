@@ -27,6 +27,7 @@ import {
   getPriorityBadgeColor,
   isOverdue,
 } from "@/lib/utils";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 export function MainDashboard() {
   const {
@@ -406,10 +407,11 @@ export function MainDashboard() {
           <div className="space-y-3">
             {activityLogs.slice(0, 5).map((log) => (
               <div key={log.id} className="flex items-start space-x-2.5 text-xs">
-                <img
-                  src={log.user?.avatar_url}
-                  alt=""
-                  className="w-6 h-6 rounded-full object-cover mt-0.5"
+                <UserAvatar
+                  name={log.user?.full_name || "Teammate"}
+                  avatarUrl={log.user?.avatar_url}
+                  size="xs"
+                  className="mt-0.5"
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground leading-snug font-medium line-clamp-2">

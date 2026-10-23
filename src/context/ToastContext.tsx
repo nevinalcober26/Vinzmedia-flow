@@ -195,7 +195,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {/* Confirmation Modal Dialog */}
       <AnimatePresence>
         {confirmModal && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+            onClick={closeConfirm}
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.92, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -262,7 +269,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </ToastContext.Provider>

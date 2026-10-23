@@ -14,6 +14,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 export function ActivityView() {
   const { activityLogs, projects, setEditingTask, tasks, setSelectedProjectId } = useStore();
@@ -75,10 +76,11 @@ export function ActivityView() {
             onClick={() => handleItemClick(log)}
             className="flex items-start space-x-3.5 p-3.5 rounded-xl border border-border/70 bg-card hover:bg-secondary/40 transition-colors cursor-pointer"
           >
-            <img
-              src={log.user?.avatar_url}
-              alt=""
-              className="w-8 h-8 rounded-full object-cover ring-1 ring-border mt-0.5 flex-shrink-0"
+            <UserAvatar
+              name={log.user?.full_name || "Teammate"}
+              avatarUrl={log.user?.avatar_url}
+              size="sm"
+              className="mt-0.5 flex-shrink-0"
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">

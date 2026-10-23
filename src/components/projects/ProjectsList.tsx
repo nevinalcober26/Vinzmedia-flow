@@ -21,6 +21,7 @@ import {
   getPriorityBadgeColor,
   getProjectStatusBadge,
 } from "@/lib/utils";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 export function ProjectsList() {
   const confirm = useConfirm();
@@ -211,12 +212,12 @@ export function ProjectsList() {
 
                   <div className="flex items-center -space-x-1.5">
                     {assignedMembers.slice(0, 4).map((m) => (
-                      <img
+                      <UserAvatar
                         key={m.id}
-                        src={m.avatar_url}
-                        alt={m.full_name}
-                        title={m.full_name}
-                        className="w-5 h-5 rounded-full object-cover ring-2 ring-card shadow-2xs"
+                        name={m.full_name}
+                        avatarUrl={m.avatar_url}
+                        size="xs"
+                        className="ring-2 ring-card shadow-2xs"
                       />
                     ))}
                   </div>

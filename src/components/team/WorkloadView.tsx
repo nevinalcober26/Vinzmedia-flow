@@ -4,6 +4,7 @@ import React from "react";
 import { useStore } from "@/context/StoreContext";
 import { BarChart2, CheckCircle2, Clock, AlertTriangle, Users } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 export function WorkloadView() {
   const { users, tasks, setEditingTask } = useStore();
@@ -51,10 +52,12 @@ export function WorkloadView() {
               {/* Member Row */}
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center space-x-3.5">
-                  <img
-                    src={member.avatar_url}
-                    alt=""
-                    className="w-10 h-10 rounded-full object-cover ring-2 ring-border"
+                  <UserAvatar
+                    name={member.full_name}
+                    avatarUrl={member.avatar_url}
+                    size="lg"
+                    status={member.status}
+                    className="ring-2 ring-border"
                   />
                   <div>
                     <h3 className="text-sm font-bold text-foreground">{member.full_name}</h3>

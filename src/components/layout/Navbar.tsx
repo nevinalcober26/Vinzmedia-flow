@@ -27,6 +27,8 @@ import { formatTimerDisplay, getPriorityBadgeColor } from "@/lib/utils";
 import { getRoleBadge } from "@/lib/permissions";
 import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
 import { KeyboardShortcutsModal } from "@/components/modals/KeyboardShortcutsModal";
+import { UserAvatar } from "@/components/common/UserAvatar";
+import { User } from "lucide-react";
 
 export function Navbar() {
   const {
@@ -47,6 +49,7 @@ export function Navbar() {
     setActiveView,
     isAuthenticated,
     logout,
+    setIsProfileModalOpen,
   } = useStore();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -209,26 +212,13 @@ export function Navbar() {
 
           <div className="h-4 w-px bg-border/60 mx-1" />
 
-          {/* User Profile & Demo Persona Switcher */}
+          {/* User Profile Menu */}
           <div className="relative">
             <button
               onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-              className="flex items-center space-x-2 p-1 hover:bg-secondary rounded-lg transition-colors focus:outline-none"
+              className="flex items-center space-x-2 p-1 hover:bg-secondary rounded-xl transition-all cursor-pointer focus:outline-none"
             >
-              <div className="relative">
-                {currentUser.avatar_url ? (
-                  <img
-                    src={currentUser.avatar_url}
-                    alt={currentUser.full_name}
-                    className="w-7 h-7 rounded-full object-cover ring-1 ring-border"
-                  />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
-                    {currentUser.full_name.charAt(0)}
-                  </div>
-                )}
-                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-background" />
-              </div>
+              <UserAvatar user={currentUser} size="sm" showStatus />
 
               {/* Role badge pill */}
               <span className={`hidden xl:inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full border ${roleBadge.className}`}>
@@ -236,39 +226,47 @@ export function Navbar() {
               </span>
             </button>
 
-            {/* Profile & Switcher Menu */}
+            {/* Profile Menu Dropdown */}
             {isProfileMenuOpen && (
               <div
                 className="absolute right-0 mt-2 w-72 rounded-2xl bg-card border border-border shadow-2xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
                 onClick={() => setIsProfileMenuOpen(false)}
               >
-                <div className="px-4 py-2.5 border-b border-border/60">
-                  <p className="font-semibold text-foreground text-sm">{currentUser.full_name}</p>
-                  <p className="text-muted-foreground truncate text-[11px]">{currentUser.email}</p>
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${roleBadge.className}`}>
-                      {roleBadge.label}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">{currentUser.department}</span>
+                <div className="px-4 py-3 border-b border-border/60 flex items-center space-x-3">
+                  <UserAvatar user={currentUser} size="md" showStatus />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-foreground text-xs truncate">{currentUser.full_name}</p>
+                    <p className="text-muted-foreground truncate text-[11px]">{currentUser.email}</p>
+                    {currentUser.username && (
+                      <p className="text-primary text-[10px] font-mono">@{currentUser.username}</p>
+                    )}
                   </div>
                 </div>
 
                 <div className="p-1 space-y-0.5">
                   <button
+                    onClick={() => setIsProfileModalOpen(true)}
+                    className="w-full text-left px-3 py-2 text-foreground font-semibold hover:bg-secondary rounded-xl transition-colors flex items-center space-x-2 cursor-pointer"
+                  >
+                    <User className="w-3.5 h-3.5 text-primary" />
+                    <span>Edit Profile & Avatar</span>
+                  </button>
+
+                  <button
                     onClick={() => setActiveView("team")}
-                    className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+                    className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
                   >
                     Team & RBAC Permissions
                   </button>
                   <button
                     onClick={() => setActiveView("settings")}
-                    className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+                    className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
                   >
                     Workspace Settings & Database
                   </button>
                   <button
                     onClick={logout}
-                    className="w-full text-left px-3 py-1.5 text-red-500 hover:bg-red-500/10 rounded-md transition-colors flex items-center space-x-2"
+                    className="w-full text-left px-3 py-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center space-x-2 cursor-pointer"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>Sign Out</span>

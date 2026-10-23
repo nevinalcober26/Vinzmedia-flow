@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
 import { useConfirm, useToast } from "@/context/ToastContext";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
   Pin,
@@ -35,8 +36,6 @@ export function QuickNoteDrawer() {
   const [newContent, setNewContent] = useState("");
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
-  if (!isQuickNoteOpen) return null;
-
   const currentNote = notes.find((n) => n.id === activeNoteId) || notes[0];
 
   const handleSaveNew = (e: React.FormEvent) => {
@@ -60,14 +59,20 @@ export function QuickNoteDrawer() {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex justify-end animate-in fade-in duration-200"
-      onClick={() => setIsQuickNoteOpen(false)}
-    >
-      <div
-        className="w-full max-w-xl bg-card border-l border-border h-full flex flex-col shadow-2xl text-card-foreground animate-in slide-in-from-right duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {isQuickNoteOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex justify-end"
+          onClick={() => setIsQuickNoteOpen(false)}
+        >
+          <motion.div
+            initial={{ x: "100%", opacity: 0.5 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "100%", opacity: 0.5 }}
+            transition={{ type: "spring", damping: 30, stiffness: 350 }}
+            className="w-full max-w-xl bg-card border-l border-border h-full flex flex-col shadow-2xl text-card-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-secondary/20">
           <div className="flex items-center space-x-2">
@@ -215,7 +220,9 @@ export function QuickNoteDrawer() {
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
+      )}
+    </AnimatePresence>
   );
 }

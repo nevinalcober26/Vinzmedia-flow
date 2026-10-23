@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useStore } from "@/context/StoreContext";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Plus,
@@ -50,8 +51,6 @@ export function CommandPalette() {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isCommandPaletteOpen]);
-
-  if (!isCommandPaletteOpen) return null;
 
   const handleClose = () => {
     setIsCommandPaletteOpen(false);
@@ -237,14 +236,20 @@ export function CommandPalette() {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
-      onClick={handleClose}
-    >
-      <div
-        className="w-full max-w-xl bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground animate-in zoom-in-95 duration-150"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {isCommandPaletteOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/60 backdrop-blur-md"
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: -10 }}
+            transition={{ type: "spring", damping: 25, stiffness: 350 }}
+            className="w-full max-w-xl bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* Search Input bar */}
         <div className="flex items-center px-4 py-3 border-b border-border/80 bg-secondary/20">
           <Search className="w-4 h-4 text-muted-foreground mr-3 flex-shrink-0" />
@@ -351,7 +356,9 @@ export function CommandPalette() {
             <kbd className="px-1 py-0.5 bg-background border border-border rounded text-[10px]">Esc</kbd> to close
           </span>
         </div>
-      </div>
+      </motion.div>
     </div>
+      )}
+    </AnimatePresence>
   );
 }

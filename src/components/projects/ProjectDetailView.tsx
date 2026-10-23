@@ -28,6 +28,7 @@ import { TimelineGanttView } from "@/components/timeline/TimelineGanttView";
 import { ClientsFilesView } from "@/components/files/ClientsFilesView";
 import { ProjectSubTab } from "@/types";
 import { formatDate, getPriorityBadgeColor, getProjectStatusBadge } from "@/lib/utils";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 export function ProjectDetailView() {
   const {
@@ -206,11 +207,12 @@ export function ProjectDetailView() {
                   {users
                     .filter((u) => (activeProject.member_ids || []).includes(u.id))
                     .map((u) => (
-                      <img
+                      <UserAvatar
                         key={u.id}
-                        src={u.avatar_url}
-                        alt=""
-                        className="w-5 h-5 rounded-full object-cover ring-2 ring-card"
+                        name={u.full_name}
+                        avatarUrl={u.avatar_url}
+                        size="xs"
+                        className="ring-2 ring-card"
                       />
                     ))}
                 </div>

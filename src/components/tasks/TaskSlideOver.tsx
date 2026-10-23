@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
 import { useConfirm } from "@/context/ToastContext";
+import { UserAvatar } from "@/components/common/UserAvatar";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
   Calendar,
@@ -65,36 +67,34 @@ export function TaskSlideOver() {
   const [isManualTimeModalOpen, setIsManualTimeModalOpen] = useState(false);
   const [manualMinutes, setManualMinutes] = useState(30);
 
-  if (!editingTask) return null;
-
-  const currentProject = projects.find((p) => p.id === editingTask.project_id);
-  const isTimerRunning = activeTimer?.taskId === editingTask.id;
-  const isTaskOverdue = isOverdue(editingTask.due_date, editingTask.status);
+  const currentProject = editingTask ? projects.find((p) => p.id === editingTask.project_id) : null;
+  const isTimerRunning = Boolean(editingTask && activeTimer?.taskId === editingTask.id);
+  const isTaskOverdue = editingTask ? isOverdue(editingTask.due_date, editingTask.status) : false;
 
   // Subtask progress
-  const totalSubtasks = editingTask.subtasks?.length || 0;
+  const totalSubtasks = editingTask?.subtasks?.length || 0;
   const completedSubtasks =
-    editingTask.subtasks?.filter((s) => s.completed).length || 0;
+    editingTask?.subtasks?.filter((s) => s.completed).length || 0;
   const subtaskProgress =
     totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
 
   const handleAddSubtask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSubtaskTitle.trim()) return;
+    if (!editingTask || !newSubtaskTitle.trim()) return;
     addSubtask(editingTask.id, newSubtaskTitle.trim());
     setNewSubtaskTitle("");
   };
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCommentText.trim()) return;
+    if (!editingTask || !newCommentText.trim()) return;
     addComment(editingTask.id, newCommentText.trim());
     setNewCommentText("");
   };
 
   const handleAddTag = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTagInput.trim()) return;
+    if (!editingTask || !newTagInput.trim()) return;
     const currentTags = editingTask.labels || [];
     if (!currentTags.includes(newTagInput.trim())) {
       updateTask(editingTask.id, { labels: [...currentTags, newTagInput.trim()] });
@@ -104,11 +104,13 @@ export function TaskSlideOver() {
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
+    if (!editingTask) return;
     const updated = (editingTask.labels || []).filter((t) => t !== tagToRemove);
     updateTask(editingTask.id, { labels: updated });
   };
 
   const handleToggleAssignee = (userId: string) => {
+    if (!editingTask) return;
     const current = editingTask.assignee_ids || [];
     const updated = current.includes(userId)
       ? current.filter((id) => id !== userId)
@@ -116,14 +118,23 @@ export function TaskSlideOver() {
     updateTask(editingTask.id, { assignee_ids: updated });
   };
 
-  const priorityStyles = getPriorityBadgeColor(editingTask.priority);
+  const priorityStyles = editingTask ? getPriorityBadgeColor(editingTask.priority) : { bg: "", text: "", border: "" };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
-      <div
-        className="w-full max-w-2xl bg-card border-l border-border h-full flex flex-col shadow-2xl text-card-foreground animate-in slide-in-from-right duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {editingTask && (
+        <div
+          className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-xs flex justify-end"
+          onClick={() => setEditingTask(null)}
+        >
+          <motion.div
+            initial={{ x: "100%", opacity: 0.5 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "100%", opacity: 0.5 }}
+            transition={{ type: "spring", damping: 30, stiffness: 350 }}
+            className="w-full max-w-2xl bg-card border-l border-border h-full flex flex-col shadow-2xl text-card-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* Top Header Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-secondary/20">
           <div className="flex items-center space-x-3">
@@ -347,10 +358,11 @@ export function TaskSlideOver() {
                         : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
                     }`}
                   >
-                    <img
-                      src={u.avatar_url}
-                      alt=""
-                      className="w-4 h-4 rounded-full object-cover"
+                    <UserAvatar
+                      name={u.full_name}
+                      avatarUrl={u.avatar_url}
+                      size="xs"
+                      showStatus={false}
                     />
                     <span>{u.full_name}</span>
                     {isAssigned && <Check className="w-3 h-3" />}
@@ -528,10 +540,11 @@ export function TaskSlideOver() {
                 <div key={comm.id} className="p-3 rounded-xl bg-secondary/30 border border-border/50 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <img
-                        src={comm.user?.avatar_url}
-                        alt=""
-                        className="w-5 h-5 rounded-full object-cover"
+                      <UserAvatar
+                        name={comm.user?.full_name || "Team Member"}
+                        avatarUrl={comm.user?.avatar_url}
+                        size="xs"
+                        showStatus={false}
                       />
                       <span className="text-xs font-semibold text-foreground">
                         {comm.user?.full_name || "Team Member"}
@@ -584,10 +597,12 @@ export function TaskSlideOver() {
 
             {/* New Comment Input */}
             <form onSubmit={handleAddComment} className="flex items-start space-x-2 pt-2">
-              <img
-                src={currentUser.avatar_url}
-                alt=""
-                className="w-6 h-6 rounded-full object-cover mt-1"
+              <UserAvatar
+                name={currentUser.full_name}
+                avatarUrl={currentUser.avatar_url}
+                size="sm"
+                className="mt-1"
+                showStatus={false}
               />
               <div className="flex-1 space-y-2">
                 <textarea
@@ -610,7 +625,9 @@ export function TaskSlideOver() {
             </form>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
+      )}
+    </AnimatePresence>
   );
 }

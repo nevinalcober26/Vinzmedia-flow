@@ -14,6 +14,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
+import { UserAvatar } from "@/components/common/UserAvatar";
 
 export function AnnouncementsView() {
   const {
@@ -88,10 +89,11 @@ export function AnnouncementsView() {
               {/* Header row */}
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="flex items-center space-x-3">
-                  <img
-                    src={ann.author?.avatar_url}
-                    alt=""
-                    className="w-8 h-8 rounded-full object-cover ring-1 ring-border"
+                  <UserAvatar
+                    name={ann.author?.full_name || "Team Admin"}
+                    avatarUrl={ann.author?.avatar_url}
+                    size="sm"
+                    className="ring-1 ring-border"
                   />
                   <div>
                     <div className="flex items-center space-x-2">

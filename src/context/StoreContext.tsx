@@ -112,6 +112,7 @@ interface StoreContextType {
   isQuickNoteOpen: boolean;
   isCreateTaskModalOpen: boolean;
   isCreateProjectModalOpen: boolean;
+  isProfileModalOpen: boolean;
   defaultNewTaskStatus?: string;
 
   // Actions - Navigation & UI
@@ -124,6 +125,8 @@ interface StoreContextType {
   setIsQuickNoteOpen: (open: boolean) => void;
   setIsCreateTaskModalOpen: (open: boolean, defaultStatus?: string) => void;
   setIsCreateProjectModalOpen: (open: boolean) => void;
+  setIsProfileModalOpen: (open: boolean) => void;
+  updateUserProfile: (updates: Partial<User>) => Promise<boolean>;
   toggleTheme: () => void;
   setCurrentUserId: (id: string) => void;
 
@@ -250,6 +253,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [defaultNewTaskStatus, setDefaultNewTaskStatus] = useState<string | undefined>(undefined);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Initialize dynamic data from Supabase & configure real-time updates
   useEffect(() => {
@@ -734,6 +738,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setDefaultNewTaskStatus(defaultStatus);
     setIsCreateTaskModalOpen(open);
   }, []);
+
+  const updateUserProfile = useCallback(
+    async (updates: Partial<User>): Promise<boolean> => {
+      try {
+        const updatedUser: User = { ...currentUser, ...updates };
+        setUsers((prev) => {
+          const index = prev.findIndex((u) => u.id === currentUser.id);
+          if (index >= 0) {
+            const next = [...prev];
+            next[index] = updatedUser;
+            return next;
+          }
+          return [updatedUser, ...prev];
+        });
+
+        if (isSupabaseConfigured && supabase) {
+          const payload: any = {
+            full_name: updatedUser.full_name,
+            title: updatedUser.title,
+            department: updatedUser.department,
+            status: updatedUser.status,
+            avatar_url: updatedUser.avatar_url || null,
+            updated_at: new Date().toISOString(),
+          };
+          if (updates.username) {
+            payload.username = updates.username;
+          }
+          await supabase.from("profiles").update(payload).eq("id", currentUser.id);
+        }
+
+        logActivity("profile_updated", `Updated profile details for ${updatedUser.full_name}`);
+        toast.success("Profile Updated!", "Your avatar and details have been saved.");
+        broadcastSync({ users: users.map((u) => (u.id === currentUser.id ? updatedUser : u)) });
+        return true;
+      } catch (err: any) {
+        console.error("Profile update error:", err);
+        toast.error("Failed to update profile", err?.message);
+        return false;
+      }
+    },
+    [currentUser, logActivity, toast, broadcastSync, users]
+  );
 
   // --- Project Management with RBAC & Supabase Sync ---
   const createProject = useCallback(
@@ -1780,6 +1826,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         isQuickNoteOpen,
         isCreateTaskModalOpen,
         isCreateProjectModalOpen,
+        isProfileModalOpen,
         defaultNewTaskStatus,
 
         setActiveView,
@@ -1791,6 +1838,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setIsQuickNoteOpen,
         setIsCreateTaskModalOpen: openCreateTaskModal,
         setIsCreateProjectModalOpen,
+        setIsProfileModalOpen,
+        updateUserProfile,
         toggleTheme,
         setCurrentUserId,
 

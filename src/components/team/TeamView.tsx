@@ -25,6 +25,7 @@ import {
   AtSign,
 } from "lucide-react";
 import confetti from "canvas-confetti";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { Role, User } from "@/types";
 
 export function TeamView() {
@@ -275,23 +276,7 @@ export function TeamView() {
                     <div>
                       {/* Avatar and status header */}
                       <div className="flex items-start justify-between mb-3">
-                        <div className="relative">
-                          <img
-                            src={
-                              member.avatar_url ||
-                              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
-                                member.full_name
-                              )}`
-                            }
-                            alt={member.full_name}
-                            className="w-12 h-12 rounded-2xl object-cover ring-2 ring-border/80 shadow-xs"
-                          />
-                          <span
-                            className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full ring-2 ring-card ${getStatusDot(
-                              member.status
-                            )}`}
-                          />
-                        </div>
+                        <UserAvatar user={member} size="lg" showStatus />
 
                         {/* Role Selector or Badge */}
                         <div className="flex items-center space-x-1.5">
@@ -301,13 +286,13 @@ export function TeamView() {
                               onChange={(e) =>
                                 updateMemberRole(member.id, e.target.value as Role)
                               }
-                              className="bg-secondary/70 text-[11px] font-semibold rounded-xl px-2.5 py-1 text-foreground border border-border capitalize focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer hover:bg-secondary"
+                              className="bg-secondary/70 text-[11px] font-semibold rounded-xl px-2.5 py-1 text-foreground border border-border focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer hover:bg-secondary"
                             >
-                              <option value="owner">Owner</option>
-                              <option value="admin">Admin</option>
-                              <option value="project_manager">Project Manager</option>
-                              <option value="member">Member</option>
-                              <option value="guest">Guest</option>
+                              <option value="owner">👑 Owner — Workspace Authority</option>
+                              <option value="admin">🛡️ Admin — Operations & Review</option>
+                              <option value="project_manager">📁 Project Manager — Task Lead</option>
+                              <option value="member">👤 Member — Standard Contributor</option>
+                              <option value="guest">👁️ Guest — Read-only Reviewer</option>
                             </select>
                           ) : (
                             <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-primary/10 text-primary capitalize border border-primary/20">
@@ -412,16 +397,7 @@ export function TeamView() {
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3.5">
-                        <img
-                          src={
-                            applicant.avatar_url ||
-                            `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
-                              applicant.full_name
-                            )}`
-                          }
-                          alt={applicant.full_name}
-                          className="w-12 h-12 rounded-2xl object-cover ring-2 ring-amber-500/30"
-                        />
+                        <UserAvatar user={applicant} size="lg" />
                         <div>
                           <h4 className="text-sm font-bold text-foreground flex items-center space-x-1.5">
                             <span>{applicant.full_name}</span>
@@ -555,146 +531,152 @@ export function TeamView() {
       )}
 
       {/* Invite Teammate Modal */}
-      {isInviteModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in"
-          onClick={() => setIsInviteModalOpen(false)}
-        >
+      <AnimatePresence>
+        {isInviteModalOpen && (
           <div
-            className="w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl overflow-hidden text-card-foreground animate-in zoom-in-95 space-y-4 p-6"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+            onClick={() => setIsInviteModalOpen(false)}
           >
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <div className="flex items-center space-x-2">
-                <UserPlus className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-bold text-foreground">Invite Teammate</h3>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: "spring", damping: 25, stiffness: 350 }}
+              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground space-y-4 p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="flex items-center space-x-2">
+                  <UserPlus className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-bold text-foreground">Invite Teammate</h3>
+                </div>
+                <button
+                  onClick={() => setIsInviteModalOpen(false)}
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={() => setIsInviteModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-md"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            {!generatedLink ? (
-              <form onSubmit={handleGenerateInvite} className="space-y-4 text-xs">
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-foreground">Email Address (Optional)</label>
-                  <input
-                    type="email"
-                    placeholder="colleague@vinzmedia.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full bg-secondary/40 border border-border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    You can restrict this invite to an email, or leave blank to share an open registration link.
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-foreground">Target Role</label>
-                  <select
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as Role)}
-                    className="w-full bg-secondary/40 border border-border rounded-xl px-3 py-2 text-xs text-foreground capitalize"
-                  >
-                    <option value="member">Member — Standard task & project contributor</option>
-                    <option value="project_manager">Project Manager — Create and manage projects</option>
-                    <option value="admin">Admin — Full workspace administrative control</option>
-                    <option value="guest">Guest — Read-only observation</option>
-                  </select>
-                </div>
-
-                <div className="p-3 rounded-xl bg-secondary/50 border border-border/60 text-[11px] text-muted-foreground space-y-1">
-                  <p className="font-semibold text-foreground">How it works:</p>
-                  <p>
-                    1. They click your link and set their <strong>Full Name</strong>, <strong>@username</strong>, and <strong>Password</strong>.
-                  </p>
-                  <p>
-                    2. Their request arrives in your <strong>Pending Approvals</strong> tab.
-                  </p>
-                  <p>
-                    3. You click <strong>Approve</strong>, activating their Member login!
-                  </p>
-                </div>
-
-                <div className="flex justify-end space-x-2 pt-2 border-t border-border/60">
-                  <button
-                    type="button"
-                    onClick={() => setIsInviteModalOpen(false)}
-                    className="px-4 py-2 text-xs text-muted-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isGenerating}
-                    className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-xl text-xs shadow-md shadow-primary/20 hover:bg-primary/90 transition-all cursor-pointer"
-                  >
-                    {isGenerating ? "Generating Link..." : "Generate Invitation Link"}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span className="font-semibold">Invitation Link Ready!</span>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Shareable URL</label>
-                  <div className="flex items-center space-x-2">
+              {!generatedLink ? (
+                <form onSubmit={handleGenerateInvite} className="space-y-4 text-xs">
+                  <div className="space-y-1.5">
+                    <label className="font-semibold text-foreground">Email Address (Optional)</label>
                     <input
-                      type="text"
-                      readOnly
-                      value={generatedLink}
-                      className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-xs font-mono text-foreground focus:outline-hidden"
+                      type="email"
+                      placeholder="colleague@vinzmedia.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      className="w-full bg-secondary/40 border border-border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
                     />
-                    <button
-                      onClick={() => copyToClipboard(generatedLink)}
-                      className="px-3.5 py-2 bg-primary text-primary-foreground font-semibold rounded-xl text-xs shrink-0 shadow-sm hover:bg-primary/90 transition-all cursor-pointer flex items-center space-x-1.5"
+                    <p className="text-[11px] text-muted-foreground">
+                      You can restrict this invite to an email, or leave blank to share an open registration link.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-semibold text-foreground">Assigned Role</label>
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value as Role)}
+                      className="w-full bg-secondary/40 border border-border rounded-xl px-3 py-2 text-xs text-foreground cursor-pointer"
                     >
-                      {hasCopied ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy</span>
-                        </>
-                      )}
+                      <option value="member">👤 Member — Standard task & project contributor</option>
+                      <option value="project_manager">📁 Project Manager — Create and manage projects</option>
+                      <option value="admin">🛡️ Admin — Full workspace administrative control</option>
+                      <option value="guest">👁️ Guest — Read-only observation</option>
+                    </select>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-secondary/50 border border-border/60 text-[11px] text-muted-foreground space-y-1">
+                    <p className="font-semibold text-foreground">How onboarding works:</p>
+                    <p>
+                      1. Invitee opens your link and sets their <strong>Full Name</strong>, <strong>@username</strong>, and <strong>Password</strong>.
+                    </p>
+                    <p>
+                      2. Their profile appears in your <strong>Pending Approvals</strong> tab.
+                    </p>
+                    <p>
+                      3. An Admin or Owner clicks <strong>Approve as Member</strong> to activate their account!
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-2 border-t border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setIsInviteModalOpen(false)}
+                      className="px-4 py-2 text-xs text-muted-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isGenerating}
+                      className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-xl text-xs shadow-md shadow-primary/20 hover:bg-primary/90 transition-all cursor-pointer"
+                    >
+                      {isGenerating ? "Generating Link..." : "Generate Invitation Link"}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span className="font-semibold">Invitation Link Ready!</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">Shareable URL</label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={generatedLink}
+                        className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-xs font-mono text-foreground focus:outline-hidden"
+                      />
+                      <button
+                        onClick={() => copyToClipboard(generatedLink)}
+                        className="px-3.5 py-2 bg-primary text-primary-foreground font-semibold rounded-xl text-xs shrink-0 shadow-sm hover:bg-primary/90 transition-all cursor-pointer flex items-center space-x-1.5"
+                      >
+                        {hasCopied ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-border/60">
+                    <a
+                      href={generatedLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center space-x-1"
+                    >
+                      <span>Preview Onboarding Page</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+
+                    <button
+                      onClick={() => setIsInviteModalOpen(false)}
+                      className="px-4 py-2 bg-secondary text-foreground hover:bg-secondary/80 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+                    >
+                      Done
                     </button>
                   </div>
                 </div>
-
-                <div className="flex items-center justify-between pt-3 border-t border-border/60">
-                  <a
-                    href={generatedLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center space-x-1"
-                  >
-                    <span>Preview Onboarding Page</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-
-                  <button
-                    onClick={() => setIsInviteModalOpen(false)}
-                    className="px-4 py-2 bg-secondary text-foreground hover:bg-secondary/80 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

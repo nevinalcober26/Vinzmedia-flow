@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -42,6 +43,7 @@ export function Sidebar() {
     files,
     unreadNotificationCount,
     setIsCreateProjectModalOpen,
+    setIsProfileModalOpen,
   } = useStore();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -344,14 +346,34 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Footer / Settings Link */}
-      <div className="border-t border-sidebar-border p-2">
+      {/* Footer / User Profile & Settings */}
+      <div className="border-t border-sidebar-border p-2 space-y-1">
+        <button
+          onClick={() => setIsProfileModalOpen(true)}
+          title="Edit Profile & Avatar"
+          className={`w-full flex items-center ${
+            isCollapsed ? "justify-center px-0" : "space-x-2.5 px-2"
+          } py-1.5 text-xs rounded-xl text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer group`}
+        >
+          <UserAvatar user={currentUser} size="xs" showStatus />
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0 text-left">
+              <p className="font-semibold text-xs truncate group-hover:text-primary transition-colors">
+                {currentUser.full_name}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate capitalize">
+                {currentUser.role.replace("_", " ")}
+              </p>
+            </div>
+          )}
+        </button>
+
         <button
           onClick={() => handleNavClick("settings")}
           title="Workspace Settings"
           className={`w-full flex items-center ${
             isCollapsed ? "justify-center px-0" : "space-x-2.5 px-2.5"
-          } py-2 text-xs rounded-lg text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors`}
+          } py-1.5 text-xs rounded-xl text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer`}
         >
           <Settings className="w-4 h-4 flex-shrink-0" />
           {!isCollapsed && <span className="font-medium">Settings</span>}

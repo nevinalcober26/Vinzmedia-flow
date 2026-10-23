@@ -10,6 +10,7 @@ import { TaskSlideOver } from "@/components/tasks/TaskSlideOver";
 import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
 import { CreateProjectModal } from "@/components/modals/CreateProjectModal";
 import { QuickNoteDrawer } from "@/components/notes/QuickNoteDrawer";
+import { EditProfileModal } from "@/components/modals/EditProfileModal";
 
 // Views
 import { MainDashboard } from "@/components/dashboard/MainDashboard";
@@ -96,6 +97,7 @@ export default function Home() {
       <CreateTaskModal />
       <CreateProjectModal />
       <QuickNoteDrawer />
+      <EditProfileModal />
     </div>
   );
 }
