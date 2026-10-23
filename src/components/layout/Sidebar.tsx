@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useStore } from "@/context/StoreContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import {
@@ -51,6 +52,7 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
   const [isProjectsExpanded, setIsProjectsExpanded] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   // Floating Tooltip state for collapsed rail mode
   const [hoveredTooltip, setHoveredTooltip] = useState<{
@@ -58,7 +60,24 @@ export function Sidebar() {
     sublabel?: string;
     badge?: string | number | null;
     top: number;
+    left: number;
   } | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Dismiss tooltip on window scroll or resize
+  useEffect(() => {
+    if (!hoveredTooltip) return;
+    const dismissTooltip = () => setHoveredTooltip(null);
+    window.addEventListener("scroll", dismissTooltip, true);
+    window.addEventListener("resize", dismissTooltip);
+    return () => {
+      window.removeEventListener("scroll", dismissTooltip, true);
+      window.removeEventListener("resize", dismissTooltip);
+    };
+  }, [hoveredTooltip]);
 
   const showTooltip = (
     e: React.MouseEvent<HTMLElement>,
@@ -73,6 +92,7 @@ export function Sidebar() {
       badge,
       sublabel,
       top: rect.top + rect.height / 2,
+      left: rect.right + 10,
     });
   };
 
@@ -299,8 +319,9 @@ export function Sidebar() {
         ) : (
           <div
             className="mx-auto cursor-pointer"
+            title={activeWorkspace.name}
             onMouseEnter={(e) =>
-              showTooltip(e, activeWorkspace.name, activeWorkspace.plan?.toUpperCase() || "PRO")
+              showTooltip(e, activeWorkspace.name, activeWorkspace.plan?.toUpperCase() || "PRO", "Active Workspace")
             }
             onMouseLeave={hideTooltip}
           >
@@ -316,8 +337,9 @@ export function Sidebar() {
             hideTooltip();
             setIsCollapsed(!isCollapsed);
           }}
+          title={isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
           onMouseEnter={(e) =>
-            showTooltip(e, isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)")
+            showTooltip(e, isCollapsed ? "Expand Sidebar" : "Collapse Sidebar", undefined, "Toggle Sidebar (⌘B)")
           }
           onMouseLeave={hideTooltip}
           className="text-muted-foreground hover:text-sidebar-foreground p-1.5 rounded-lg hover:bg-sidebar-accent/70 transition-colors cursor-pointer"
@@ -365,7 +387,9 @@ export function Sidebar() {
                       hideTooltip();
                       handleNavClick(item.id);
                     }}
-                    onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
+                    title={isCollapsed ? `${item.label} • ${section.title}` : undefined}
+                    aria-label={item.label}
+                    onMouseEnter={(e) => showTooltip(e, item.label, item.badge, section.title)}
                     onMouseLeave={hideTooltip}
                     className={`w-full relative flex items-center ${
                       isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
@@ -445,6 +469,12 @@ export function Sidebar() {
                             setSelectedProjectId(proj.id);
                             setActiveView("project_detail");
                           }}
+                          title={
+                            isCollapsed
+                              ? `${proj.name} (${proj.progress > 0 ? `${proj.progress}%` : "0%"}) • Active Workstream`
+                              : undefined
+                          }
+                          aria-label={proj.name}
                           onMouseEnter={(e) =>
                             showTooltip(
                               e,
@@ -502,12 +532,14 @@ export function Sidebar() {
             hideTooltip();
             setIsProfileModalOpen(true);
           }}
+          title={isCollapsed ? `${currentUser.full_name} (${currentUser.role.replace("_", " ")})` : undefined}
+          aria-label={currentUser.full_name}
           onMouseEnter={(e) =>
             showTooltip(
               e,
               currentUser.full_name,
               undefined,
-              currentUser.role.replace("_", " ")
+              `Signed in as ${currentUser.role.replace("_", " ")}`
             )
           }
           onMouseLeave={hideTooltip}
@@ -535,8 +567,10 @@ export function Sidebar() {
             hideTooltip();
             handleNavClick("settings");
           }}
+          title={isCollapsed ? "Workspace Settings • Insights & Admin" : undefined}
+          aria-label="Workspace Settings"
           onMouseEnter={(e) =>
-            showTooltip(e, "Workspace Settings", undefined, "Preferences & Database")
+            showTooltip(e, "Workspace Settings", undefined, "Insights & Admin")
           }
           onMouseLeave={hideTooltip}
           className={`w-full flex items-center ${
@@ -548,35 +582,42 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Floating Tooltip Pill for Collapsed Navigation */}
-      {isCollapsed && hoveredTooltip && (
-        <div
-          style={{
-            top: `${hoveredTooltip.top}px`,
-            left: "72px",
-            transform: "translateY(-50%)",
-          }}
-          className="fixed z-[100] pointer-events-none flex items-center px-3 py-1.5 rounded-xl bg-card/95 text-foreground border border-border/90 shadow-2xl text-xs font-semibold backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 whitespace-nowrap"
-        >
-          {/* Subtle Caret pointing to icon */}
-          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-card" />
-          <div className="flex flex-col">
-            <div className="flex items-center space-x-2">
-              <span className="font-bold tracking-tight">{hoveredTooltip.label}</span>
-              {hoveredTooltip.badge && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/25">
-                  {hoveredTooltip.badge}
+      {/* Floating Tooltip Pill for Collapsed Navigation (Rendered in document.body via Portal) */}
+      {mounted &&
+        isCollapsed &&
+        hoveredTooltip &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            style={{
+              top: `${hoveredTooltip.top}px`,
+              left: `${hoveredTooltip.left}px`,
+              transform: "translateY(-50%)",
+            }}
+            className="fixed z-[99999] pointer-events-none flex items-center px-3 py-1.5 rounded-xl bg-popover text-popover-foreground border border-border/90 shadow-2xl text-xs backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 whitespace-nowrap"
+          >
+            {/* Triangular Caret pointing directly to icon */}
+            <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-popover" />
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center space-x-2">
+                <span className="font-bold tracking-tight text-foreground text-xs">
+                  {hoveredTooltip.label}
+                </span>
+                {hoveredTooltip.badge !== undefined && hoveredTooltip.badge !== null && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/25">
+                    {hoveredTooltip.badge}
+                  </span>
+                )}
+              </div>
+              {hoveredTooltip.sublabel && (
+                <span className="text-[10px] text-muted-foreground font-medium">
+                  {hoveredTooltip.sublabel}
                 </span>
               )}
             </div>
-            {hoveredTooltip.sublabel && (
-              <span className="text-[10px] text-muted-foreground capitalize font-normal">
-                {hoveredTooltip.sublabel}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </aside>
   );
 }
