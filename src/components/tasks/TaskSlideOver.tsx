@@ -43,6 +43,7 @@ import {
   isOverdue,
 } from "@/lib/utils";
 import { PriorityLevel, Task } from "@/types";
+import { WysiwygEditor } from "@/components/common/WysiwygEditor";
 
 export function TaskSlideOver() {
   const confirm = useConfirm();
@@ -510,17 +511,19 @@ export function TaskSlideOver() {
             </div>
           </div>
 
-          {/* Description - Rich Markdown Text Area */}
+          {/* Description - Rich WYSIWYG Editor */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Description
-            </label>
-            <textarea
-              rows={4}
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Description
+              </label>
+              <span className="text-[10px] text-muted-foreground/70">WYSIWYG Rich Editor</span>
+            </div>
+            <WysiwygEditor
               value={editingTask.description}
-              onChange={(e) => updateTask(editingTask.id, { description: e.target.value })}
+              onChange={(newDesc) => updateTask(editingTask.id, { description: newDesc })}
               placeholder="Add detailed task description, acceptance criteria, markdown..."
-              className="w-full bg-secondary/30 border border-border/80 rounded-xl p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary focus:bg-background transition-all font-sans"
+              minHeight="140px"
             />
           </div>
 

@@ -23,6 +23,7 @@ import {
   getTaskTypeBadge,
   getDepartmentBadge,
 } from "@/lib/taskTypes";
+import { WysiwygEditor } from "@/components/common/WysiwygEditor";
 
 export function CreateTaskModal() {
   const {
@@ -154,15 +155,17 @@ export function CreateTaskModal() {
                 />
               </div>
 
-              {/* Description */}
-              <div className="space-y-1">
-                <label className="font-medium text-muted-foreground">Description</label>
-                <textarea
-                  rows={2}
-                  placeholder="Add context, acceptance criteria, or relevant links..."
+              {/* Description (WYSIWYG) */}
+              <div className="space-y-1.5">
+                <label className="font-medium text-muted-foreground text-xs flex items-center justify-between">
+                  <span>Description</span>
+                  <span className="text-[10px] text-muted-foreground/70 font-normal">Rich formatting & checklists</span>
+                </label>
+                <WysiwygEditor
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-secondary/30 border border-border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary resize-none transition-all"
+                  onChange={setDescription}
+                  placeholder="Add context, acceptance criteria, checklists, or relevant links..."
+                  minHeight="95px"
                 />
               </div>
 

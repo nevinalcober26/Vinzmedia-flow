@@ -276,7 +276,7 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
       {/* Description Snippet if present */}
       {task.description && (
         <p className="text-[11px] text-muted-foreground line-clamp-1 mb-3">
-          {task.description}
+          {task.description.replace(/<[^>]*>/g, " ").trim()}
         </p>
       )}
 

@@ -12,6 +12,7 @@ import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
 import { CreateProjectModal } from "@/components/modals/CreateProjectModal";
 import { QuickNoteDrawer } from "@/components/notes/QuickNoteDrawer";
 import { EditProfileModal } from "@/components/modals/EditProfileModal";
+import { FloatingActionButton } from "@/components/layout/FloatingActionButton";
 
 // Skeleton Components
 import {
@@ -159,6 +160,7 @@ export default function Home() {
       <CreateProjectModal />
       <QuickNoteDrawer />
       <EditProfileModal />
+      <FloatingActionButton />
     </div>
   );
 }

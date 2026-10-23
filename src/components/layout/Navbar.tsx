@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useStore } from "@/context/StoreContext";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Bell,
@@ -58,6 +59,27 @@ export function Navbar() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close profile menu with smooth exit when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsProfileMenuOpen(false);
+      }
+    }
+    if (isProfileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isProfileMenuOpen]);
 
   // Keyboard shortcut listener for Cmd+K and ?
   React.useEffect(() => {
@@ -174,15 +196,6 @@ export function Navbar() {
             </div>
           )}
 
-          {/* Monday.com Quick Create Item Button */}
-          <button
-            onClick={() => setIsCreateTaskModalOpen(true)}
-            className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold bg-[#0073ea] hover:bg-[#0060c0] text-white rounded-lg transition-all shadow-sm active:scale-95 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Item</span>
-          </button>
-
           {/* Quick Note Floating Button */}
           <button
             onClick={() => setIsQuickNoteOpen(true)}
@@ -231,7 +244,7 @@ export function Navbar() {
           <div className="h-4 w-px bg-border/60 mx-1" />
 
           {/* User Profile Menu */}
-          <div className="relative">
+          <div className="relative" ref={profileMenuRef}>
             <button
               onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
               className="flex items-center space-x-2 p-1 hover:bg-secondary rounded-xl transition-all cursor-pointer focus:outline-none"
@@ -244,60 +257,76 @@ export function Navbar() {
               </span>
             </button>
 
-            {/* Profile Menu Dropdown */}
-            {isProfileMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40 cursor-default"
-                  onClick={() => setIsProfileMenuOpen(false)}
-                />
-                <div
-                  className="absolute right-0 mt-2 w-72 rounded-2xl bg-card border border-border shadow-2xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
-                  onClick={() => setIsProfileMenuOpen(false)}
+            {/* Profile Menu Dropdown with Premium Spring Animation */}
+            <AnimatePresence>
+              {isProfileMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.94, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.94, y: -8 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 450,
+                    damping: 28,
+                    mass: 0.7,
+                  }}
+                  className="absolute right-0 mt-2 w-72 rounded-2xl bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl py-2 z-50 text-xs overflow-hidden"
                 >
-                <div className="px-4 py-3 border-b border-border/60 flex items-center space-x-3">
-                  <UserAvatar user={currentUser} size="md" showStatus />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-foreground text-xs truncate">{currentUser.full_name}</p>
-                    <p className="text-muted-foreground truncate text-[11px]">{currentUser.email}</p>
-                    {currentUser.username && (
-                      <p className="text-primary text-[10px] font-mono">@{currentUser.username}</p>
-                    )}
+                  <div className="px-4 py-3 border-b border-border/60 flex items-center space-x-3">
+                    <UserAvatar user={currentUser} size="md" showStatus />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-foreground text-xs truncate">{currentUser.full_name}</p>
+                      <p className="text-muted-foreground truncate text-[11px]">{currentUser.email}</p>
+                      {currentUser.username && (
+                        <p className="text-primary text-[10px] font-mono">@{currentUser.username}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="p-1 space-y-0.5">
-                  <button
-                    onClick={() => setIsProfileModalOpen(true)}
-                    className="w-full text-left px-3 py-2 text-foreground font-semibold hover:bg-secondary rounded-xl transition-colors flex items-center space-x-2 cursor-pointer"
-                  >
-                    <User className="w-3.5 h-3.5 text-primary" />
-                    <span>Edit Profile & Avatar</span>
-                  </button>
+                  <div className="p-1 space-y-0.5">
+                    <button
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        setIsProfileModalOpen(true);
+                      }}
+                      className="w-full text-left px-3 py-2 text-foreground font-semibold hover:bg-secondary rounded-xl transition-colors flex items-center space-x-2 cursor-pointer"
+                    >
+                      <User className="w-3.5 h-3.5 text-primary" />
+                      <span>Edit Profile & Avatar</span>
+                    </button>
 
-                  <button
-                    onClick={() => setActiveView("team")}
-                    className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
-                  >
-                    Team & RBAC Permissions
-                  </button>
-                  <button
-                    onClick={() => setActiveView("settings")}
-                    className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
-                  >
-                    Workspace Settings & Database
-                  </button>
-                  <button
-                    onClick={logout}
-                    className="w-full text-left px-3 py-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center space-x-2 cursor-pointer"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
-                </div>
-              </div>
-              </>
-            )}
+                    <button
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        setActiveView("team");
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
+                    >
+                      Team & RBAC Permissions
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        setActiveView("settings");
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors cursor-pointer"
+                    >
+                      Workspace Settings & Database
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        logout();
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center space-x-2 cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </header>
