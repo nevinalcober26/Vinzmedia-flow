@@ -112,8 +112,8 @@ export function CalendarView({ projectId }: CalendarViewProps) {
         </div>
 
         {/* Days Grid */}
-        <div className="flex-1 grid grid-cols-7 grid-rows-5 divide-x divide-y divide-border/40">
-          {days.slice(0, 35).map((day) => {
+        <div className="flex-1 grid grid-cols-7 auto-rows-fr divide-x divide-y divide-border/40 overflow-y-auto">
+          {days.map((day) => {
             const dateStr = format(day, "yyyy-MM-dd");
             const dayTasks = tasksByDate[dateStr] || [];
             const isCurMonth = isSameMonth(day, monthStart);
@@ -122,27 +122,25 @@ export function CalendarView({ projectId }: CalendarViewProps) {
             return (
               <div
                 key={day.toISOString()}
-                className={`group/day min-h-[105px] p-2 flex flex-col transition-colors overflow-hidden ${
-                  !isCurMonth ? "bg-secondary/15 opacity-50" : "bg-card hover:bg-secondary/10"
+                onClick={() => setIsCreateTaskModalOpen(true, "todo", dateStr)}
+                title={`Click anywhere in this square to add a task for ${format(day, "MMMM d, yyyy")}`}
+                className={`group/day min-h-[105px] p-2 flex flex-col transition-all overflow-hidden cursor-pointer select-none relative ${
+                  !isCurMonth
+                    ? "bg-secondary/15 opacity-50 hover:opacity-80 hover:bg-secondary/25"
+                    : "bg-card hover:bg-primary/5 hover:ring-1 hover:ring-primary/30"
                 } ${isCurrentDay ? "ring-1 ring-inset ring-primary/40 bg-primary/5" : ""}`}
               >
                 {/* Day Header */}
-                <div className="flex items-center justify-between mb-1.5 px-0.5">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsCreateTaskModalOpen(true, "todo", dateStr);
-                    }}
-                    title={`Create task for ${format(day, "MMM d, yyyy")}`}
-                    className={`text-xs font-mono font-semibold rounded-full w-6 h-6 flex items-center justify-center transition-all cursor-pointer ${
+                <div className="flex items-center justify-between mb-1.5 px-0.5 pointer-events-none">
+                  <span
+                    className={`text-xs font-mono font-semibold rounded-full w-6 h-6 flex items-center justify-center transition-all ${
                       isCurrentDay
-                        ? "bg-primary text-primary-foreground font-bold shadow-xs ring-2 ring-primary/20 scale-105 hover:bg-primary/90"
-                        : "text-foreground hover:bg-primary hover:text-primary-foreground hover:scale-110 active:scale-95"
+                        ? "bg-primary text-primary-foreground font-bold shadow-xs ring-2 ring-primary/20 scale-105"
+                        : "text-foreground group-hover/day:text-primary group-hover/day:font-bold"
                     }`}
                   >
                     {format(day, "d")}
-                  </button>
+                  </span>
 
                   <div className="flex items-center space-x-1">
                     {dayTasks.length > 0 && (
@@ -150,17 +148,12 @@ export function CalendarView({ projectId }: CalendarViewProps) {
                         {dayTasks.length}
                       </span>
                     )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsCreateTaskModalOpen(true, "todo", dateStr);
-                      }}
+                    <div
+                      className="opacity-0 group-hover/day:opacity-100 p-0.5 rounded-md text-primary bg-primary/10 transition-all"
                       title={`Add task for ${format(day, "MMM d")}`}
-                      className="opacity-0 group-hover/day:opacity-100 p-1 rounded text-muted-foreground hover:text-primary hover:bg-secondary transition-all cursor-pointer"
                     >
-                      <Plus className="w-3 h-3" />
-                    </button>
+                      <Plus className="w-3.5 h-3.5" />
+                    </div>
                   </div>
                 </div>
 
@@ -168,13 +161,15 @@ export function CalendarView({ projectId }: CalendarViewProps) {
                 <div className="flex-1 overflow-y-auto space-y-1">
                   {dayTasks.slice(0, 3).map((task) => {
                     const project = projects.find((p) => p.id === task.project_id);
-                    const priorityStyle = getPriorityBadgeColor(task.priority);
                     return (
                       <div
                         key={task.id}
-                        onClick={() => setEditingTask(task)}
-                        title={task.title}
-                        className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary/80 hover:bg-secondary text-foreground truncate cursor-pointer border border-border/40 hover:border-border flex items-center space-x-1 transition-all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingTask(task);
+                        }}
+                        title={`Task: ${task.title}`}
+                        className="px-1.5 py-0.5 rounded-lg text-[10px] font-medium bg-secondary/80 hover:bg-secondary text-foreground truncate cursor-pointer border border-border/40 hover:border-primary/50 flex items-center space-x-1.5 transition-all shadow-2xs"
                       >
                         <span
                           className="w-1.5 h-1.5 rounded-full flex-shrink-0"
@@ -185,8 +180,15 @@ export function CalendarView({ projectId }: CalendarViewProps) {
                     );
                   })}
                   {dayTasks.length > 3 && (
-                    <div className="text-[10px] text-muted-foreground px-1 font-medium">
-                      +{dayTasks.length - 3} more
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCreateTaskModalOpen(true, "todo", dateStr);
+                      }}
+                      className="text-[10px] text-primary hover:underline px-1 font-semibold flex items-center justify-between cursor-pointer"
+                    >
+                      <span>+{dayTasks.length - 3} more</span>
+                      <span className="text-[9px] opacity-75">+ Add</span>
                     </div>
                   )}
                 </div>
