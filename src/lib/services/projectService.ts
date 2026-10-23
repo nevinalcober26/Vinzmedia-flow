@@ -66,6 +66,9 @@ export const projectService = {
         payment_status: row.payment_status || "unpaid",
         paid_amount: Number(row.paid_amount) || 0,
         last_payment_date: row.last_payment_date || null,
+        enable_currency_conversion: row.enable_currency_conversion || false,
+        converted_currency: row.converted_currency || "USD",
+        conversion_rate: Number(row.conversion_rate) || 1.0,
         task_types: row.task_types || undefined,
         departments: row.departments || undefined,
         installments: paymentsMap[row.id] || row.installments || [],
@@ -114,6 +117,9 @@ export const projectService = {
       if (project.payment_status !== undefined) payload.payment_status = project.payment_status;
       if (project.paid_amount !== undefined) payload.paid_amount = project.paid_amount;
       if (project.last_payment_date !== undefined) payload.last_payment_date = project.last_payment_date;
+      if (project.enable_currency_conversion !== undefined) payload.enable_currency_conversion = project.enable_currency_conversion;
+      if (project.converted_currency !== undefined) payload.converted_currency = project.converted_currency;
+      if (project.conversion_rate !== undefined) payload.conversion_rate = project.conversion_rate;
       if (project.task_types !== undefined) payload.task_types = project.task_types;
       if (project.departments !== undefined) payload.departments = project.departments;
 
@@ -197,6 +203,9 @@ export const projectService = {
       if (updates.payment_status !== undefined) payload.payment_status = updates.payment_status;
       if (updates.paid_amount !== undefined) payload.paid_amount = updates.paid_amount;
       if (updates.last_payment_date !== undefined) payload.last_payment_date = updates.last_payment_date;
+      if (updates.enable_currency_conversion !== undefined) payload.enable_currency_conversion = updates.enable_currency_conversion;
+      if (updates.converted_currency !== undefined) payload.converted_currency = updates.converted_currency;
+      if (updates.conversion_rate !== undefined) payload.conversion_rate = updates.conversion_rate;
       if (updates.task_types !== undefined) payload.task_types = updates.task_types;
       if (updates.departments !== undefined) payload.departments = updates.departments;
 

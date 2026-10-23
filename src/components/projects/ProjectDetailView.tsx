@@ -123,8 +123,8 @@ export function ProjectDetailView() {
   };
 
   const tabs: { id: ProjectSubTab; label: string; icon: any; count?: number }[] = [
-    { id: "list", label: "Main Table", icon: ListIcon, count: projectTasks.length },
-    { id: "board", label: "Kanban", icon: Kanban },
+    { id: "board", label: "Kanban Board", icon: Kanban, count: projectTasks.length },
+    { id: "list", label: "Main Table", icon: ListIcon },
     { id: "timeline", label: "Timeline", icon: BarChart3 },
     { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "files", label: "Files", icon: Paperclip, count: projectFiles.length },

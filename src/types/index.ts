@@ -99,6 +99,9 @@ export interface Project {
   payment_status?: "unpaid" | "partially_paid" | "paid";
   paid_amount?: number;
   last_payment_date?: string;
+  enable_currency_conversion?: boolean;
+  converted_currency?: string;
+  conversion_rate?: number;
   task_types?: string[];
   departments?: string[];
   created_at: string;
@@ -114,6 +117,10 @@ export interface ProjectInvoice {
   due_date?: string;
   total_amount: number;
   status: "draft" | "sent" | "paid";
+  enable_currency_conversion?: boolean;
+  converted_currency?: string;
+  conversion_rate?: number;
+  converted_total_amount?: number;
   items?: Array<{
     description: string;
     quantity?: number;

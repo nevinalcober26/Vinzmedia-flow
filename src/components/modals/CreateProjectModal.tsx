@@ -89,6 +89,9 @@ export function CreateProjectModal() {
       hourly_rate: billingType === "hourly" ? parsedRate : 0,
       estimated_hours: billingType === "hourly" ? parsedEst : 0,
       estimated_hours_per_week: billingType === "hourly" ? parsedEst : 0,
+      enable_currency_conversion: false,
+      converted_currency: "PHP",
+      conversion_rate: 57.5,
       task_types: DEFAULT_TASK_TYPES.map((t) => t.name),
       departments: DEFAULT_DEPARTMENTS,
     });

@@ -264,7 +264,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }, 240);
     return () => clearTimeout(timer);
   }, []);
-  const [projectSubTab, setProjectSubTab] = useState<ProjectSubTab>("list");
+  const [projectSubTab, setProjectSubTab] = useState<ProjectSubTab>("board");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);

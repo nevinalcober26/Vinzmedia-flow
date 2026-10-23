@@ -17,10 +17,18 @@ import {
   Plus,
   Trash2,
   Sparkles,
+  ArrowRightLeft,
+  Globe,
 } from "lucide-react";
 import { Project, ProjectBillingType, ProjectPaymentInstallment } from "@/types";
 import { useStore } from "@/context/StoreContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  SUPPORTED_CURRENCIES,
+  getCurrencyInfo,
+  getDefaultExchangeRate,
+  formatCurrencyAmount,
+} from "@/lib/currencyRates";
 
 interface EditProjectBillingModalProps {
   isOpen: boolean;
@@ -58,6 +66,19 @@ export function EditProjectBillingModal({
     project.payment_status || "unpaid"
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Currency Conversion state
+  const [enableConversion, setEnableConversion] = useState<boolean>(
+    project.enable_currency_conversion || false
+  );
+  const [targetCurrency, setTargetCurrency] = useState<string>(
+    project.converted_currency || "PHP"
+  );
+  const [conversionRate, setConversionRate] = useState<string>(
+    project.conversion_rate
+      ? String(project.conversion_rate)
+      : String(getDefaultExchangeRate(project.currency || "$", "PHP"))
+  );
 
   const parsedFixed = parseFloat(fixedAmount) || 0;
   const parsedRate = parseFloat(hourlyRate) || 0;
@@ -112,6 +133,16 @@ export function EditProjectBillingModal({
       );
       setCurrency(project.currency || "$");
       setPaymentStatus(project.payment_status || "unpaid");
+
+      // Currency conversion initialization
+      setEnableConversion(project.enable_currency_conversion || false);
+      const targetCurr = project.converted_currency || "PHP";
+      setTargetCurrency(targetCurr);
+      setConversionRate(
+        project.conversion_rate
+          ? String(project.conversion_rate)
+          : String(getDefaultExchangeRate(project.currency || "$", targetCurr))
+      );
 
       // Load existing installments or generate default
       const existing = project.installments || [];
@@ -221,6 +252,15 @@ export function EditProjectBillingModal({
     }
   }, [fixedAmount]);
 
+  const handleTargetCurrencyChange = (newTarget: string) => {
+    setTargetCurrency(newTarget);
+    setConversionRate(String(getDefaultExchangeRate(currency, newTarget)));
+  };
+
+  const handleResetDefaultRate = () => {
+    setConversionRate(String(getDefaultExchangeRate(currency, targetCurrency)));
+  };
+
   if (!isOpen) return null;
 
   const totalPercentage = Math.round(
@@ -277,6 +317,11 @@ export function EditProjectBillingModal({
         updates.last_payment_date =
           paymentStatus === "paid" ? new Date().toISOString() : project.last_payment_date;
       }
+
+      // Currency conversion updates
+      updates.enable_currency_conversion = enableConversion;
+      updates.converted_currency = targetCurrency;
+      updates.conversion_rate = parseFloat(conversionRate) || 1.0;
 
       updateProject(project.id, updates);
       toast?.success("Billing Updated", `Updated pricing model for ${project.name}`);
@@ -666,6 +711,131 @@ export function EditProjectBillingModal({
                 )}
               </div>
             )}
+
+            {/* Currency Conversion Section */}
+            <div className="space-y-3 pt-3 border-t border-border/60">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/20 border border-border/60">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <ArrowRightLeft className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-foreground block">
+                      Multi-Currency Conversion
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Enable to select conversion currency & display on final invoices
+                    </span>
+                  </div>
+                </div>
+
+                {/* Monday Toggle Switch */}
+                <button
+                  type="button"
+                  onClick={() => setEnableConversion(!enableConversion)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    enableConversion ? "bg-[#0073ea]" : "bg-muted-foreground/30"
+                  }`}
+                  role="switch"
+                  aria-checked={enableConversion}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      enableConversion ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Converted Currency Configuration (Hidden by default, shown when toggle is enabled) */}
+              {enableConversion && (
+                <div className="p-3.5 rounded-xl bg-secondary/30 border border-primary/20 space-y-3 animate-in fade-in slide-in-from-top-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Target Currency Selection */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-foreground flex items-center space-x-1">
+                        <Globe className="w-3 h-3 text-primary" />
+                        <span>Target Conversion Currency</span>
+                      </label>
+                      <select
+                        value={targetCurrency}
+                        onChange={(e) => handleTargetCurrencyChange(e.target.value)}
+                        className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer font-medium"
+                      >
+                        {SUPPORTED_CURRENCIES.map((curr) => (
+                          <option key={curr.code} value={curr.code}>
+                            {curr.flag} {curr.code} ({curr.symbol}) — {curr.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Exchange Rate Input */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold text-foreground">
+                          Exchange Rate (1 {currency} =)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleResetDefaultRate}
+                          className="text-[10px] text-primary hover:underline font-medium cursor-pointer"
+                          title="Reset to market benchmark rate"
+                        >
+                          Auto Rate
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.0001"
+                          min="0.0001"
+                          value={conversionRate}
+                          onChange={(e) => setConversionRate(e.target.value)}
+                          className="w-full bg-background border border-border rounded-lg pl-3 pr-12 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary font-mono"
+                        />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground pointer-events-none">
+                          {targetCurrency}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Realtime Converted Amount Live Badge */}
+                  <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-primary tracking-wide block">
+                        Live Converted Total
+                      </span>
+                      <span className="text-[11px] text-muted-foreground font-mono">
+                        Base: {currency}
+                        {(billingType === "fixed" ? parsedFixed : weeklyAmount).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
+                        {billingType === "hourly" ? "/ week" : "total"}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono text-sm font-bold text-primary">
+                        {getCurrencyInfo(targetCurrency).symbol}
+                        {(
+                          (billingType === "fixed" ? parsedFixed : weeklyAmount) *
+                          (parseFloat(conversionRate) || 1)
+                        ).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
+                        {targetCurrency}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        Reflected on final client invoices
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Payment Settlement Status */}
             <div className="space-y-1.5 pt-2 border-t border-border/60">

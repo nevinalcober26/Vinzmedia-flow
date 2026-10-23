@@ -15,10 +15,18 @@ import {
   FileText,
   DollarSign,
   Share2,
+  ArrowRightLeft,
+  Globe,
 } from "lucide-react";
 import { Project, Task } from "@/types";
 import { useStore } from "@/context/StoreContext";
 import { formatDate } from "@/lib/utils";
+import {
+  SUPPORTED_CURRENCIES,
+  getCurrencyInfo,
+  getDefaultExchangeRate,
+  formatCurrencyAmount,
+} from "@/lib/currencyRates";
 
 interface ProjectInvoiceModalProps {
   isOpen: boolean;
@@ -35,6 +43,28 @@ export function ProjectInvoiceModal({
   const [invoiceStatus, setInvoiceStatus] = useState<"Draft" | "Issued" | "Paid">(
     project.payment_status === "paid" ? "Paid" : "Issued"
   );
+
+  // Currency Conversion state
+  const [enableConversion, setEnableConversion] = useState<boolean>(
+    project.enable_currency_conversion || false
+  );
+  const [targetCurrency, setTargetCurrency] = useState<string>(
+    project.converted_currency || "PHP"
+  );
+  const [conversionRate, setConversionRate] = useState<string>(
+    project.conversion_rate
+      ? String(project.conversion_rate)
+      : String(getDefaultExchangeRate(project.currency || "$", "PHP"))
+  );
+
+  const handleTargetCurrencyChange = (newTarget: string) => {
+    setTargetCurrency(newTarget);
+    setConversionRate(String(getDefaultExchangeRate(project.currency || "$", newTarget)));
+  };
+
+  const handleResetRate = () => {
+    setConversionRate(String(getDefaultExchangeRate(project.currency || "$", targetCurrency)));
+  };
 
   if (!isOpen) return null;
 
@@ -68,6 +98,11 @@ export function ProjectInvoiceModal({
     : accruedEarnings > 0
     ? accruedEarnings
     : weeklyEstimatedAmount;
+
+  // Conversion calculations
+  const parsedRate = parseFloat(conversionRate) || 1.0;
+  const targetCurrencyInfo = getCurrencyInfo(targetCurrency);
+  const convertedFinalTotal = finalTotal * parsedRate;
 
   const handleStatusChange = (newStatus: "Draft" | "Issued" | "Paid") => {
     setInvoiceStatus(newStatus);
@@ -131,6 +166,81 @@ export function ProjectInvoiceModal({
                 <X className="w-4 h-4" />
               </button>
             </div>
+          </div>
+
+          {/* Currency Conversion Options Bar (Screen Only - Hidden in Print) */}
+          <div className="no-print px-6 py-2.5 bg-secondary/20 border-b border-border/70 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center space-x-2.5">
+              <span className="font-semibold text-foreground flex items-center space-x-1.5">
+                <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
+                <span>Currency Conversion:</span>
+              </span>
+
+              {/* Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setEnableConversion(!enableConversion)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                  enableConversion ? "bg-[#0073ea]" : "bg-muted-foreground/30"
+                }`}
+                role="switch"
+                aria-checked={enableConversion}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                    enableConversion ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+
+              <span className="text-[11px] text-muted-foreground">
+                {enableConversion ? "Enabled (Reflected on invoice)" : "Disabled (Hidden by default)"}
+              </span>
+            </div>
+
+            {enableConversion && (
+              <div className="flex items-center space-x-2 flex-wrap animate-in fade-in">
+                {/* Target Currency Select */}
+                <select
+                  value={targetCurrency}
+                  onChange={(e) => handleTargetCurrencyChange(e.target.value)}
+                  className="bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground cursor-pointer font-medium"
+                >
+                  {SUPPORTED_CURRENCIES.map((curr) => (
+                    <option key={curr.code} value={curr.code}>
+                      {curr.flag} {curr.code} ({curr.symbol})
+                    </option>
+                  ))}
+                </select>
+
+                {/* Rate Input */}
+                <div className="flex items-center space-x-1">
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    1 {project.currency || "$"} =
+                  </span>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0.0001"
+                    value={conversionRate}
+                    onChange={(e) => setConversionRate(e.target.value)}
+                    className="w-20 bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground font-mono"
+                  />
+                  <span className="text-[11px] font-bold text-muted-foreground font-mono">
+                    {targetCurrency}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleResetRate}
+                  className="text-[10px] text-primary hover:underline font-semibold ml-1 cursor-pointer"
+                  title="Reset to market rate benchmark"
+                >
+                  Auto
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Printable Invoice Sheet */}
@@ -200,6 +310,11 @@ export function ProjectInvoiceModal({
                 <p className="text-muted-foreground mt-0.5 font-mono">
                   Currency: {currencySymbol} ({project.currency || "USD"})
                 </p>
+                {enableConversion && (
+                  <p className="text-[#0073ea] font-medium mt-1 font-mono text-[11px]">
+                    💱 1 {project.currency || "$"} = {parsedRate} {targetCurrency}
+                  </p>
+                )}
               </div>
 
               <div className="sm:text-right">
@@ -359,15 +474,30 @@ export function ProjectInvoiceModal({
 
             {/* Total Summary Breakdown */}
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-2">
-              <div className="text-xs text-muted-foreground max-w-sm space-y-1">
-                <p className="font-bold text-foreground">Payment Instructions:</p>
-                <p>
-                  Please submit payment via direct bank transfer or corporate card. Reference
-                  Invoice <span className="font-mono font-bold text-foreground">#{invoiceNumber}</span> on all correspondence.
-                </p>
+              <div className="text-xs text-muted-foreground max-w-sm space-y-2">
+                <div>
+                  <p className="font-bold text-foreground">Payment Instructions:</p>
+                  <p>
+                    Please submit payment via direct bank transfer or corporate card. Reference
+                    Invoice <span className="font-mono font-bold text-foreground">#{invoiceNumber}</span> on all correspondence.
+                  </p>
+                </div>
+
+                {enableConversion && (
+                  <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-900 dark:text-blue-200">
+                    <p className="font-bold text-blue-600 dark:text-blue-400">
+                      Multi-Currency Settlement Notice:
+                    </p>
+                    <p className="mt-0.5 leading-relaxed">
+                      Clients paying in <strong>{targetCurrencyInfo.name} ({targetCurrency})</strong> may remit{" "}
+                      <strong className="font-mono text-foreground">{targetCurrencyInfo.symbol}{convertedFinalTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {targetCurrency}</strong>{" "}
+                      at the locked rate of <strong>1 {project.currency || "$"} = {parsedRate} {targetCurrency}</strong>.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <div className="w-full sm:w-72 space-y-2 text-xs">
+              <div className="w-full sm:w-80 space-y-2 text-xs">
                 <div className="flex justify-between py-1 text-muted-foreground">
                   <span>Subtotal:</span>
                   <span className="font-mono font-semibold text-foreground">
@@ -392,6 +522,32 @@ export function ProjectInvoiceModal({
                     })}
                   </span>
                 </div>
+
+                {/* Highlighted Converted Total on Final Invoice */}
+                {enableConversion && (
+                  <div className="p-3.5 rounded-xl bg-blue-500/10 border-2 border-blue-500/30 text-foreground space-y-1 mt-2">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                      <span className="flex items-center space-x-1.5">
+                        <ArrowRightLeft className="w-3.5 h-3.5" />
+                        <span>Converted Payable Total:</span>
+                      </span>
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        1 {project.currency || "$"} = {parsedRate}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between pt-0.5">
+                      <span className="text-[11px] text-muted-foreground">In {targetCurrency}:</span>
+                      <span className="font-mono text-lg font-extrabold text-[#0073ea]">
+                        {targetCurrencyInfo.symbol}
+                        {convertedFinalTotal.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
+                        <span className="text-xs font-bold text-foreground">{targetCurrency}</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
