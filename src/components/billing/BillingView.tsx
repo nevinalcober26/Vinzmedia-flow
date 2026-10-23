@@ -31,6 +31,7 @@ import {
   CreditCard,
   Briefcase,
   Users,
+  CalendarDays,
 } from "lucide-react";
 import { Project, Task, Client, ProjectPaymentInstallment } from "@/types";
 import { useStore } from "@/context/StoreContext";
@@ -67,6 +68,9 @@ export function BillingView() {
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"projects" | "invoices" | "hourly">("projects");
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+
+  // Cycle Subtotal View Mode: Full Total vs Per Week vs 15 Days vs 30 Days
+  const [cycleView, setCycleView] = useState<"total" | "weekly" | "15_days" | "30_days">("total");
 
   // Currency Converter Preview State
   const [enableConversionPreview, setEnableConversionPreview] = useState(false);
@@ -192,6 +196,32 @@ export function BillingView() {
 
       const client = proj.client_id ? clientMap.get(proj.client_id) : undefined;
 
+      // Cycle Subtotal Calculations (Weekly, 15 Days, 30 Days)
+      const baseHoursPerWk = Number(proj.estimated_hours_per_week || proj.estimated_hours || 40);
+      let weeklySubtotal = 0;
+      let semiMonthlySubtotal = 0;
+      let monthlySubtotal = 0;
+
+      if (isHourly) {
+        weeklySubtotal = Math.round(baseHoursPerWk * hourlyRate * 100) / 100;
+        semiMonthlySubtotal = Math.round(((baseHoursPerWk * 15) / 7) * hourlyRate * 100) / 100;
+        monthlySubtotal = Math.round(((baseHoursPerWk * 30) / 7) * hourlyRate * 100) / 100;
+      } else {
+        let durationDays = 30;
+        if (proj.start_date && proj.target_date) {
+          const s = new Date(proj.start_date).getTime();
+          const e = new Date(proj.target_date).getTime();
+          const d = Math.ceil((e - s) / 86400000);
+          if (d > 0) durationDays = d;
+        }
+        const weeks = Math.max(1, Math.round(durationDays / 7));
+        const cycles = Math.max(1, Math.round(durationDays / 15));
+        const months = Math.max(1, Math.round(durationDays / 30));
+        weeklySubtotal = Math.round((fixedTotal / weeks) * 100) / 100;
+        semiMonthlySubtotal = Math.round((fixedTotal / cycles) * 100) / 100;
+        monthlySubtotal = Math.round((fixedTotal / months) * 100) / 100;
+      }
+
       return {
         project: proj,
         client,
@@ -199,6 +229,9 @@ export function BillingView() {
         totalAmount,
         paidAmount,
         pendingAmount,
+        weeklySubtotal,
+        semiMonthlySubtotal,
+        monthlySubtotal,
         effectiveStatus,
         trackedHours,
         hourlyRate,
@@ -252,6 +285,7 @@ export function BillingView() {
     let totalRevenue = 0;
     let paidRevenue = 0;
     let pendingRevenue = 0;
+    let totalCycleRevenue = 0;
     let totalHours = 0;
     let totalMilestones = 0;
     let paidMilestones = 0;
@@ -266,6 +300,17 @@ export function BillingView() {
         paidRevenue += item.paidAmount;
         pendingRevenue += item.pendingAmount;
       }
+
+      const cycleAmt =
+        cycleView === "weekly"
+          ? item.weeklySubtotal
+          : cycleView === "15_days"
+          ? item.semiMonthlySubtotal
+          : cycleView === "30_days"
+          ? item.monthlySubtotal
+          : item.totalAmount;
+      totalCycleRevenue += enableConversionPreview ? cycleAmt * item.fxRate : cycleAmt;
+
       totalHours += item.trackedHours;
       totalMilestones += item.totalInstallmentsCount;
       paidMilestones += item.paidInstallmentsCount;
@@ -278,6 +323,7 @@ export function BillingView() {
 
     return {
       totalRevenue,
+      totalCycleRevenue,
       paidRevenue,
       pendingRevenue,
       collectionPercentage,
@@ -286,7 +332,7 @@ export function BillingView() {
       paidMilestones,
       milestonePercentage,
     };
-  }, [projectFinancials, enableConversionPreview]);
+  }, [projectFinancials, enableConversionPreview, cycleView]);
 
   const targetCurInfo = getCurrencyInfo(targetCurrency);
 
@@ -361,10 +407,18 @@ export function BillingView() {
 
       {/* Financial KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Card 1: Total Revenue */}
+        {/* Card 1: Total Revenue / Selected Cycle Subtotal */}
         <div className="rounded-xl border border-border/70 bg-card p-4 shadow-xs relative overflow-hidden group hover:border-primary/40 transition-all">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Total Contract Value</span>
+            <span className="text-xs font-medium uppercase tracking-wider">
+              {cycleView === "weekly"
+                ? "Weekly Payment Subtotal"
+                : cycleView === "15_days"
+                ? "15-Day Payment Subtotal"
+                : cycleView === "30_days"
+                ? "30-Day Monthly Subtotal"
+                : "Total Contract Value"}
+            </span>
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
               <Coins className="w-4 h-4" />
             </div>
@@ -372,16 +426,29 @@ export function BillingView() {
           <div className="flex items-baseline space-x-2">
             <span className="text-2xl font-bold tracking-tight text-foreground">
               {enableConversionPreview
-                ? formatCurrencyAmount(summaryKPIs.totalRevenue, targetCurrency)
-                : `$${summaryKPIs.totalRevenue.toLocaleString(undefined, {
+                ? formatCurrencyAmount(
+                    cycleView === "total" ? summaryKPIs.totalRevenue : summaryKPIs.totalCycleRevenue,
+                    targetCurrency
+                  )
+                : `$${(cycleView === "total"
+                    ? summaryKPIs.totalRevenue
+                    : summaryKPIs.totalCycleRevenue
+                  ).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}`}
             </span>
+            {cycleView !== "total" && (
+              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                {cycleView === "weekly" ? "per week" : cycleView === "15_days" ? "per 15 days" : "per month"}
+              </span>
+            )}
           </div>
           <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1.5">
             <Briefcase className="w-3 h-3 text-primary" />
-            Across {projects.length} workspace projects
+            {cycleView === "total"
+              ? `Across ${projects.length} workspace projects`
+              : `Estimated per billing cycle across active projects`}
           </p>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-blue-500 opacity-60" />
         </div>
@@ -586,6 +653,48 @@ export function BillingView() {
       {/* TAB 1: Projects & Milestones Directory */}
       {activeTab === "projects" && (
         <div className="space-y-3">
+          {/* Payment Schedule Subtotal Cycle Selector */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 py-2 rounded-xl bg-card border border-border/70 shadow-2xs">
+            <div className="flex items-center space-x-2">
+              <CalendarDays className="w-4 h-4 text-primary" />
+              <span className="text-xs font-bold text-foreground">
+                Payment Subtotal Cycle:
+              </span>
+              <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                Select to calculate payment amounts per week, every 15 days, or 30 days
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-1.5 flex-wrap">
+              {[
+                { id: "total", label: "Full Contract", emoji: "📦" },
+                { id: "weekly", label: "Per Week (Net 7)", emoji: "🗓️" },
+                { id: "15_days", label: "Every 15 Days (Net 15)", emoji: "🌓" },
+                { id: "30_days", label: "30 Days (Net 30)", emoji: "🌕" },
+              ].map((cycle) => (
+                <button
+                  key={cycle.id}
+                  type="button"
+                  onClick={() => {
+                    setCycleView(cycle.id as any);
+                    toast?.success(
+                      "Payment Subtotal Recalculated",
+                      `Displaying payment amounts: ${cycle.label}`
+                    );
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1 ${
+                    cycleView === cycle.id
+                      ? "bg-primary text-primary-foreground shadow-xs font-bold ring-1 ring-primary/40"
+                      : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary border border-border/60"
+                  }`}
+                >
+                  <span>{cycle.emoji}</span>
+                  <span>{cycle.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {filteredProjectFinancials.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border bg-card">
               <Receipt className="w-10 h-10 text-muted-foreground/40 mb-3" />
@@ -602,7 +711,15 @@ export function BillingView() {
                     <tr>
                       <th className="py-3 px-4">Project & Client</th>
                       <th className="py-3 px-4">Billing Model</th>
-                      <th className="py-3 px-4">Contract Price / Rate</th>
+                      <th className="py-3 px-4">
+                        {cycleView === "weekly"
+                          ? "Weekly Payment Subtotal"
+                          : cycleView === "15_days"
+                          ? "15-Day Payment Subtotal"
+                          : cycleView === "30_days"
+                          ? "30-Day Monthly Subtotal"
+                          : "Contract Price / Rate"}
+                      </th>
                       <th className="py-3 px-4">Settlement Progress</th>
                       <th className="py-3 px-4">Milestones / Logged</th>
                       <th className="py-3 px-4">Status</th>
@@ -618,6 +735,9 @@ export function BillingView() {
                         totalAmount,
                         paidAmount,
                         pendingAmount,
+                        weeklySubtotal,
+                        semiMonthlySubtotal,
+                        monthlySubtotal,
                         effectiveStatus,
                         trackedHours,
                         hourlyRate,
@@ -708,10 +828,25 @@ export function BillingView() {
                               </div>
                             </td>
 
-                            {/* Contract Price / Rate */}
+                            {/* Contract Price / Rate or Cycle Subtotal */}
                             <td className="py-3.5 px-4">
                               <div className="font-semibold text-foreground">
-                                {isHourly ? (
+                                {cycleView === "weekly" ? (
+                                  <span className="text-primary font-bold text-[13px]">
+                                    {formatCurrencyAmount(weeklySubtotal, baseCurrency)}
+                                    <span className="text-[10px] text-muted-foreground font-normal ml-1">/ wk</span>
+                                  </span>
+                                ) : cycleView === "15_days" ? (
+                                  <span className="text-primary font-bold text-[13px]">
+                                    {formatCurrencyAmount(semiMonthlySubtotal, baseCurrency)}
+                                    <span className="text-[10px] text-muted-foreground font-normal ml-1">/ 15 days</span>
+                                  </span>
+                                ) : cycleView === "30_days" ? (
+                                  <span className="text-primary font-bold text-[13px]">
+                                    {formatCurrencyAmount(monthlySubtotal, baseCurrency)}
+                                    <span className="text-[10px] text-muted-foreground font-normal ml-1">/ month</span>
+                                  </span>
+                                ) : isHourly ? (
                                   <span>
                                     {formatCurrencyAmount(hourlyRate, baseCurrency)}/hr
                                   </span>
@@ -721,9 +856,24 @@ export function BillingView() {
                                   </span>
                                 )}
                               </div>
+                              {cycleView !== "total" && (
+                                <div className="text-[10px] text-muted-foreground mt-0.5">
+                                  Contract: {formatCurrencyAmount(totalAmount, baseCurrency)}
+                                </div>
+                              )}
                               {enableConversionPreview && (
                                 <div className="text-[11px] text-primary font-medium mt-0.5">
-                                  ≈ {formatCurrencyAmount(convertedTotal, targetCurrency)}
+                                  ≈{" "}
+                                  {formatCurrencyAmount(
+                                    cycleView === "weekly"
+                                      ? weeklySubtotal * fxRate
+                                      : cycleView === "15_days"
+                                      ? semiMonthlySubtotal * fxRate
+                                      : cycleView === "30_days"
+                                      ? monthlySubtotal * fxRate
+                                      : convertedTotal,
+                                    targetCurrency
+                                  )}
                                 </div>
                               )}
                             </td>
@@ -804,7 +954,13 @@ export function BillingView() {
                                   Edit Billing
                                 </button>
                                 <button
-                                  onClick={() => setInvoicingProject(project)}
+                                  onClick={() =>
+                                    setInvoicingProject(
+                                      cycleView !== "total"
+                                        ? { ...project, payment_schedule: cycleView }
+                                        : project
+                                    )
+                                  }
                                   className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs flex items-center space-x-1"
                                 >
                                   <Printer className="w-3 h-3" />
@@ -972,11 +1128,38 @@ export function BillingView() {
                         </td>
                         <td className="py-3.5 px-4">
                           <div className="font-semibold">
-                            {formatCurrencyAmount(item.totalAmount, baseCurrency)}
+                            {cycleView === "weekly" ? (
+                              <span className="text-primary font-bold">
+                                {formatCurrencyAmount(item.weeklySubtotal, baseCurrency)}
+                                <span className="text-[10px] text-muted-foreground font-normal ml-1">/ wk</span>
+                              </span>
+                            ) : cycleView === "15_days" ? (
+                              <span className="text-primary font-bold">
+                                {formatCurrencyAmount(item.semiMonthlySubtotal, baseCurrency)}
+                                <span className="text-[10px] text-muted-foreground font-normal ml-1">/ 15 days</span>
+                              </span>
+                            ) : cycleView === "30_days" ? (
+                              <span className="text-primary font-bold">
+                                {formatCurrencyAmount(item.monthlySubtotal, baseCurrency)}
+                                <span className="text-[10px] text-muted-foreground font-normal ml-1">/ mo</span>
+                              </span>
+                            ) : (
+                              formatCurrencyAmount(item.totalAmount, baseCurrency)
+                            )}
                           </div>
                           {enableConversionPreview && (
                             <div className="text-[11px] text-primary">
-                              ≈ {formatCurrencyAmount(item.convertedTotal, targetCurrency)}
+                              ≈{" "}
+                              {formatCurrencyAmount(
+                                cycleView === "weekly"
+                                  ? item.weeklySubtotal * item.fxRate
+                                  : cycleView === "15_days"
+                                  ? item.semiMonthlySubtotal * item.fxRate
+                                  : cycleView === "30_days"
+                                  ? item.monthlySubtotal * item.fxRate
+                                  : item.convertedTotal,
+                                targetCurrency
+                              )}
                             </div>
                           )}
                         </td>
@@ -993,7 +1176,13 @@ export function BillingView() {
                         </td>
                         <td className="py-3.5 px-4 text-right">
                           <button
-                            onClick={() => setInvoicingProject(item.project)}
+                            onClick={() =>
+                              setInvoicingProject(
+                                cycleView !== "total"
+                                  ? { ...item.project, payment_schedule: cycleView }
+                                  : item.project
+                              )
+                            }
                             className="px-3 py-1 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs flex items-center space-x-1.5 ml-auto"
                           >
                             <Printer className="w-3.5 h-3.5" />

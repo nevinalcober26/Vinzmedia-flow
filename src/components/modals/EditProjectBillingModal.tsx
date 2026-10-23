@@ -326,6 +326,55 @@ export function EditProjectBillingModal({
     }
   }, [fixedAmount]);
 
+  const handleScheduleSelect = (sched: PaymentSchedule) => {
+    setPaymentSchedule(sched);
+    const days = sched === "weekly" ? 7 : sched === "15_days" ? 15 : 30;
+    setPaymentTermsDays(days);
+
+    if (billingType === "fixed" && parsedFixed > 0) {
+      let newCount = 1;
+      let titles: string[] = [];
+      if (sched === "weekly") {
+        newCount = weeksToDeadline ? Math.max(2, Math.min(12, Math.round(weeksToDeadline))) : 4;
+        titles = Array.from({ length: newCount }).map((_, i) =>
+          i === newCount - 1 ? `Week ${i + 1} Final Payment & Handover` : `Week ${i + 1} Progress Payment`
+        );
+      } else if (sched === "15_days") {
+        newCount = 2;
+        titles = ["1st Half Installment (Day 1-15)", "2nd Half Final Installment (Day 16-30)"];
+      } else {
+        newCount = 1;
+        titles = ["Full Contract Delivery Settlement"];
+      }
+
+      setInstallmentsCount(newCount);
+      const equalPct = Math.round((100 / newCount) * 10) / 10;
+      const newMilestones: ProjectPaymentInstallment[] = [];
+      for (let i = 1; i <= newCount; i++) {
+        let pct = equalPct;
+        if (i === newCount) {
+          const sumSoFar = newMilestones.reduce((acc, m) => acc + (m.percentage || 0), 0);
+          pct = Math.max(0, Math.round((100 - sumSoFar) * 10) / 10);
+        }
+        const amt = Math.round(((parsedFixed * pct) / 100) * 100) / 100;
+        newMilestones.push({
+          id: `inst_${sched}_${i}`,
+          project_id: project?.id || "",
+          installment_number: i,
+          title: titles[i - 1] || `Payment #${i}`,
+          percentage: pct,
+          amount: amt,
+          status: "pending",
+        });
+      }
+      setMilestones(newMilestones);
+      toast?.success(
+        "Payment Schedule & Subtotal Updated",
+        `Split into ${newCount} ${sched === "weekly" ? "weekly" : sched === "15_days" ? "15-day" : "monthly"} installments of ${currency}${(Math.round((parsedFixed / newCount) * 100) / 100).toLocaleString()}`
+      );
+    }
+  };
+
   const updateRateInRealtime = async (baseCurr: string, targetCurr: string) => {
     setIsLoadingRate(true);
     try {
@@ -772,10 +821,7 @@ export function EditProjectBillingModal({
                 {/* Weekly */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setPaymentSchedule("weekly");
-                    setPaymentTermsDays(7);
-                  }}
+                  onClick={() => handleScheduleSelect("weekly")}
                   className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
                     paymentSchedule === "weekly"
                       ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
@@ -798,20 +844,21 @@ export function EditProjectBillingModal({
                   <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
                     Billed every 7 days; rapid turnarounds & sprint retainer
                   </div>
-                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 && (
+                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 ? (
                     <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
                       ~{currency}{(Number(weeklyAmount) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} / wk
                     </div>
-                  )}
+                  ) : billingType === "fixed" && parsedFixed > 0 ? (
+                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
+                      ~{currency}{(Math.round((parsedFixed / (weeksToDeadline ? Math.max(2, Math.min(12, Math.round(weeksToDeadline))) : 4)) * 100) / 100).toLocaleString()} / wk
+                    </div>
+                  ) : null}
                 </button>
 
                 {/* Every 15 Days */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setPaymentSchedule("15_days");
-                    setPaymentTermsDays(15);
-                  }}
+                  onClick={() => handleScheduleSelect("15_days")}
                   className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
                     paymentSchedule === "15_days"
                       ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
@@ -834,20 +881,21 @@ export function EditProjectBillingModal({
                   <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
                     Semi-monthly billing (1st & 15th); balanced cashflow
                   </div>
-                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 && (
+                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 ? (
                     <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
                       ~{currency}{(Math.round((Number(weeklyAmount) || 0) * (15 / 7)) || 0).toLocaleString()} / cycle
                     </div>
-                  )}
+                  ) : billingType === "fixed" && parsedFixed > 0 ? (
+                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
+                      ~{currency}{(Math.round((parsedFixed / 2) * 100) / 100).toLocaleString()} / 15-days
+                    </div>
+                  ) : null}
                 </button>
 
                 {/* 30 Days */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setPaymentSchedule("30_days");
-                    setPaymentTermsDays(30);
-                  }}
+                  onClick={() => handleScheduleSelect("30_days")}
                   className={`flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
                     paymentSchedule === "30_days"
                       ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
@@ -870,11 +918,15 @@ export function EditProjectBillingModal({
                   <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
                     Standard monthly cycle; enterprise retainers & contracts
                   </div>
-                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 && (
+                  {billingType === "hourly" && parsedRate > 0 && parsedHoursPerWeek > 0 ? (
                     <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
                       ~{currency}{(Math.round((Number(weeklyAmount) || 0) * (30 / 7)) || 0).toLocaleString()} / mo
                     </div>
-                  )}
+                  ) : billingType === "fixed" && parsedFixed > 0 ? (
+                    <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] font-mono font-bold text-primary">
+                      ~{currency}{parsedFixed.toLocaleString()} / month
+                    </div>
+                  ) : null}
                 </button>
               </div>
             </div>

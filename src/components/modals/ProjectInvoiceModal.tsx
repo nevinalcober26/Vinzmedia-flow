@@ -138,67 +138,161 @@ export function ProjectInvoiceModal({
     }
   };
 
-  // Helper to construct initial line items from project
-  const buildInitialLineItems = (proj: Project): ProjectInvoiceItem[] => {
+  // Helper to construct line items tailored to the selected payment schedule
+  const buildLineItemsForSchedule = (
+    proj: Project,
+    sched: PaymentSchedule,
+    termsDays?: number
+  ): ProjectInvoiceItem[] => {
     const isFixed = proj.billing_type === "fixed";
     const cur = proj.currency || "$";
 
     if (isFixed) {
-      if (proj.installments && proj.installments.length > 0) {
-        return proj.installments.map((inst, idx) => ({
-          id: inst.id || `item_${idx + 1}`,
-          description: inst.title || `Payment Milestone #${idx + 1}`,
-          quantity: 1,
-          rate: Number(inst.amount) || 0,
-          amount: Number(inst.amount) || 0,
-        }));
-      }
       const fixedTotal = Number(proj.fixed_price_amount) || 5000;
-      const count = proj.payment_installments_count || 1;
-      const perAmt = Math.round((fixedTotal / count) * 100) / 100;
-      return Array.from({ length: count }).map((_, idx) => ({
-        id: `item_${idx + 1}`,
-        description:
-          idx === 0
-            ? "Upfront Project Kickoff & Initialization"
-            : idx === count - 1
-            ? "Final Delivery & Handover Sign-off"
-            : `Milestone Phase #${idx + 1} Progress Delivery`,
-        quantity: 1,
-        rate: perAmt,
-        amount: perAmt,
-      }));
+      let durationDays = 30;
+      if (proj.start_date && proj.target_date) {
+        const start = new Date(proj.start_date).getTime();
+        const end = new Date(proj.target_date).getTime();
+        const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        if (diff > 0) durationDays = diff;
+      }
+
+      if (sched === "weekly") {
+        const weeks = Math.max(1, Math.round(durationDays / 7));
+        const weeklyAmt = Math.round((fixedTotal / weeks) * 100) / 100;
+        return [
+          {
+            id: "item_weekly_cycle",
+            description: `Weekly Payment Milestone (${weeks} weeks project duration - Net 7 Days)`,
+            quantity: 1,
+            rate: weeklyAmt,
+            amount: weeklyAmt,
+          },
+        ];
+      } else if (sched === "15_days") {
+        const cycles = Math.max(1, Math.round(durationDays / 15));
+        const cycleAmt = Math.round((fixedTotal / cycles) * 100) / 100;
+        return [
+          {
+            id: "item_15days_cycle",
+            description: `Every 15 Days Semi-Monthly Payment (Cycle 1 of ${cycles} - Net 15 Days)`,
+            quantity: 1,
+            rate: cycleAmt,
+            amount: cycleAmt,
+          },
+        ];
+      } else if (sched === "30_days") {
+        const months = Math.max(1, Math.round(durationDays / 30));
+        const monthlyAmt = Math.round((fixedTotal / months) * 100) / 100;
+        return [
+          {
+            id: "item_30days_cycle",
+            description: `30-Day Monthly Contract Settlement Payment (Net 30 Days)`,
+            quantity: 1,
+            rate: monthlyAmt,
+            amount: monthlyAmt,
+          },
+        ];
+      } else {
+        if (proj.installments && proj.installments.length > 0) {
+          return proj.installments.map((inst, idx) => ({
+            id: inst.id || `item_${idx + 1}`,
+            description: inst.title || `Payment Milestone #${idx + 1}`,
+            quantity: 1,
+            rate: Number(inst.amount) || 0,
+            amount: Number(inst.amount) || 0,
+          }));
+        }
+        return [
+          {
+            id: "item_fixed_total",
+            description: `Full Contract Value Deliverable (${proj.name})`,
+            quantity: 1,
+            rate: fixedTotal,
+            amount: fixedTotal,
+          },
+        ];
+      }
     } else {
       // Hourly Time & Materials
-      const items: ProjectInvoiceItem[] = [];
       const rate = Number(proj.hourly_rate) || 75;
-      const hoursPerWk = Number(proj.estimated_hours_per_week || proj.estimated_hours || 40);
+      const baseHoursPerWk = Number(proj.estimated_hours_per_week || proj.estimated_hours || 40);
 
-      items.push({
-        id: "item_weekly_capacity",
-        description: `Dedicated Developer Capacity Commitment (${hoursPerWk} billable hours/cycle)`,
-        quantity: hoursPerWk,
-        rate: rate,
-        amount: Math.round(hoursPerWk * rate * 100) / 100,
-      });
+      let billableHours = baseHoursPerWk;
+      let label = `Weekly Developer Capacity Commitment (${baseHoursPerWk} billable hours - Net 7 Days)`;
 
-      // Also add any tasks that have logged hours
-      const projectTasks = tasks.filter((t) => t.project_id === proj.id && (t.tracked_seconds || 0) > 0);
-      projectTasks.slice(0, 5).forEach((task) => {
-        const hrs = Math.round(((task.tracked_seconds || 0) / 3600) * 10) / 10;
-        if (hrs > 0) {
-          items.push({
-            id: `task_${task.id}`,
-            description: `Deliverable: ${task.title}`,
-            quantity: hrs,
-            rate: rate,
-            amount: Math.round(hrs * rate * 100) / 100,
-          });
-        }
-      });
+      if (sched === "weekly") {
+        billableHours = baseHoursPerWk;
+        label = `Weekly Dedicated Capacity (${baseHoursPerWk} billable hours - Net 7 Days)`;
+      } else if (sched === "15_days") {
+        billableHours = Math.round(((baseHoursPerWk * 15) / 7) * 10) / 10;
+        label = `Every 15 Days Semi-Monthly Capacity (~${billableHours} billable hours - Net 15 Days)`;
+      } else if (sched === "30_days") {
+        billableHours = Math.round(((baseHoursPerWk * 30) / 7) * 10) / 10;
+        label = `30-Day Monthly Labor Capacity (~${billableHours} billable hours - Net 30 Days)`;
+      } else {
+        const d = termsDays || 30;
+        billableHours = Math.round(((baseHoursPerWk * d) / 7) * 10) / 10;
+        label = `Dedicated Labor Capacity (${d} days • ${billableHours} billable hours)`;
+      }
 
-      return items;
+      const cycleAmount = Math.round(billableHours * rate * 100) / 100;
+      return [
+        {
+          id: `item_capacity_${sched}`,
+          description: label,
+          quantity: billableHours,
+          rate: rate,
+          amount: cycleAmount,
+        },
+      ];
     }
+  };
+
+  // Helper to compute projected cycle subtotal for badge previews
+  const getSubtotalForSchedule = (sched: PaymentSchedule): number => {
+    const isFixed = project?.billing_type === "fixed";
+    if (isFixed) {
+      const fixedTotal = Number(project?.fixed_price_amount) || 5000;
+      let durationDays = 30;
+      if (project?.start_date && project?.target_date) {
+        const start = new Date(project.start_date).getTime();
+        const end = new Date(project.target_date).getTime();
+        const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        if (diff > 0) durationDays = diff;
+      }
+      if (sched === "weekly") {
+        const weeks = Math.max(1, Math.round(durationDays / 7));
+        return Math.round((fixedTotal / weeks) * 100) / 100;
+      } else if (sched === "15_days") {
+        const cycles = Math.max(1, Math.round(durationDays / 15));
+        return Math.round((fixedTotal / cycles) * 100) / 100;
+      } else {
+        const months = Math.max(1, Math.round(durationDays / 30));
+        return Math.round((fixedTotal / months) * 100) / 100;
+      }
+    } else {
+      const rate = Number(project?.hourly_rate) || 75;
+      const baseHours = Number(project?.estimated_hours_per_week || project?.estimated_hours || 40);
+      if (sched === "weekly") {
+        return Math.round(baseHours * rate * 100) / 100;
+      } else if (sched === "15_days") {
+        const h = Math.round(((baseHours * 15) / 7) * 10) / 10;
+        return Math.round(h * rate * 100) / 100;
+      } else {
+        const h = Math.round(((baseHours * 30) / 7) * 10) / 10;
+        return Math.round(h * rate * 100) / 100;
+      }
+    }
+  };
+
+  // Helper to construct initial line items from project
+  const buildInitialLineItems = (proj: Project): ProjectInvoiceItem[] => {
+    const sched = proj.payment_schedule || "30_days";
+    const days =
+      proj.payment_terms_days ||
+      (sched === "weekly" ? 7 : sched === "15_days" ? 15 : 30);
+    return buildLineItemsForSchedule(proj, sched, days);
   };
 
   // Initialize all form state on modal open
@@ -311,7 +405,7 @@ export function ProjectInvoiceModal({
     toast?.success("Copied", `${fieldName} copied to clipboard`);
   };
 
-  // Handle schedule change
+  // Handle schedule change - dynamically recalculates subtotal and line items
   const handleScheduleChange = (newSched: PaymentSchedule) => {
     setPaymentSchedule(newSched);
     let days = 30;
@@ -324,9 +418,56 @@ export function ProjectInvoiceModal({
     const newDue = computeDueDate(issueDate, days);
     setDueDate(newDue);
 
+    // Dynamically recalculate line items and subtotal for the selected cycle
+    const updatedItems = buildLineItemsForSchedule(project, newSched, days);
+    setLineItems(updatedItems);
+
+    const newSubtotal = updatedItems.reduce((acc, it) => acc + (it.amount || 0), 0);
+    const schedLabel =
+      newSched === "weekly"
+        ? "Weekly Payment (Net 7)"
+        : newSched === "15_days"
+        ? "Every 15 Days (Net 15)"
+        : "30 Days (Net 30)";
+
     setNotes(
-      `Payment is due within ${days} days of invoice date (${newSched === "weekly" ? "Weekly Payment" : newSched === "15_days" ? "Every 15 Days / Semi-Monthly" : "30 Days / Monthly"}). Please reference invoice #${invoiceNumber} on all remittances.`
+      `Payment is due within ${days} days of invoice date (${schedLabel}). Subtotal adjusted to ${currencySymbol}${newSubtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} for this billing cycle. Please reference invoice #${invoiceNumber} on all remittances.`
     );
+
+    toast?.success(
+      "Payment Subtotal Updated",
+      `${schedLabel}: Subtotal is ${currencySymbol}${newSubtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+    );
+  };
+
+  // Switch to billing full project contract at once
+  const handleBillFullContract = () => {
+    if (project.billing_type === "fixed") {
+      const fixedTotal = Number(project.fixed_price_amount) || 5000;
+      setLineItems([
+        {
+          id: "item_full_contract",
+          description: `Full Contract Milestone Delivery (${project.name})`,
+          quantity: 1,
+          rate: fixedTotal,
+          amount: fixedTotal,
+        },
+      ]);
+      toast?.success("Full Contract Billed", `Subtotal set to ${currencySymbol}${fixedTotal.toLocaleString()}`);
+    } else {
+      const rate = Number(project.hourly_rate) || 75;
+      const hrs = Number(project.estimated_hours || project.estimated_hours_per_week || 40);
+      setLineItems([
+        {
+          id: "item_full_hourly",
+          description: `Full Estimated Project Hours (${hrs} hrs @ ${currencySymbol}${rate}/hr)`,
+          quantity: hrs,
+          rate: rate,
+          amount: hrs * rate,
+        },
+      ]);
+      toast?.success("Total Labor Billed", `Subtotal set to ${currencySymbol}${(hrs * rate).toLocaleString()}`);
+    }
   };
 
   // Handle issue date change
@@ -621,26 +762,63 @@ export function ProjectInvoiceModal({
                 <CalendarDays className="w-3.5 h-3.5 text-primary" />
                 <span>Billing Cycle:</span>
               </span>
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-1.5 flex-wrap gap-1">
                 {[
-                  { key: "weekly", label: "Weekly (Net 7)", emoji: "🗓️" },
-                  { key: "15_days", label: "Every 15 Days (Net 15)", emoji: "🌓" },
-                  { key: "30_days", label: "30 Days (Net 30)", emoji: "🌕" },
+                  {
+                    key: "weekly",
+                    label: "Weekly (Net 7)",
+                    emoji: "🗓️",
+                    subtotal: getSubtotalForSchedule("weekly"),
+                  },
+                  {
+                    key: "15_days",
+                    label: "Every 15 Days (Net 15)",
+                    emoji: "🌓",
+                    subtotal: getSubtotalForSchedule("15_days"),
+                  },
+                  {
+                    key: "30_days",
+                    label: "30 Days (Net 30)",
+                    emoji: "🌕",
+                    subtotal: getSubtotalForSchedule("30_days"),
+                  },
                 ].map((s) => (
                   <button
                     key={s.key}
                     type="button"
                     onClick={() => handleScheduleChange(s.key as PaymentSchedule)}
-                    className={`px-2 py-0.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center space-x-1 ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center space-x-1.5 ${
                       paymentSchedule === s.key
-                        ? "bg-primary text-primary-foreground font-bold shadow-2xs"
-                        : "bg-background border border-border text-muted-foreground hover:text-foreground"
+                        ? "bg-primary text-primary-foreground font-bold shadow-xs ring-1 ring-primary/40"
+                        : "bg-background border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                     }`}
                   >
                     <span>{s.emoji}</span>
                     <span>{s.label}</span>
+                    <span
+                      className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-md ${
+                        paymentSchedule === s.key
+                          ? "bg-white/20 text-white"
+                          : "bg-secondary text-foreground"
+                      }`}
+                    >
+                      {currencySymbol}
+                      {s.subtotal.toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
                   </button>
                 ))}
+
+                <button
+                  type="button"
+                  onClick={handleBillFullContract}
+                  className="px-2 py-1 rounded-lg text-xs font-medium bg-background border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all cursor-pointer flex items-center space-x-1 ml-1"
+                  title="Bill entire contract total at once"
+                >
+                  <Layers className="w-3 h-3 text-muted-foreground" />
+                  <span>Full Total</span>
+                </button>
               </div>
             </div>
 
@@ -738,9 +916,15 @@ export function ProjectInvoiceModal({
                       onChange={(e) => handleScheduleChange(e.target.value as PaymentSchedule)}
                       className="w-full bg-background border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground cursor-pointer font-medium"
                     >
-                      <option value="weekly">Weekly Payment (Net 7 Days)</option>
-                      <option value="15_days">Every 15 Days (Net 15 Days / Semi-Monthly)</option>
-                      <option value="30_days">30 Days Payment (Net 30 Days / Monthly)</option>
+                      <option value="weekly">
+                        Weekly Payment (Net 7) — {currencySymbol}{getSubtotalForSchedule("weekly").toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </option>
+                      <option value="15_days">
+                        Every 15 Days (Net 15) — {currencySymbol}{getSubtotalForSchedule("15_days").toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </option>
+                      <option value="30_days">
+                        30 Days Payment (Net 30) — {currencySymbol}{getSubtotalForSchedule("30_days").toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </option>
                       <option value="custom">Custom Terms</option>
                     </select>
                   </div>
