@@ -22,7 +22,10 @@ import {
   LogIn,
   UserCheck,
   Shield,
+  AlertTriangle,
+  Database,
 } from "lucide-react";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { formatTimerDisplay, getPriorityBadgeColor } from "@/lib/utils";
 import { getRoleBadge } from "@/lib/permissions";
 import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
@@ -143,6 +146,19 @@ export function Navbar() {
 
         {/* Right Actions */}
         <div className="flex items-center space-x-2">
+          {/* Missing Vercel Env Warning Badge */}
+          {!isSupabaseConfigured && (
+            <button
+              onClick={() => setActiveView("settings")}
+              className="flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-all shadow-xs cursor-pointer animate-pulse"
+              title="Supabase Environment Variables missing on Vercel. Click for setup instructions."
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Database Disconnected</span>
+              <span className="sm:hidden">DB Offline</span>
+            </button>
+          )}
+
           {/* Active Timer Pill if running */}
           {activeTimer && (
             <div className="flex items-center space-x-2 px-2.5 py-1 text-xs font-mono bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-full animate-pulse">

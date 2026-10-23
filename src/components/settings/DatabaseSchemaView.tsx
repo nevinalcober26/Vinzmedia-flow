@@ -171,20 +171,52 @@ export function DatabaseSchemaView() {
         </div>
 
         {/* Health status alert */}
-        <div className="p-3 rounded-xl bg-secondary/40 border border-border/60 flex items-center justify-between">
+        <div className={`p-3 rounded-xl border flex items-center justify-between ${
+          health?.connected
+            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+            : !health?.isConfigured
+            ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
+            : "bg-secondary/40 border-border/60 text-foreground"
+        }`}>
           <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-semibold text-foreground">
-              {health?.connected ? "Supabase Live Connection Active" : "Dual-Engine: Local Persistence + Supabase Ready"}
+            <span className={`w-2.5 h-2.5 rounded-full ${
+              health?.connected
+                ? "bg-emerald-500 animate-pulse"
+                : "bg-amber-500"
+            }`} />
+            <span className="font-semibold">
+              {health?.connected
+                ? "Supabase Live Connection Active"
+                : !health?.isConfigured
+                ? "Supabase Disconnected: Missing Vercel Environment Variables"
+                : "Connected to Project: Tables Pending Setup"}
             </span>
             <span className="text-muted-foreground text-[11px] hidden sm:inline">
               — {health?.message}
             </span>
           </div>
           <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-primary/10 text-primary font-semibold">
-            11 Core Tables
+            {health?.connected ? "11 Live Tables" : "Needs Vercel Env"}
           </span>
         </div>
+
+        {/* If Not Configured, Show Quick Vercel Setup Card */}
+        {health && !health.isConfigured && (
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2 text-foreground">
+            <div className="font-bold flex items-center space-x-1.5 text-amber-600 dark:text-amber-400">
+              <span>⚠️ Action Required: Add Supabase Keys in Vercel</span>
+            </div>
+            <p className="text-muted-foreground text-[11px]">
+              Vercel builds do not include local <code>.env</code> files. To connect your Supabase database in production:
+            </p>
+            <ol className="list-decimal list-inside space-y-1 text-[11px] text-muted-foreground pl-1">
+              <li>Open your project on <strong>Vercel Dashboard &gt; Settings &gt; Environment Variables</strong></li>
+              <li>Add <strong>NEXT_PUBLIC_SUPABASE_URL</strong> with your Supabase Project URL</li>
+              <li>Add <strong>NEXT_PUBLIC_SUPABASE_ANON_KEY</strong> with your Supabase Anon/Publishable API Key</li>
+              <li>Go to <strong>Deployments &gt; Redeploy</strong> for Next.js to inject the keys into production</li>
+            </ol>
+          </div>
+        )}
       </div>
 
       {/* Tables Grid */}

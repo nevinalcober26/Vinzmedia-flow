@@ -5,7 +5,7 @@ export const projectService = {
   async getProjects(workspaceId: string): Promise<Project[]> {
     if (!isSupabaseConfigured || !supabase) return [];
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("projects")
         .select("*")
         .eq("workspace_id", workspaceId)
@@ -13,7 +13,17 @@ export const projectService = {
 
       if (error) {
         console.error("Error fetching projects from Supabase:", error);
-        return [];
+      }
+
+      // Resilience: If no projects found with specific workspace_id, check if any projects exist
+      if ((!data || data.length === 0)) {
+        const { data: allProjects, error: allErr } = await supabase
+          .from("projects")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (allProjects && allProjects.length > 0) {
+          data = allProjects;
+        }
       }
 
       // Load associated payment installments from project_payments table

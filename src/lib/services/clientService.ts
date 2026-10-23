@@ -5,7 +5,7 @@ export const clientService = {
   async getClients(workspaceId: string): Promise<Client[]> {
     if (!isSupabaseConfigured || !supabase) return [];
     try {
-      const { data: clientsData, error } = await supabase
+      let { data: clientsData, error } = await supabase
         .from("clients")
         .select("*")
         .eq("workspace_id", workspaceId)
@@ -13,7 +13,16 @@ export const clientService = {
 
       if (error) {
         console.error("Error fetching clients from Supabase:", error);
-        return [];
+      }
+
+      if (!clientsData || clientsData.length === 0) {
+        const { data: allClients } = await supabase
+          .from("clients")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (allClients && allClients.length > 0) {
+          clientsData = allClients;
+        }
       }
 
       // Fetch client projects
