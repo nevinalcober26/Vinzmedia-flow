@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useStore } from "@/context/StoreContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, FolderKanban, Calendar, AlertCircle, Palette, Check } from "lucide-react";
+import { X, Plus, FolderKanban, Calendar, AlertCircle, Palette, Check, Globe, Lock, Users, Info } from "lucide-react";
 import { PriorityLevel, ProjectStatus } from "@/types";
 
 export function CreateProjectModal() {
@@ -23,6 +23,7 @@ export function CreateProjectModal() {
   const [priority, setPriority] = useState<PriorityLevel>("high");
   const [status, setStatus] = useState<ProjectStatus>("active");
   const [targetDate, setTargetDate] = useState("");
+  const [accessScope, setAccessScope] = useState<"all" | "specific">("all");
   const [memberIds, setMemberIds] = useState<string[]>([currentUser.id]);
 
   const handleClose = () => {
@@ -40,13 +41,16 @@ export function CreateProjectModal() {
       priority,
       status,
       target_date: targetDate || undefined,
-      member_ids: memberIds,
+      all_members: accessScope === "all",
+      member_ids: accessScope === "all" ? users.map((u) => u.id) : memberIds,
     });
 
     if (newProj) {
       setSelectedProjectId(newProj.id);
       setName("");
       setDescription("");
+      setAccessScope("all");
+      setMemberIds([currentUser.id]);
       handleClose();
     }
   };
@@ -55,6 +59,14 @@ export function CreateProjectModal() {
     setMemberIds((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     );
+  };
+
+  const handleSelectAllMembers = () => {
+    setMemberIds(users.map((u) => u.id));
+  };
+
+  const handleClearMembers = () => {
+    setMemberIds([currentUser.id]);
   };
 
   const colorPalette = [
@@ -175,30 +187,109 @@ export function CreateProjectModal() {
                 </div>
               </div>
 
-              {/* Assign Team Members */}
-              <div className="space-y-1.5">
-                <label className="font-medium text-muted-foreground">Assigned Project Members</label>
-                <div className="flex flex-wrap gap-2">
-                  {users.map((u) => {
-                    const isSelected = memberIds.includes(u.id);
-                    return (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => toggleMember(u.id)}
-                        className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-xs transition-all cursor-pointer ${
-                          isSelected
-                            ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                            : "bg-secondary/40 text-muted-foreground hover:bg-secondary border border-border/60"
-                        }`}
-                      >
-                        <UserAvatar user={u} size="xs" />
-                        <span>{u.full_name}</span>
-                        {isSelected && <Check className="w-3 h-3 ml-0.5" />}
-                      </button>
-                    );
-                  })}
+              {/* Project Member Visibility & Access Control */}
+              <div className="space-y-2.5 pt-1 border-t border-border/50">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-foreground flex items-center space-x-1.5">
+                    <Users className="w-3.5 h-3.5 text-primary" />
+                    <span>Project Access & Visibility</span>
+                  </label>
+                  <span className="text-[10px] text-muted-foreground">
+                    {accessScope === "all" ? "Open to entire team" : `${memberIds.length} members assigned`}
+                  </span>
                 </div>
+
+                {/* Scope selector buttons */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAccessScope("all")}
+                    className={`flex items-start space-x-2.5 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      accessScope === "all"
+                        ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
+                        : "bg-secondary/30 border-border/70 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <Globe className={`w-4 h-4 mt-0.5 shrink-0 ${accessScope === "all" ? "text-primary" : "text-muted-foreground"}`} />
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs text-foreground">All Team Members</div>
+                      <div className="text-[10px] text-muted-foreground leading-snug">Visible to everyone in this workspace</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAccessScope("specific")}
+                    className={`flex items-start space-x-2.5 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      accessScope === "specific"
+                        ? "bg-primary/10 border-primary text-foreground ring-1 ring-primary/40 shadow-xs"
+                        : "bg-secondary/30 border-border/70 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <Lock className={`w-4 h-4 mt-0.5 shrink-0 ${accessScope === "specific" ? "text-primary" : "text-muted-foreground"}`} />
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs text-foreground">Specific Members</div>
+                      <div className="text-[10px] text-muted-foreground leading-snug">Restricted to selected teammates</div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Specific Members Picker */}
+                {accessScope === "specific" && (
+                  <div className="space-y-2 p-3 rounded-2xl bg-secondary/20 border border-border/70 animate-in fade-in zoom-in-98 duration-150">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-foreground">
+                        Select Teammates for this Project:
+                      </span>
+                      <div className="flex items-center space-x-2 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={handleSelectAllMembers}
+                          className="text-primary hover:underline font-medium cursor-pointer"
+                        >
+                          Select All
+                        </button>
+                        <span className="text-muted-foreground">•</span>
+                        <button
+                          type="button"
+                          onClick={handleClearMembers}
+                          className="text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                      {users.map((u) => {
+                        const isSelected = memberIds.includes(u.id);
+                        return (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => toggleMember(u.id)}
+                            className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-xs transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                                : "bg-secondary/50 text-muted-foreground hover:bg-secondary border border-border/60"
+                            }`}
+                          >
+                            <UserAvatar name={u.full_name} avatarUrl={u.avatar_url} size="xs" showStatus={false} />
+                            <span>{u.full_name}</span>
+                            {isSelected && <Check className="w-3 h-3 ml-0.5" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-start space-x-1.5 pt-1 text-[10px] text-muted-foreground">
+                      <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-primary" />
+                      <span>
+                        Only the selected teammates (plus Workspace Admins) will be able to view, access, or see tasks in this project.
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end space-x-2 pt-3 border-t border-border">

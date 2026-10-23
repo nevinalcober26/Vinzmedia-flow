@@ -199,13 +199,17 @@ export function ProjectDetailView() {
               </div>
 
               <div className="p-4 rounded-xl bg-card border border-border shadow-2xs">
-                <span className="text-xs text-muted-foreground font-medium">Project Team</span>
-                <p className="text-sm font-bold text-foreground mt-1">
-                  {activeProject.member_ids?.length || 1} Members
+                <span className="text-xs text-muted-foreground font-medium">Project Visibility</span>
+                <p className="text-sm font-bold text-foreground mt-1 flex items-center space-x-1.5">
+                  {activeProject.all_members !== false ? (
+                    <span className="text-emerald-500">🌐 All Team Members</span>
+                  ) : (
+                    <span className="text-amber-500">🔒 Restricted ({activeProject.member_ids?.length || 1} Assigned)</span>
+                  )}
                 </p>
                 <div className="flex items-center -space-x-1.5 mt-2">
-                  {users
-                    .filter((u) => (activeProject.member_ids || []).includes(u.id))
+                  {(activeProject.all_members !== false ? users : users.filter((u) => (activeProject.member_ids || []).includes(u.id)))
+                    .slice(0, 6)
                     .map((u) => (
                       <UserAvatar
                         key={u.id}
@@ -215,6 +219,11 @@ export function ProjectDetailView() {
                         className="ring-2 ring-card"
                       />
                     ))}
+                  {(activeProject.all_members !== false ? users.length : (activeProject.member_ids?.length || 0)) > 6 && (
+                    <div className="w-5 h-5 rounded-full bg-secondary text-[9px] font-bold text-muted-foreground flex items-center justify-center ring-2 ring-card">
+                      +{(activeProject.all_members !== false ? users.length : (activeProject.member_ids?.length || 0)) - 6}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

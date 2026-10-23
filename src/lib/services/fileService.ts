@@ -92,4 +92,31 @@ export const fileService = {
       return false;
     }
   },
+
+  /**
+   * Upload binary file directly to a Supabase Storage Bucket
+   * (e.g. 'documents', 'attachments', 'avatars', 'project-logos')
+   */
+  async uploadToStorage(
+    bucket: "attachments" | "project-logos" | "avatars" | "documents",
+    filePath: string,
+    file: File | Blob
+  ): Promise<string | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const cleanPath = `${Date.now()}_${filePath.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { data, error } = await supabase.storage.from(bucket).upload(cleanPath, file, {
+        upsert: true,
+      });
+      if (error) {
+        console.warn(`Storage bucket '${bucket}' upload note:`, error.message);
+        return null;
+      }
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
+      return urlData.publicUrl;
+    } catch (err) {
+      console.warn(`Storage bucket '${bucket}' upload exception:`, err);
+      return null;
+    }
+  },
 };

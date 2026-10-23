@@ -28,7 +28,8 @@ export const projectService = {
         start_date: row.start_date || "",
         target_date: row.target_date || "",
         progress: row.progress || 0,
-        member_ids: [row.owner_id],
+        all_members: row.all_members !== undefined ? row.all_members : true,
+        member_ids: row.member_ids || [row.owner_id],
         created_at: row.created_at,
         updated_at: row.updated_at || row.created_at || new Date().toISOString(),
       }));
@@ -41,7 +42,7 @@ export const projectService = {
   async createProject(project: Partial<Project>): Promise<Project | null> {
     if (!isSupabaseConfigured || !supabase) return null;
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         id: project.id,
         workspace_id: project.workspace_id,
         name: project.name,
@@ -56,6 +57,10 @@ export const projectService = {
         progress: project.progress || 0,
       };
 
+      if (project.all_members !== undefined) {
+        payload.all_members = project.all_members;
+      }
+
       const { data, error } = await supabase
         .from("projects")
         .insert(payload)
@@ -66,7 +71,24 @@ export const projectService = {
         console.error("Error creating project in Supabase:", error);
         return null;
       }
-      return data;
+
+      // Persist member assignments to project_members table
+      if (project.member_ids && project.member_ids.length > 0) {
+        try {
+          const memberRows = project.member_ids.map((uid) => ({
+            project_id: data.id,
+            user_id: uid,
+            role: "member",
+          }));
+          await supabase.from("project_members").upsert(memberRows, { onConflict: "project_id,user_id" });
+        } catch {}
+      }
+
+      return {
+        ...data,
+        all_members: project.all_members !== undefined ? project.all_members : true,
+        member_ids: project.member_ids || [project.owner_id || ""],
+      };
     } catch (err) {
       console.error("projectService.createProject exception:", err);
       return null;
@@ -86,6 +108,7 @@ export const projectService = {
       if (updates.start_date !== undefined) payload.start_date = updates.start_date || null;
       if (updates.target_date !== undefined) payload.target_date = updates.target_date || null;
       if (updates.progress !== undefined) payload.progress = updates.progress;
+      if (updates.all_members !== undefined) payload.all_members = updates.all_members;
 
       const { error } = await supabase
         .from("projects")
@@ -96,6 +119,21 @@ export const projectService = {
         console.error("Error updating project in Supabase:", error);
         return false;
       }
+
+      if (updates.member_ids !== undefined) {
+        try {
+          await supabase.from("project_members").delete().eq("project_id", id);
+          if (updates.member_ids.length > 0) {
+            const memberRows = updates.member_ids.map((uid) => ({
+              project_id: id,
+              user_id: uid,
+              role: "member",
+            }));
+            await supabase.from("project_members").insert(memberRows);
+          }
+        } catch {}
+      }
+
       return true;
     } catch (err) {
       console.error("projectService.updateProject exception:", err);

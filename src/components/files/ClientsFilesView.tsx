@@ -29,6 +29,7 @@ import {
 import { formatRelativeTime } from "@/lib/utils";
 import { ProjectFile, Client } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
+import { fileService } from "@/lib/services/fileService";
 
 interface ClientsFilesViewProps {
   initialProjectId?: string;
@@ -57,11 +58,27 @@ export function ClientsFilesView({
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>("all");
 
   // Upload modal / state
+  const [isDocTypeModalOpen, setIsDocTypeModalOpen] = useState(false);
+  const [fileInputAccept, setFileInputAccept] = useState<string>("*/*");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadProjectTarget, setUploadProjectTarget] = useState<string>(initialProjectId || "");
   const [uploadClientTarget, setUploadClientTarget] = useState<string>("");
   const [selectedFilesToUpload, setSelectedFilesToUpload] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+
+  const openFilePickerForType = (type: "doc" | "pdf" | "any") => {
+    setIsDocTypeModalOpen(false);
+    let acceptString = "*/*";
+    if (type === "doc") {
+      acceptString = ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    } else if (type === "pdf") {
+      acceptString = ".pdf,application/pdf";
+    }
+    setFileInputAccept(acceptString);
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 50);
+  };
 
   React.useEffect(() => {
     if (initialProjectId) {
@@ -169,25 +186,37 @@ export function ClientsFilesView({
     }
   };
 
-  // Submit Upload to Store
-  const handleConfirmUpload = () => {
-    selectedFilesToUpload.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        uploadFile({
-          name: file.name,
-          size: file.size,
-          type: file.type || "application/octet-stream",
-          url: reader.result as string,
-          project_id: uploadProjectTarget || undefined,
-          client_id: uploadClientTarget || undefined,
+  // Submit Upload to Store & Storage
+  const handleConfirmUpload = async () => {
+    setIsUploadModalOpen(false);
+    for (const file of selectedFilesToUpload) {
+      let fileUrl = "";
+      try {
+        const storageUrl = await fileService.uploadToStorage("documents", file.name, file);
+        if (storageUrl) {
+          fileUrl = storageUrl;
+        }
+      } catch {}
+
+      if (!fileUrl) {
+        fileUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
         });
-      };
-      reader.readAsDataURL(file);
-    });
+      }
+
+      uploadFile({
+        name: file.name,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+        url: fileUrl,
+        project_id: uploadProjectTarget || undefined,
+        client_id: uploadClientTarget || undefined,
+      });
+    }
 
     setSelectedFilesToUpload([]);
-    setIsUploadModalOpen(false);
   };
 
   // Real Browser File Download
@@ -235,17 +264,18 @@ export function ClientsFilesView({
           <input
             type="file"
             ref={fileInputRef}
+            accept={fileInputAccept}
             multiple
             onChange={handleFileChange}
             className="hidden"
           />
 
           <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold rounded-lg shadow-sm transition-all"
+            onClick={() => setIsDocTypeModalOpen(true)}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold rounded-lg shadow-sm transition-all cursor-pointer"
           >
             <Upload className="w-3.5 h-3.5" />
-            <span>Upload File</span>
+            <span>Upload Document</span>
           </button>
 
           <button
@@ -572,6 +602,131 @@ export function ClientsFilesView({
           })}
         </div>
       )}
+
+      {/* Document Type Selector Popup */}
+      <AnimatePresence>
+        {isDocTypeModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+            onClick={() => setIsDocTypeModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.94, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
+              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-3xl overflow-hidden text-card-foreground p-6 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Upload className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Choose Document Format</h3>
+                    <p className="text-[11px] text-muted-foreground">Select what you want to upload</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsDocTypeModalOpen(false)}
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                {/* Option 1: Word Document */}
+                <button
+                  type="button"
+                  onClick={() => openFilePickerForType("doc")}
+                  className="w-full flex items-center space-x-3.5 p-3.5 rounded-2xl border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-500/40 transition-all text-left group cursor-pointer"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground group-hover:text-blue-500 transition-colors">
+                        Word Document
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500">
+                        .DOCX, .DOC
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Microsoft Word, proposals, briefs, and editable text
+                    </p>
+                  </div>
+                </button>
+
+                {/* Option 2: PDF File */}
+                <button
+                  type="button"
+                  onClick={() => openFilePickerForType("pdf")}
+                  className="w-full flex items-center space-x-3.5 p-3.5 rounded-2xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 hover:border-rose-500/40 transition-all text-left group cursor-pointer"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <FileCheck className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground group-hover:text-rose-500 transition-colors">
+                        PDF Document
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-500">
+                        .PDF
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Adobe PDF contracts, signed invoices, and reports
+                    </p>
+                  </div>
+                </button>
+
+                {/* Option 3: Other Files / Media */}
+                <button
+                  type="button"
+                  onClick={() => openFilePickerForType("any")}
+                  className="w-full flex items-center space-x-3.5 p-3.5 rounded-2xl border border-border/70 bg-secondary/30 hover:bg-secondary/60 transition-all text-left group cursor-pointer"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground">
+                        All Project Files & Media
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-secondary text-muted-foreground">
+                        Images, Sheets, etc.
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Spreadsheets (.xlsx), graphics, presentations
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setIsDocTypeModalOpen(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Upload Target Project / Client Modal */}
       <AnimatePresence>

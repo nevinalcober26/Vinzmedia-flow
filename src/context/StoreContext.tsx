@@ -86,6 +86,7 @@ interface StoreContextType {
   activeWorkspace: Workspace;
   activeWorkspaceId: string;
   projects: Project[];
+  allProjects?: Project[];
   activeProject: Project | null;
   selectedProjectId: string | null;
   columns: TaskColumn[];
@@ -515,10 +516,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
   }, [workspaces, activeWorkspaceId]);
 
+  // User-filtered projects based on RBAC & Project Member Assignment
+  const visibleProjects = useMemo(() => {
+    // Owners and Admins always see all workspace projects
+    if (currentUser.role === "owner" || currentUser.role === "admin") {
+      return projects;
+    }
+    // Regular members, project managers, and guests see projects where:
+    // 1. all_members is true (or undefined = public to workspace)
+    // 2. OR user is the project owner
+    // 3. OR user's id is present in member_ids
+    return projects.filter((p) => {
+      if (p.all_members !== false && (p.all_members === true || !p.member_ids || p.member_ids.length === 0)) {
+        return true;
+      }
+      return p.owner_id === currentUser.id || (p.member_ids || []).includes(currentUser.id);
+    });
+  }, [projects, currentUser]);
+
+  // Tasks scoped to visible projects
+  const visibleTasks = useMemo(() => {
+    if (currentUser.role === "owner" || currentUser.role === "admin") {
+      return tasks;
+    }
+    const visibleProjIds = new Set(visibleProjects.map((p) => p.id));
+    return tasks.filter((t) => !t.project_id || visibleProjIds.has(t.project_id));
+  }, [tasks, visibleProjects, currentUser.role]);
+
+  // Files scoped to visible projects
+  const visibleFiles = useMemo(() => {
+    if (currentUser.role === "owner" || currentUser.role === "admin") {
+      return files;
+    }
+    const visibleProjIds = new Set(visibleProjects.map((p) => p.id));
+    return files.filter((f) => !f.project_id || visibleProjIds.has(f.project_id));
+  }, [files, visibleProjects, currentUser.role]);
+
   const activeProject = useMemo(() => {
     if (!selectedProjectId) return null;
-    return projects.find((p) => p.id === selectedProjectId) || null;
-  }, [projects, selectedProjectId]);
+    return visibleProjects.find((p) => p.id === selectedProjectId) || null;
+  }, [visibleProjects, selectedProjectId]);
 
   const unreadNotificationCount = useMemo(() => {
     return notifications.filter((n) => !n.is_read && n.user_id === currentUserId).length;
@@ -815,6 +852,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         start_date: data.start_date || new Date().toISOString().split("T")[0],
         target_date: data.target_date || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
         progress: 0,
+        all_members: data.all_members !== undefined ? data.all_members : true,
         member_ids: data.member_ids?.length ? data.member_ids : [currentUser.id],
         milestones: data.milestones || [],
         created_at: new Date().toISOString(),
@@ -1812,11 +1850,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         workspaces,
         activeWorkspace,
         activeWorkspaceId,
-        projects,
+        projects: visibleProjects,
+        allProjects: projects,
         activeProject,
         selectedProjectId,
         columns,
-        tasks,
+        tasks: visibleTasks,
         notes,
         announcements,
         notifications,
@@ -1825,7 +1864,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         widgets,
         timeEntries,
         clients,
-        files,
+        files: visibleFiles,
         activeTimer,
         theme,
         onlineUsers,

@@ -70,6 +70,7 @@ export interface Project {
   target_date: string;
   progress: number;
   member_ids: string[];
+  all_members?: boolean;
   members?: User[];
   milestones?: Milestone[];
   created_at: string;
