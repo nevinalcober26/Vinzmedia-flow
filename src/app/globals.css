@@ -131,3 +131,17 @@
   animation: shimmer-sweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   content: "";
 }
+
+/* Monday.com Look & Feel */
+.monday-btn-blue {
+  background-color: #0073ea;
+  color: #ffffff;
+  transition: all 0.15s ease-in-out;
+}
+.monday-btn-blue:hover {
+  background-color: #0060c0;
+}
+.monday-btn-blue:active {
+  transform: scale(0.98);
+}
+

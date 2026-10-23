@@ -66,12 +66,12 @@ export function ProjectDetailView() {
   const projectFiles = files.filter((f) => f.project_id === activeProject.id);
 
   const tabs: { id: ProjectSubTab; label: string; icon: any; count?: number }[] = [
-    { id: "overview", label: "Overview", icon: LayoutDashboard },
-    { id: "board", label: "Board", icon: Kanban, count: projectTasks.length },
-    { id: "list", label: "List", icon: ListIcon },
+    { id: "list", label: "Main Table", icon: ListIcon, count: projectTasks.length },
+    { id: "board", label: "Kanban", icon: Kanban },
+    { id: "timeline", label: "Timeline", icon: BarChart3 },
     { id: "calendar", label: "Calendar", icon: Calendar },
-    { id: "timeline", label: "Gantt Timeline", icon: BarChart3 },
-    { id: "files", label: "Files & Media", icon: Paperclip, count: projectFiles.length },
+    { id: "files", label: "Files", icon: Paperclip, count: projectFiles.length },
+    { id: "overview", label: "Dashboard", icon: LayoutDashboard },
     { id: "notes", label: "Notes", icon: StickyNote, count: projectNotes.length },
     { id: "activity", label: "Activity", icon: Activity },
   ];
@@ -123,10 +123,10 @@ export function ProjectDetailView() {
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setIsCreateTaskModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-xs font-semibold shadow-sm"
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#0073ea] hover:bg-[#0060c0] active:scale-98 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>New Task</span>
+            <span>New Item</span>
           </button>
         </div>
       </div>

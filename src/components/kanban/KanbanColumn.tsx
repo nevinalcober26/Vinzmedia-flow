@@ -6,6 +6,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { TaskColumn, Task } from "@/types";
 import { KanbanCard } from "./KanbanCard";
 import { useStore } from "@/context/StoreContext";
+import { MONDAY_STATUSES } from "@/lib/mondayTheme";
 import {
   Plus,
   MoreHorizontal,
@@ -89,9 +90,13 @@ export function KanbanColumn({ column, tasks }: KanbanColumnProps) {
     );
   }
 
+  const statusConfig = MONDAY_STATUSES[column.status_key];
+  const columnColor = statusConfig?.bg || column.color || "#0073ea";
+
   return (
     <div
       ref={setNodeRef}
+      style={{ borderTop: `4px solid ${columnColor}` }}
       className={`w-72 md:w-80 flex-shrink-0 flex flex-col rounded-2xl bg-secondary/30 border transition-all ${
         isOver
           ? "border-primary ring-2 ring-primary/20 bg-primary/5"
@@ -102,8 +107,8 @@ export function KanbanColumn({ column, tasks }: KanbanColumnProps) {
       <div className="flex items-center justify-between px-3.5 py-3 border-b border-border/40">
         <div className="flex items-center space-x-2 flex-1 min-w-0">
           <span
-            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: column.color || "#6366f1" }}
+            className="w-3 h-3 rounded-md flex-shrink-0 shadow-2xs"
+            style={{ backgroundColor: columnColor }}
           />
 
           {isEditingTitle ? (

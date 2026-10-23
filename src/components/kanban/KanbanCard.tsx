@@ -24,6 +24,7 @@ import {
   isOverdue,
 } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
+import { MONDAY_STATUSES, MONDAY_PRIORITIES } from "@/lib/mondayTheme";
 
 interface KanbanCardProps {
   task: Task;
@@ -76,11 +77,24 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
     (task.assignee_ids || []).includes(u.id)
   );
 
+  const priorityConfig = MONDAY_PRIORITIES[task.priority] || {
+    label: task.priority,
+    bg: "#797e93",
+    textColor: "#ffffff",
+  };
+
+  const statusConfig = MONDAY_STATUSES[task.status] || {
+    bg: "#797e93",
+  };
+
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`group relative rounded-xl border bg-card p-3 shadow-2xs hover:shadow-md transition-all cursor-pointer ${
+      style={{
+        ...style,
+        borderLeft: `4px solid ${statusConfig.bg}`,
+      }}
+      className={`group relative rounded-xl border bg-card p-3.5 shadow-2xs hover:shadow-md transition-all cursor-pointer ${
         isDragging
           ? "opacity-40 border-primary/50 shadow-lg scale-95"
           : "border-border/80 hover:border-border"
@@ -90,14 +104,15 @@ export function KanbanCard({ task, isOverlay = false }: KanbanCardProps) {
       {/* Top row: Priority & Drag Handle & Quick Menu */}
       <div className="flex items-center justify-between gap-1 mb-2">
         <div className="flex items-center space-x-1.5 flex-wrap">
-          {/* Priority pill */}
+          {/* Monday Solid Priority Pill */}
           <span
-            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${priorityStyle.bg} ${priorityStyle.text} ${priorityStyle.border} capitalize`}
+            style={{
+              backgroundColor: priorityConfig.bg,
+              color: priorityConfig.textColor,
+            }}
+            className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold shadow-2xs"
           >
-            <span
-              className={`w-1.5 h-1.5 rounded-full mr-1 ${priorityStyle.dot}`}
-            />
-            {task.priority}
+            {priorityConfig.label}
           </span>
 
           {/* First label if exists */}

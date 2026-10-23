@@ -156,13 +156,13 @@ export function Navbar() {
             </div>
           )}
 
-          {/* Quick Create Task Button */}
+          {/* Monday.com Quick Create Item Button */}
           <button
             onClick={() => setIsCreateTaskModalOpen(true)}
-            className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-all shadow-sm active:scale-95"
+            className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold bg-[#0073ea] hover:bg-[#0060c0] text-white rounded-lg transition-all shadow-sm active:scale-95 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>New Task</span>
+            <span>New Item</span>
           </button>
 
           {/* Quick Note Floating Button */}
