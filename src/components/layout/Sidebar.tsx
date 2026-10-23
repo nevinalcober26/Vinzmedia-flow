@@ -52,6 +52,34 @@ export function Sidebar() {
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
   const [isProjectsExpanded, setIsProjectsExpanded] = useState(true);
 
+  // Floating Tooltip state for collapsed rail mode
+  const [hoveredTooltip, setHoveredTooltip] = useState<{
+    label: string;
+    sublabel?: string;
+    badge?: string | number | null;
+    top: number;
+  } | null>(null);
+
+  const showTooltip = (
+    e: React.MouseEvent<HTMLElement>,
+    label: string,
+    badge?: string | number | null,
+    sublabel?: string
+  ) => {
+    if (!isCollapsed) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredTooltip({
+      label,
+      badge,
+      sublabel,
+      top: rect.top + rect.height / 2,
+    });
+  };
+
+  const hideTooltip = () => {
+    setHoveredTooltip(null);
+  };
+
   // Calculate my unfinished tasks count
   const myTasksCount = tasks.filter(
     (t) => (t.assignee_ids || []).includes(currentUser.id) && t.status !== "done"
@@ -195,7 +223,7 @@ export function Sidebar() {
       }`}
     >
       {/* Premium Workspace Header Switcher */}
-      <div className="flex h-14 items-center justify-between border-b border-sidebar-border/60 px-3">
+      <div className="flex h-14 items-center justify-between border-b border-sidebar-border/60 px-3 shrink-0">
         {!isCollapsed ? (
           <div className="relative flex-1 min-w-0 pr-1">
             <button
@@ -234,7 +262,9 @@ export function Sidebar() {
                 >
                   <div className="px-3.5 py-1 text-[10px] uppercase font-bold tracking-wider text-muted-foreground/80 flex items-center justify-between">
                     <span>Workspaces</span>
-                    <span className="text-[9px] font-mono text-muted-foreground/60">{workspaces.length} active</span>
+                    <span className="text-[9px] font-mono text-muted-foreground/60">
+                      {workspaces.length} active
+                    </span>
                   </div>
                   <div className="p-1 space-y-0.5 max-h-56 overflow-y-auto">
                     {workspaces.map((ws) => {
@@ -267,7 +297,13 @@ export function Sidebar() {
             )}
           </div>
         ) : (
-          <div className="mx-auto">
+          <div
+            className="mx-auto cursor-pointer"
+            onMouseEnter={(e) =>
+              showTooltip(e, activeWorkspace.name, activeWorkspace.plan?.toUpperCase() || "PRO")
+            }
+            onMouseLeave={hideTooltip}
+          >
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-indigo-500/20">
               {activeWorkspace.name.charAt(0)}
             </div>
@@ -276,9 +312,15 @@ export function Sidebar() {
 
         {/* Toggle Collapse Button */}
         <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={() => {
+            hideTooltip();
+            setIsCollapsed(!isCollapsed);
+          }}
+          onMouseEnter={(e) =>
+            showTooltip(e, isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)")
+          }
+          onMouseLeave={hideTooltip}
           className="text-muted-foreground hover:text-sidebar-foreground p-1.5 rounded-lg hover:bg-sidebar-accent/70 transition-colors cursor-pointer"
-          title={isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
         >
           {isCollapsed ? (
             <PanelLeftOpen className="w-4 h-4" />
@@ -289,7 +331,10 @@ export function Sidebar() {
       </div>
 
       {/* Main Navigation Scroll Area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3 space-y-4">
+      <div
+        onScroll={hideTooltip}
+        className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3 space-y-4"
+      >
         {navSections.map((section) => (
           <div key={section.id} className="space-y-1">
             {!isCollapsed ? (
@@ -316,8 +361,12 @@ export function Sidebar() {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => handleNavClick(item.id)}
-                    title={isCollapsed ? item.label : undefined}
+                    onClick={() => {
+                      hideTooltip();
+                      handleNavClick(item.id);
+                    }}
+                    onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
+                    onMouseLeave={hideTooltip}
                     className={`w-full relative flex items-center ${
                       isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
                     } py-1.5 text-xs rounded-xl font-medium transition-all group cursor-pointer ${
@@ -392,10 +441,19 @@ export function Sidebar() {
                         <button
                           key={proj.id}
                           onClick={() => {
+                            hideTooltip();
                             setSelectedProjectId(proj.id);
                             setActiveView("project_detail");
                           }}
-                          title={proj.name}
+                          onMouseEnter={(e) =>
+                            showTooltip(
+                              e,
+                              proj.name,
+                              proj.progress > 0 ? `${proj.progress}%` : undefined,
+                              "Active Workstream"
+                            )
+                          }
+                          onMouseLeave={hideTooltip}
                           className={`w-full flex items-center ${
                             isCollapsed ? "justify-center px-0" : "justify-between px-2.5"
                           } py-1.5 text-xs rounded-xl transition-all cursor-pointer ${
@@ -438,10 +496,21 @@ export function Sidebar() {
       </div>
 
       {/* Footer / User Profile & Settings */}
-      <div className="border-t border-sidebar-border/60 p-2.5 space-y-1 bg-sidebar/50">
+      <div className="border-t border-sidebar-border/60 p-2.5 space-y-1 bg-sidebar/50 shrink-0">
         <button
-          onClick={() => setIsProfileModalOpen(true)}
-          title="Account Profile & Settings"
+          onClick={() => {
+            hideTooltip();
+            setIsProfileModalOpen(true);
+          }}
+          onMouseEnter={(e) =>
+            showTooltip(
+              e,
+              currentUser.full_name,
+              undefined,
+              currentUser.role.replace("_", " ")
+            )
+          }
+          onMouseLeave={hideTooltip}
           className={`w-full flex items-center ${
             isCollapsed ? "justify-center px-0" : "space-x-2.5 px-2"
           } py-1.5 text-xs rounded-xl text-sidebar-foreground hover:bg-sidebar-accent/70 transition-all cursor-pointer group border border-transparent hover:border-sidebar-border/40`}
@@ -462,8 +531,14 @@ export function Sidebar() {
         </button>
 
         <button
-          onClick={() => handleNavClick("settings")}
-          title="Workspace Settings"
+          onClick={() => {
+            hideTooltip();
+            handleNavClick("settings");
+          }}
+          onMouseEnter={(e) =>
+            showTooltip(e, "Workspace Settings", undefined, "Preferences & Database")
+          }
+          onMouseLeave={hideTooltip}
           className={`w-full flex items-center ${
             isCollapsed ? "justify-center px-0" : "space-x-2.5 px-2.5"
           } py-1.5 text-xs rounded-xl text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer`}
@@ -472,6 +547,36 @@ export function Sidebar() {
           {!isCollapsed && <span className="font-medium">Settings & Preferences</span>}
         </button>
       </div>
+
+      {/* Floating Tooltip Pill for Collapsed Navigation */}
+      {isCollapsed && hoveredTooltip && (
+        <div
+          style={{
+            top: `${hoveredTooltip.top}px`,
+            left: "72px",
+            transform: "translateY(-50%)",
+          }}
+          className="fixed z-[100] pointer-events-none flex items-center px-3 py-1.5 rounded-xl bg-card/95 text-foreground border border-border/90 shadow-2xl text-xs font-semibold backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 whitespace-nowrap"
+        >
+          {/* Subtle Caret pointing to icon */}
+          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-card" />
+          <div className="flex flex-col">
+            <div className="flex items-center space-x-2">
+              <span className="font-bold tracking-tight">{hoveredTooltip.label}</span>
+              {hoveredTooltip.badge && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/25">
+                  {hoveredTooltip.badge}
+                </span>
+              )}
+            </div>
+            {hoveredTooltip.sublabel && (
+              <span className="text-[10px] text-muted-foreground capitalize font-normal">
+                {hoveredTooltip.sublabel}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
