@@ -610,7 +610,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           email: "vinz@vinzmedia.com",
           full_name: "Vinz Media",
           username: "vinzmedia",
-          avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+          avatar_url: "",
           role: "owner",
           title: "Founder & Workspace Owner",
           department: "Executive",
