@@ -428,6 +428,22 @@
 .invoice-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
 .invoice-document { font-variant-numeric: tabular-nums; }
 .invoice-document h1, .invoice-document h2 { text-wrap: pretty; }
+.invoice-document { background: #0a1018 !important; color: #f6f9fc; border-color: #213545 !important; overflow: hidden; position: relative; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.invoice-document::before { content: ""; position: absolute; top: -115px; right: -150px; width: 390px; height: 390px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #5b51aa88, #183b4a77 55%, transparent 75%); pointer-events: none; }
+.invoice-document > * { position: relative; }
+.invoice-document .text-muted-foreground, .invoice-document th, .invoice-document .invoice-label { color: #a7b7c4 !important; }
+.invoice-document .invoice-label, .invoice-eyebrow { color: #5ce5dd !important; }
+.invoice-document * { border-color: #294051 !important; }
+.invoice-brand { display: flex; align-items: center; gap: 14px; }
+.invoice-brand p + p { color: #a7b7c4; }
+.invoice-brand-mark { display: grid; place-items: center; width: 42px; height: 42px; transform: rotate(45deg); border-radius: 9px; background: linear-gradient(135deg, #2969d8, #a346ba 55%, #df0b4a); color: white; font-size: 24px; font-weight: 800; box-shadow: 0 4px 20px #2d4eb955; }
+.invoice-brand-mark::first-letter { transform: rotate(-45deg); }
+.invoice-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.invoice-project-title { max-width: 640px; font-size: clamp(28px, 5vw, 46px); font-weight: 750; line-height: 1.1; letter-spacing: -.04em; }
+.invoice-amount-card { min-width: min(100%, 245px); padding: 18px 20px; border-radius: 16px; background: linear-gradient(110deg, #2969d8, #673e97 55%, #d30b4b); }
+.invoice-amount-card .invoice-label, .invoice-amount-card .text-muted-foreground { color: #e8efff !important; }
+.invoice-amount-card button { color: white !important; }
+.invoice-document [class*="bg-secondary"] { background: #172631 !important; color: #d8e7f0 !important; }
 .invoice-editor-section { border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); box-shadow: var(--shadow-xs); }
 .invoice-editor-section > summary { display: flex; list-style: none; align-items: center; gap: 12px; padding: 20px; cursor: pointer; }
 .invoice-step { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border: 1px solid hsl(var(--border)); border-radius: 8px; font-size: 11px; color: hsl(var(--muted-foreground)); }
@@ -447,11 +463,11 @@
 @media print {
   .invoice-overlay { position: static !important; display: block !important; padding: 0 !important; overflow: visible !important; background: transparent !important; backdrop-filter: none !important; }
   .invoice-dialog { transform: none !important; max-height: none !important; overflow: visible !important; border: 0 !important; box-shadow: none !important; }
-  .invoice-preview-scroll { overflow: visible !important; padding: 0 !important; background: white !important; }
-  .invoice-document { color: #172033 !important; }
-  .invoice-document .text-muted-foreground, .invoice-document th { color: #647084 !important; }
-  .invoice-document * { border-color: #e2e8f0 !important; }
-  .invoice-document [class*="bg-secondary"] { background: #f4f5f7 !important; color: #172033 !important; }
+  .invoice-preview-scroll { overflow: visible !important; padding: 0 !important; background: #0a1018 !important; }
+  .invoice-document { color: #f6f9fc !important; }
+  .invoice-document .text-muted-foreground, .invoice-document th { color: #a7b7c4 !important; }
+  .invoice-document * { border-color: #294051 !important; }
+  .invoice-document [class*="bg-secondary"] { background: #172631 !important; color: #d8e7f0 !important; }
   .invoice-document section, .invoice-document tr { break-inside: avoid; }
   .invoice-line-items { overflow: visible !important; }
   .invoice-line-items table { min-width: 0 !important; }

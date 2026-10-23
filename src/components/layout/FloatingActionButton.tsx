@@ -11,12 +11,13 @@ import {
   Sparkles,
   ChevronRight,
   Layers,
+  StickyNote,
 } from "lucide-react";
 import { useStore } from "@/context/StoreContext";
 import { UploadDocumentModal } from "@/components/modals/UploadDocumentModal";
 
 export function FloatingActionButton() {
-  const { setIsCreateProjectModalOpen, setIsCreateTaskModalOpen } = useStore();
+  const { setIsCreateProjectModalOpen, setIsCreateTaskModalOpen, setIsQuickNoteOpen } = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const [isUploadDocModalOpen, setIsUploadDocModalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -158,6 +159,17 @@ export function FloatingActionButton() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <motion.button
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.96 }}
+          onClick={() => { setIsOpen(false); setIsQuickNoteOpen(true); window.dispatchEvent(new Event("vinzflow:new-note")); }}
+          className="relative z-50 mb-3 flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-xs font-semibold text-foreground shadow-soft hover:border-primary/50 hover:text-primary"
+          aria-label="Add note"
+          title="Add note"
+        >
+          <StickyNote className="h-4 w-4" /> Add note
+        </motion.button>
 
         {/* Floating Action Master Button */}
         <motion.button

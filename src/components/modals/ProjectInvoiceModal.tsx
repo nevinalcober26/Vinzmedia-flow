@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { getInvoiceSenderSettings } from "@/lib/invoiceSenderSettings";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -253,8 +254,11 @@ export function ProjectInvoiceModal({
       }
 
       // Agency Provider
-      const wsName = activeWorkspace?.name || "VinzMedia Platform";
-      setProviderCompany(wsName);
+      const sender = getInvoiceSenderSettings(activeWorkspace.id, activeWorkspace.name);
+      setProviderCompany(sender.company);
+      setProviderAddress(sender.address);
+      setProviderEmail(sender.email);
+      setProviderTaxId(sender.taxId);
 
       // Notes
       setNotes(
@@ -1231,6 +1235,12 @@ export function ProjectInvoiceModal({
           ) : (
             <div key="invoice-preview" id="invoice-preview-panel" role="tabpanel" aria-labelledby="invoice-preview-tab" className="invoice-preview-scroll min-h-0 flex-1 overflow-y-auto bg-background p-3 sm:p-7">
               <article id="invoice-printable-area" className="invoice-document mx-auto max-w-[820px] rounded-xl border border-border bg-card p-6 shadow-soft sm:p-10">
+                <div className="invoice-brand mb-9">
+                  <span className="invoice-brand-mark" aria-hidden="true">V</span>
+                  <div><p className="text-lg font-bold tracking-tight">VINZMEDIA</p><p className="text-xs">Design &amp; Development</p></div>
+                </div>
+                <p className="invoice-eyebrow mb-2">Invoice / {project.billing_type === "fixed" ? "Project milestone" : "Professional services"}</p>
+                <h2 className="invoice-project-title mb-8">{project.name}</h2>
                 <div className="flex flex-wrap items-start justify-between gap-6 border-b border-border pb-7">
                   <div className="min-w-0 space-y-2">
                     <p className="invoice-label">From</p>
@@ -1239,7 +1249,7 @@ export function ProjectInvoiceModal({
                     {providerEmail && <p className="text-xs text-muted-foreground break-all">{providerEmail}</p>}
                     {providerTaxId && <p className="text-[11px] text-muted-foreground">Tax ID · {providerTaxId}</p>}
                   </div>
-                  <div className="space-y-2 sm:text-right">
+                  <div className="invoice-amount-card space-y-2 sm:text-right">
                     <p className="invoice-label">Invoice · Total due</p>
                     <p className="text-2xl font-semibold tracking-tight tabular-nums">{currencySymbol}{finalTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                     <div className="flex items-center gap-2 sm:justify-end"><span className="text-xs text-muted-foreground">{invoiceNumber}</span><button type="button" onClick={handleCopyInvoiceNumber} aria-label="Copy invoice number" className="no-print rounded p-1 text-muted-foreground hover:bg-secondary">{copiedInvoiceNumber ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}</button></div>

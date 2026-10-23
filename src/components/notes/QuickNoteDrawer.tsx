@@ -39,6 +39,12 @@ export function QuickNoteDrawer() {
   const [newColor, setNewColor] = useState("yellow");
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
+  useEffect(() => {
+    const startNewNote = () => setIsCreatingNew(true);
+    window.addEventListener("vinzflow:new-note", startNewNote);
+    return () => window.removeEventListener("vinzflow:new-note", startNewNote);
+  }, []);
+
   const currentNote = notes.find((n) => n.id === activeNoteId) || notes[0];
 
   const handleSaveNew = (e: React.FormEvent) => {

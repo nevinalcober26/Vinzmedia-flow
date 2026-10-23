@@ -70,30 +70,30 @@ export function ActivityView() {
       </div>
 
       {/* Activity Timeline List */}
-      <div className="flex-1 overflow-y-auto space-y-3 pb-8">
+      <div className="flex-1 overflow-y-auto pb-8">
         {filteredLogs.length === 0 && <EmptyState icon={Activity} title={filterProject !== "all" ? "No activity for this project yet" : "Your workspace story starts here"} description="Project updates, task changes, and team activity will appear here as work moves forward." actionLabel={filterProject !== "all" ? "View all activity" : undefined} onAction={filterProject !== "all" ? () => setFilterProject("all") : undefined} />}
-        {filteredLogs.map((log) => (
-          <div
-            key={log.id}
+        {filteredLogs.map((log, index) => (
+          <div key={log.id} className="relative flex gap-4 pl-1 pb-5 last:pb-0">
+            {index < filteredLogs.length - 1 && <span aria-hidden="true" className="absolute left-[19px] top-10 bottom-0 w-px bg-border" />}
+            <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card shadow-xs">
+              {getActionIcon(log.action)}
+            </div>
+            <button
+            type="button"
             onClick={() => handleItemClick(log)}
-            className="flex items-start space-x-3.5 p-3.5 rounded-xl border border-border/70 bg-card hover:bg-secondary/40 transition-colors cursor-pointer"
+            className="min-w-0 flex-1 rounded-2xl border border-border/70 bg-card p-4 text-left shadow-xs transition-colors hover:border-primary/30 hover:bg-secondary/30"
           >
-            <UserAvatar
-              name={log.user?.full_name || "Teammate"}
-              avatarUrl={log.user?.avatar_url}
-              size="sm"
-              className="mt-0.5 flex-shrink-0"
-            />
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-foreground">
-                  {log.user?.full_name || "Teammate"}
+                <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-foreground">
+                  <UserAvatar name={log.user?.full_name || "Teammate"} avatarUrl={log.user?.avatar_url} size="sm" />
+                  <span className="truncate">{log.user?.full_name || "Teammate"}</span>
                 </span>
-                <span className="text-[10px] text-muted-foreground font-mono">
+                <time dateTime={log.created_at} className="shrink-0 text-[10px] text-muted-foreground">
                   {formatRelativeTime(log.created_at)}
-                </span>
+                </time>
               </div>
-              <p className="text-xs text-foreground/90 mt-0.5">{log.details}</p>
+              <p className="mt-2 text-xs leading-relaxed text-foreground/90">{log.details}</p>
               {log.project_id && (
                 <div className="mt-1 flex items-center space-x-1 text-[11px] text-muted-foreground">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -101,6 +101,7 @@ export function ActivityView() {
                 </div>
               )}
             </div>
+            </button>
           </div>
         ))}
       </div>

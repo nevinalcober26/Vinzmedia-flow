@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { getInvoiceSenderSettings, saveInvoiceSenderSettings } from "@/lib/invoiceSenderSettings";
 import { useStore } from "@/context/StoreContext";
 import { useConfirm, useToast } from "@/context/ToastContext";
 import {
@@ -37,6 +38,12 @@ export function WorkspaceSettingsView() {
   const [wsDesc, setWsDesc] = useState(activeWorkspace.description || "");
   const [newWsName, setNewWsName] = useState("");
   const [isSaved, setIsSaved] = useState(false);
+  const [invoiceSender, setInvoiceSender] = useState(() => getInvoiceSenderSettings(activeWorkspace.id, activeWorkspace.name));
+  const [senderSaved, setSenderSaved] = useState(false);
+
+  useEffect(() => {
+    setInvoiceSender(getInvoiceSenderSettings(activeWorkspace.id, activeWorkspace.name));
+  }, [activeWorkspace.id, activeWorkspace.name]);
 
   const canEdit = ["owner", "admin"].includes(currentUser.role);
 
@@ -106,6 +113,30 @@ export function WorkspaceSettingsView() {
       {/* Tab: General */}
       {activeTab === "general" && (
         <div className="space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-2xs">
+            <h3 className="text-sm font-bold text-foreground">Invoice sender</h3>
+            <p className="mt-1 text-xs text-muted-foreground">These details appear in the From section of invoice previews and PDFs.</p>
+            <form className="mt-5 grid gap-4 text-xs sm:grid-cols-2" onSubmit={(event) => {
+              event.preventDefault();
+              saveInvoiceSenderSettings(activeWorkspace.id, invoiceSender);
+              setSenderSaved(true);
+              toast.success("Invoice sender saved", "Future invoice previews will use these details.");
+              setTimeout(() => setSenderSaved(false), 2000);
+            }}>
+              {([
+                ["company", "Company name"], ["email", "Billing email"],
+                ["address", "Address"], ["taxId", "Tax ID"],
+              ] as const).map(([field, label]) => (
+                <label key={field} className="space-y-1.5 font-semibold text-foreground">
+                  <span>{label}</span>
+                  <input type={field === "email" ? "email" : "text"} disabled={!canEdit} value={invoiceSender[field]}
+                    onChange={(event) => setInvoiceSender((current) => ({ ...current, [field]: event.target.value }))}
+                    className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 font-normal text-foreground disabled:opacity-60" />
+                </label>
+              ))}
+              {canEdit && <div className="sm:col-span-2 flex justify-end"><button type="submit" className="rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground shadow-xs hover:bg-primary/90">{senderSaved ? "Saved" : "Save invoice sender"}</button></div>}
+            </form>
+          </div>
           <div className="p-6 rounded-2xl bg-card border border-border shadow-2xs space-y-4">
             <h3 className="text-sm font-bold text-foreground">Organization Details</h3>
 
