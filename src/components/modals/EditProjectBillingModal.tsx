@@ -36,6 +36,7 @@ import {
   formatCurrencyAmount,
 } from "@/lib/currencyRates";
 import { ClientAvatar } from "@/components/common/ClientAvatar";
+import { reconcilePaymentMilestones } from "@/lib/paymentMilestones";
 
 interface EditProjectBillingModalProps {
   isOpen: boolean;
@@ -77,10 +78,8 @@ export function EditProjectBillingModal({
   const [fixedAmount, setFixedAmount] = useState<string>(
     String(project?.fixed_price_amount || "5000")
   );
-  const [installmentsCount, setInstallmentsCount] = useState<number>(
-    project?.payment_installments_count || 3
-  );
   const [milestones, setMilestones] = useState<ProjectPaymentInstallment[]>([]);
+  const installmentsCount = milestones.length;
 
   const [hourlyRate, setHourlyRate] = useState<string>(
     String(project?.hourly_rate || "75")
@@ -185,7 +184,6 @@ export function EditProjectBillingModal({
       const currentFixed = project.fixed_price_amount || 5000;
       setFixedAmount(String(currentFixed));
       const currentCount = project.payment_installments_count || 3;
-      setInstallmentsCount(currentCount);
       setHourlyRate(String(project.hourly_rate || "75"));
       setHoursPerWeek(
         String(project.estimated_hours_per_week || project.estimated_hours || "40")
@@ -220,34 +218,16 @@ export function EditProjectBillingModal({
 
       // Load existing installments or generate default
       const existing = project.installments || [];
-      if (existing.length > 0) {
-        setMilestones(
-          existing.map((inst, idx) => {
-            const pct =
-              inst.percentage !== undefined
-                ? inst.percentage
-                : Math.round((100 / existing.length) * 10) / 10;
-            const amt =
-              inst.amount || Math.round(((currentFixed * pct) / 100) * 100) / 100;
-            return {
-              ...inst,
-              installment_number: idx + 1,
-              title: inst.title || `Payment #${idx + 1}`,
-              percentage: pct,
-              amount: amt,
-              status: inst.status || "pending",
-            };
-          })
-        );
-      } else {
-        setMilestones(buildDefaultMilestones(currentCount, currentFixed));
-      }
+      setMilestones(reconcilePaymentMilestones(
+        existing,
+        buildDefaultMilestones(currentCount, currentFixed),
+        currentFixed,
+      ));
     }
   }, [isOpen, project]);
 
   // Handle count change
   const handleCountChange = (newCount: number) => {
-    setInstallmentsCount(newCount);
     setMilestones(buildDefaultMilestones(newCount, parsedFixed));
   };
 
@@ -347,7 +327,6 @@ export function EditProjectBillingModal({
         titles = ["Full Contract Delivery Settlement"];
       }
 
-      setInstallmentsCount(newCount);
       const equalPct = Math.round((100 / newCount) * 10) / 10;
       const newMilestones: ProjectPaymentInstallment[] = [];
       for (let i = 1; i <= newCount; i++) {
