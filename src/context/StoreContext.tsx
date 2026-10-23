@@ -105,6 +105,8 @@ interface StoreContextType {
 
   // Navigation & UI State
   activeView: ActiveView;
+  isViewLoading: boolean;
+  isInitialized: boolean;
   projectSubTab: ProjectSubTab;
   editingTask: Task | null;
   searchQuery: string;
@@ -245,6 +247,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // UI state
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
+  const [isViewLoading, setIsViewLoading] = useState(false);
+
+  const handleSetActiveView = useCallback((view: ActiveView) => {
+    setIsViewLoading(true);
+    setActiveView(view);
+    const timer = setTimeout(() => {
+      setIsViewLoading(false);
+    }, 240);
+    return () => clearTimeout(timer);
+  }, []);
   const [projectSubTab, setProjectSubTab] = useState<ProjectSubTab>("board");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1819,6 +1831,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         onlineUsers,
 
         activeView,
+        isViewLoading,
+        isInitialized,
         projectSubTab,
         editingTask,
         searchQuery,
@@ -1829,7 +1843,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         isProfileModalOpen,
         defaultNewTaskStatus,
 
-        setActiveView,
+        setActiveView: handleSetActiveView,
         setSelectedProjectId,
         setProjectSubTab,
         setEditingTask,

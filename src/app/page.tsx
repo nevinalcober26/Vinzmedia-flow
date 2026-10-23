@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/context/StoreContext";
+import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { CommandPalette } from "@/components/layout/CommandPalette";
@@ -11,6 +12,17 @@ import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
 import { CreateProjectModal } from "@/components/modals/CreateProjectModal";
 import { QuickNoteDrawer } from "@/components/notes/QuickNoteDrawer";
 import { EditProfileModal } from "@/components/modals/EditProfileModal";
+
+// Skeleton Components
+import {
+  WorkspaceSkeleton,
+  DashboardSkeleton,
+  ProjectsSkeleton,
+  BoardSkeleton,
+  TeamSkeleton,
+  ClientsFilesSkeleton,
+  NotesSkeleton,
+} from "@/components/common/Skeleton";
 
 // Views
 import { MainDashboard } from "@/components/dashboard/MainDashboard";
@@ -28,21 +40,42 @@ import { ClientsFilesView } from "@/components/files/ClientsFilesView";
 
 export default function Home() {
   const router = useRouter();
-  const { activeView, isAuthenticated } = useStore();
+  const { activeView, isAuthenticated, isViewLoading, isInitialized } = useStore();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isInitialized && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isInitialized, router]);
 
-  if (!isAuthenticated) {
-    return (
-      <div className="flex items-center justify-center h-screen w-screen bg-background text-muted-foreground text-xs">
-        Redirecting to sign in...
-      </div>
-    );
+  if (!isAuthenticated || !isInitialized) {
+    return <WorkspaceSkeleton />;
   }
+
+  const renderSkeletonView = () => {
+    switch (activeView) {
+      case "dashboard":
+        return <DashboardSkeleton />;
+      case "projects":
+      case "project_detail":
+        return <ProjectsSkeleton />;
+      case "my_tasks":
+      case "calendar":
+        return <BoardSkeleton />;
+      case "team":
+      case "workload":
+        return <TeamSkeleton />;
+      case "clients":
+        return <ClientsFilesSkeleton />;
+      case "notes":
+      case "announcements":
+      case "activity":
+      case "settings":
+        return <NotesSkeleton />;
+      default:
+        return <DashboardSkeleton />;
+    }
+  };
 
   const renderActiveView = () => {
     switch (activeView) {
@@ -87,7 +120,31 @@ export default function Home() {
 
         {/* Dynamic Viewport */}
         <main className="flex-1 overflow-hidden p-4 md:p-6 bg-background/50">
-          {renderActiveView()}
+          <AnimatePresence mode="wait">
+            {isViewLoading ? (
+              <motion.div
+                key="skeleton-view"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="h-full w-full"
+              >
+                {renderSkeletonView()}
+              </motion.div>
+            ) : (
+              <motion.div
+                key={activeView}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+                className="h-full w-full"
+              >
+                {renderActiveView()}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
       </div>
 
