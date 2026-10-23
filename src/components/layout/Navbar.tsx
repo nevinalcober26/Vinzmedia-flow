@@ -1,0 +1,300 @@
+"use client";
+
+import React, { useState } from "react";
+import { useStore } from "@/context/StoreContext";
+import {
+  Search,
+  Bell,
+  Sun,
+  Moon,
+  Plus,
+  Play,
+  Square,
+  StickyNote,
+  ChevronRight,
+  FolderKanban,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  Command as CommandIcon,
+  HelpCircle,
+  LogOut,
+  UserCheck,
+} from "lucide-react";
+import { formatTimerDisplay, getPriorityBadgeColor } from "@/lib/utils";
+import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
+import { KeyboardShortcutsModal } from "@/components/modals/KeyboardShortcutsModal";
+
+export function Navbar() {
+  const {
+    currentUser,
+    users,
+    setCurrentUserId,
+    activeWorkspace,
+    activeProject,
+    activeView,
+    theme,
+    toggleTheme,
+    setIsCommandPaletteOpen,
+    setIsQuickNoteOpen,
+    setIsCreateTaskModalOpen,
+    unreadNotificationCount,
+    activeTimer,
+    stopTimer,
+    setActiveView,
+  } = useStore();
+
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  // Keyboard shortcut listener for Cmd+K and ?
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsCommandPaletteOpen(true);
+      }
+      if (e.key === "?" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName)) {
+        e.preventDefault();
+        setIsShortcutsOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setIsCommandPaletteOpen]);
+
+  // Format breadcrumbs based on view and project
+  const getBreadcrumb = () => {
+    if (activeView === "project_detail" && activeProject) {
+      return (
+        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <span
+            className="hover:text-foreground cursor-pointer transition-colors"
+            onClick={() => setActiveView("projects")}
+          >
+            Projects
+          </span>
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />
+          <span className="font-semibold text-foreground flex items-center space-x-1.5">
+            <span
+              className="w-2.5 h-2.5 rounded-full inline-block"
+              style={{ backgroundColor: activeProject.color }}
+            />
+            <span>{activeProject.name}</span>
+          </span>
+        </div>
+      );
+    }
+    const viewTitles: Record<string, string> = {
+      dashboard: "Main Dashboard",
+      my_tasks: "My Tasks",
+      projects: "All Projects",
+      calendar: "Master Calendar",
+      notes: "Quick Notes & Docs",
+      announcements: "Team Announcements",
+      team: "Team & Roles",
+      activity: "Workspace Activity",
+      workload: "Team Workload",
+      settings: "Workspace Settings",
+    };
+    return (
+      <div className="flex items-center space-x-2 text-sm">
+        <span className="text-muted-foreground font-medium">{activeWorkspace.name}</span>
+        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />
+        <span className="font-semibold text-foreground">{viewTitles[activeView] || "Dashboard"}</span>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/80 px-4 md:px-6 backdrop-blur-md transition-colors">
+        {/* Left: Breadcrumbs & Quick Nav */}
+        <div className="flex items-center space-x-3">{getBreadcrumb()}</div>
+
+        {/* Center: Global Search trigger (Linear style) */}
+        <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
+          <button
+            onClick={() => setIsCommandPaletteOpen(true)}
+            className="flex items-center justify-between w-full h-8 px-3 text-xs text-muted-foreground bg-secondary/50 hover:bg-secondary border border-border/60 hover:border-border rounded-lg transition-all shadow-sm group"
+          >
+            <div className="flex items-center space-x-2">
+              <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+              <span>Search projects, tasks, notes, team...</span>
+            </div>
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/80 bg-background border border-border/80 rounded shadow-xs">
+              <CommandIcon className="w-2.5 h-2.5" /> K
+            </kbd>
+          </button>
+        </div>
+
+        {/* Right Actions */}
+        <div className="flex items-center space-x-2">
+          {/* Active Timer Pill if running */}
+          {activeTimer && (
+            <div className="flex items-center space-x-2 px-2.5 py-1 text-xs font-mono bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-full animate-pulse">
+              <Clock className="w-3.5 h-3.5" />
+              <span className="font-semibold">{formatTimerDisplay(activeTimer.seconds)}</span>
+              <button
+                onClick={stopTimer}
+                title="Stop timer"
+                className="hover:bg-amber-500/20 rounded p-0.5 transition-colors"
+              >
+                <Square className="w-3 h-3 fill-amber-500" />
+              </button>
+            </div>
+          )}
+
+          {/* Quick Create Task Button */}
+          <button
+            onClick={() => setIsCreateTaskModalOpen(true)}
+            className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-all shadow-sm active:scale-95"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Task</span>
+          </button>
+
+          {/* Quick Note Floating Button */}
+          <button
+            onClick={() => setIsQuickNoteOpen(true)}
+            title="Open Quick Notes (Scratchpad)"
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+          >
+            <StickyNote className="w-4 h-4" />
+          </button>
+
+          {/* Keyboard Shortcuts Button */}
+          <button
+            onClick={() => setIsShortcutsOpen(true)}
+            title="Keyboard shortcuts (?)"
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+
+          {/* Dark / Light Mode Toggle */}
+          <button
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+          >
+            {theme === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+          </button>
+
+          {/* Notifications Popover trigger */}
+          <div className="relative">
+            <button
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              title="Notifications"
+              className="relative p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                </span>
+              )}
+            </button>
+            {isNotifOpen && <NotificationsPopover onClose={() => setIsNotifOpen(false)} />}
+          </div>
+
+          <div className="h-4 w-px bg-border/60 mx-1" />
+
+          {/* User Profile & Demo Persona Switcher */}
+          <div className="relative">
+            <button
+              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              className="flex items-center space-x-2 p-1 hover:bg-secondary rounded-lg transition-colors focus:outline-none"
+            >
+              <div className="relative">
+                {currentUser.avatar_url ? (
+                  <img
+                    src={currentUser.avatar_url}
+                    alt={currentUser.full_name}
+                    className="w-7 h-7 rounded-full object-cover ring-1 ring-border"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
+                    {currentUser.full_name.charAt(0)}
+                  </div>
+                )}
+                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-background" />
+              </div>
+            </button>
+
+            {/* Profile & Switcher Menu */}
+            {isProfileMenuOpen && (
+              <div
+                className="absolute right-0 mt-2 w-64 rounded-xl bg-card border border-border shadow-xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
+                onClick={() => setIsProfileMenuOpen(false)}
+              >
+                <div className="px-3 py-2 border-b border-border/60">
+                  <p className="font-semibold text-foreground text-sm">{currentUser.full_name}</p>
+                  <p className="text-muted-foreground truncate">{currentUser.email}</p>
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary capitalize">
+                      {currentUser.role.replace("_", " ")}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">{currentUser.department}</span>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2 border-b border-border/60">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Switch Test User Persona
+                  </p>
+                  <div className="space-y-1">
+                    {users.map((u) => (
+                      <button
+                        key={u.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentUserId(u.id);
+                          setIsProfileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-secondary transition-colors text-left ${
+                          u.id === currentUser.id ? "bg-secondary font-medium" : ""
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <img
+                            src={u.avatar_url}
+                            alt=""
+                            className="w-5 h-5 rounded-full object-cover"
+                          />
+                          <div>
+                            <p className="text-xs text-foreground leading-none">{u.full_name}</p>
+                            <p className="text-[10px] text-muted-foreground capitalize leading-tight">
+                              {u.role.replace("_", " ")}
+                            </p>
+                          </div>
+                        </div>
+                        {u.id === currentUser.id && (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    onClick={() => setActiveView("settings")}
+                    className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  >
+                    Workspace Settings
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Shortcuts Modal */}
+      {isShortcutsOpen && <KeyboardShortcutsModal onClose={() => setIsShortcutsOpen(false)} />}
+    </>
+  );
+}
