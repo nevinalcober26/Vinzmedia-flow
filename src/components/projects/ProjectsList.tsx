@@ -55,23 +55,39 @@ export function ProjectsList() {
         </button>
       </div>
 
-      {/* Projects Grid */}
-      <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
-        {projects.map((proj) => {
-          const projTasks = tasks.filter((t) => t.project_id === proj.id);
-          const doneTasks = projTasks.filter((t) => t.status === "done").length;
-          const statusBadge = getProjectStatusBadge(proj.status);
-          const priorityBadge = getPriorityBadgeColor(proj.priority);
-          const assignedMembers = users.filter((u) =>
-            (proj.member_ids || []).includes(u.id)
-          );
+      {/* Projects Grid or Clean Empty State */}
+      {projects.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-border/80 rounded-2xl p-12 text-center my-auto">
+          <FolderKanban className="w-12 h-12 text-muted-foreground/30 mb-3" />
+          <h3 className="text-sm font-bold text-foreground">No Projects Created Yet</h3>
+          <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-4">
+            Get started by creating your first project to organize sprints, manage tasks, and track team progress.
+          </p>
+          <button
+            onClick={() => setIsCreateProjectModalOpen(true)}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-xs font-semibold shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create First Project</span>
+          </button>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
+          {projects.map((proj) => {
+            const projTasks = tasks.filter((t) => t.project_id === proj.id);
+            const doneTasks = projTasks.filter((t) => t.status === "done").length;
+            const statusBadge = getProjectStatusBadge(proj.status);
+            const priorityBadge = getPriorityBadgeColor(proj.priority);
+            const assignedMembers = users.filter((u) =>
+              (proj.member_ids || []).includes(u.id)
+            );
 
-          return (
-            <div
-              key={proj.id}
-              onClick={() => setSelectedProjectId(proj.id)}
-              className="rounded-2xl border border-border/80 bg-card p-5 flex flex-col justify-between shadow-2xs hover:shadow-md transition-all cursor-pointer group hover:border-border relative"
-            >
+            return (
+              <div
+                key={proj.id}
+                onClick={() => setSelectedProjectId(proj.id)}
+                className="rounded-2xl border border-border/80 bg-card p-5 flex flex-col justify-between shadow-2xs hover:shadow-md transition-all cursor-pointer group hover:border-border relative"
+              >
               <div>
                 {/* Header: Color pill, Status & Menu */}
                 <div className="flex items-center justify-between mb-3">
@@ -202,6 +218,7 @@ export function ProjectsList() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

@@ -39,6 +39,13 @@ import {
 } from "@/lib/initialData";
 import { generateId } from "@/lib/utils";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { projectService } from "@/lib/services/projectService";
+import { taskService } from "@/lib/services/taskService";
+import { clientService } from "@/lib/services/clientService";
+import { fileService } from "@/lib/services/fileService";
+import { noteService } from "@/lib/services/noteService";
+import { workspaceService } from "@/lib/services/workspaceService";
+import { authService } from "@/lib/services/authService";
 import {
   syncTaskToSupabase,
   syncProjectToSupabase,
@@ -240,30 +247,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [defaultNewTaskStatus, setDefaultNewTaskStatus] = useState<string | undefined>(undefined);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
 
-  // Initialize from LocalStorage and listen to Supabase Auth
+  // Initialize dynamic data from Supabase & configure real-time updates
   useEffect(() => {
+    // 1. Theme initialization
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.users) setUsers(parsed.users);
-        if (parsed.currentUserId) setCurrentUserIdState(parsed.currentUserId);
-        if (parsed.workspaces) setWorkspaces(parsed.workspaces);
-        if (parsed.activeWorkspaceId) setActiveWorkspaceIdState(parsed.activeWorkspaceId);
-        if (parsed.projects) setProjects(parsed.projects);
-        if (parsed.columns) setColumns(parsed.columns);
-        if (parsed.tasks) setTasks(parsed.tasks);
-        if (parsed.notes) setNotes(parsed.notes);
-        if (parsed.announcements) setAnnouncements(parsed.announcements);
-        if (parsed.notifications) setNotifications(parsed.notifications);
-        if (parsed.activityLogs) setActivityLogs(parsed.activityLogs);
-        if (parsed.widgets) setWidgets(parsed.widgets);
-        if (parsed.timeEntries) setTimeEntries(parsed.timeEntries);
-        if (parsed.clients) setClients(parsed.clients);
-        if (parsed.files) setFiles(parsed.files);
-        if (parsed.theme) setTheme(parsed.theme);
-        if (parsed.isAuthenticated !== undefined) setIsAuthenticated(parsed.isAuthenticated);
-      }
       const savedTheme = localStorage.getItem("vinzflow_theme") as "light" | "dark" | null;
       if (savedTheme) {
         setTheme(savedTheme);
@@ -275,27 +262,103 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       } else {
         document.documentElement.classList.add("dark");
       }
-    } catch (e) {
-      console.error("Failed to load state from localStorage:", e);
-    }
-    setIsInitialized(true);
+    } catch {}
 
-    // Supabase Auth listener
+    // 2. Fetch real dynamic database tables from Supabase
+    const loadDynamicData = async () => {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const [dbWorkspaces, dbUsers] = await Promise.all([
+            workspaceService.getWorkspaces(),
+            workspaceService.getUsers(),
+          ]);
+
+          let targetWsId = "10000000-0000-0000-0000-000000000001";
+          if (dbWorkspaces && dbWorkspaces.length > 0) {
+            setWorkspaces(dbWorkspaces);
+            targetWsId = dbWorkspaces[0].id;
+            setActiveWorkspaceIdState(targetWsId);
+          }
+
+          if (dbUsers && dbUsers.length > 0) {
+            setUsers(dbUsers);
+            setCurrentUserIdState(dbUsers[0].id);
+          }
+
+          const [dbProjects, dbTasks, dbClients, dbFiles, dbNotes, dbAnnouncements, dbLogs] = await Promise.all([
+            projectService.getProjects(targetWsId),
+            taskService.getTasks(targetWsId),
+            clientService.getClients(targetWsId),
+            fileService.getFiles(targetWsId),
+            noteService.getNotes(targetWsId),
+            workspaceService.getAnnouncements(targetWsId),
+            workspaceService.getActivityLogs(targetWsId),
+          ]);
+
+          if (dbProjects) setProjects(dbProjects);
+          if (dbTasks) setTasks(dbTasks);
+          if (dbClients) setClients(dbClients);
+          if (dbFiles) setFiles(dbFiles);
+          if (dbNotes) setNotes(dbNotes);
+          if (dbAnnouncements) setAnnouncements(dbAnnouncements);
+          if (dbLogs) setActivityLogs(dbLogs);
+        } catch (err) {
+          console.error("Failed to fetch dynamic data from Supabase:", err);
+        }
+      }
+      setIsInitialized(true);
+    };
+
+    loadDynamicData();
+
+    // 3. Supabase Auth listener
+    let authSub: any = null;
     if (isSupabaseConfigured && supabase) {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
           setIsAuthenticated(true);
+          setCurrentUserIdState(session.user.id);
         }
       });
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
           setIsAuthenticated(true);
+          setCurrentUserIdState(session.user.id);
         }
       });
-      return () => {
-        subscription.unsubscribe();
-      };
+      authSub = subscription;
     }
+
+    // 4. Supabase Real-Time Live Sync
+    let realtimeChannel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      realtimeChannel = supabase
+        .channel("vinzflow_realtime_changes")
+        .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, async () => {
+          const freshTasks = await taskService.getTasks("10000000-0000-0000-0000-000000000001");
+          setTasks(freshTasks);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, async () => {
+          const freshProjects = await projectService.getProjects("10000000-0000-0000-0000-000000000001");
+          setProjects(freshProjects);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "files" }, async () => {
+          const freshFiles = await fileService.getFiles("10000000-0000-0000-0000-000000000001");
+          setFiles(freshFiles);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, async () => {
+          const freshClients = await clientService.getClients("10000000-0000-0000-0000-000000000001");
+          setClients(freshClients);
+        })
+        .subscribe();
+    }
+
+    return () => {
+      authSub?.unsubscribe();
+      if (realtimeChannel && supabase) {
+        supabase.removeChannel(realtimeChannel);
+      }
+    };
   }, []);
 
   // Save changes to LocalStorage
@@ -453,27 +516,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Auth & RBAC Actions ---
   const login = useCallback(
     async (email: string, password: string): Promise<boolean> => {
-      // 1. Try Supabase Auth if configured
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (!error && data.user) {
-            setIsAuthenticated(true);
-            const matchedUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-            if (matchedUser) {
-              setCurrentUserIdState(matchedUser.id);
-            }
-            return true;
+      const res = await authService.signIn(email, password);
+      if (res.user) {
+        setIsAuthenticated(true);
+        setCurrentUserIdState(res.user.id);
+        setUsers((prev) => {
+          if (!prev.some((u) => u.id === res.user?.id)) {
+            return [res.user!, ...prev];
           }
-        } catch {
-          // fall through to local check
-        }
+          return prev;
+        });
+        logActivity("user_login", `${res.user.full_name} signed in`);
+        return true;
       }
 
-      // 2. Local fallback verification
       const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
       if (existing) {
         setCurrentUserIdState(existing.id);
@@ -481,21 +537,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         logActivity("user_login", `${existing.full_name} signed in`);
         return true;
       }
-
-      // Create new user if not found
-      const name = email.split("@")[0];
-      const newUser: User = {
-        id: generateId("user"),
-        email,
-        full_name: name.charAt(0).toUpperCase() + name.slice(1),
-        role: "member",
-        status: "online",
-        created_at: new Date().toISOString(),
-      };
-      setUsers((prev) => [...prev, newUser]);
-      setCurrentUserIdState(newUser.id);
-      setIsAuthenticated(true);
-      return true;
+      return false;
     },
     [users, logActivity]
   );
@@ -509,26 +551,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       title?: string;
       department?: string;
     }): Promise<boolean> => {
-      // Supabase signup if configured
-      if (isSupabaseConfigured && supabase) {
-        try {
-          await supabase.auth.signUp({
-            email: data.email,
-            password: data.password,
-            options: {
-              data: {
-                full_name: data.full_name,
-                role: data.role,
-              },
-            },
-          });
-        } catch {
-          // non-blocking
-        }
+      const res = await authService.signUp(data);
+      if (res.user) {
+        setIsAuthenticated(true);
+        setCurrentUserIdState(res.user.id);
+        setUsers((prev) => [res.user!, ...prev]);
+        logActivity("user_registered", `${res.user.full_name} joined workspace as ${res.user.role}`);
+        return true;
       }
 
+      const newUserId = generateId();
       const newUser: User = {
-        id: generateId("user"),
+        id: newUserId,
         email: data.email,
         full_name: data.full_name,
         role: data.role,
@@ -537,21 +571,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         status: "online",
         created_at: new Date().toISOString(),
       };
-
       setUsers((prev) => [...prev, newUser]);
       setCurrentUserIdState(newUser.id);
       setIsAuthenticated(true);
-      logActivity("user_registered", `${newUser.full_name} joined workspace as ${newUser.role}`);
-      broadcastSync({ users: [...users, newUser] });
       return true;
     },
-    [users, logActivity, broadcastSync]
+    [logActivity]
   );
 
   const logout = useCallback(() => {
-    if (isSupabaseConfigured && supabase) {
-      supabase.auth.signOut().catch(() => {});
-    }
+    authService.signOut().catch(() => {});
     setIsAuthenticated(false);
     setIsAuthModalOpen(true);
   }, []);
@@ -609,8 +638,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
 
+      const newProjId = generateId();
       const newProj: Project = {
-        id: generateId("proj"),
+        id: newProjId,
         workspace_id: activeWorkspaceId,
         name: data.name || "Untitled Project",
         description: data.description || "",
@@ -629,7 +659,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       setProjects((prev) => [newProj, ...prev]);
       logActivity("project_created", `Created new project "${newProj.name}"`, newProj.id);
-      syncProjectToSupabase(newProj);
+      projectService.createProject(newProj);
       broadcastSync({ projects: [newProj, ...projects] });
       return newProj;
     },
@@ -647,7 +677,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (p.id === id) {
             const updated = { ...p, ...updates, updated_at: new Date().toISOString() };
             logActivity("project_updated", `Updated project "${updated.name}"`, id);
-            syncProjectToSupabase(updated);
+            projectService.updateProject(id, updates);
             return updated;
           }
           return p;
@@ -670,6 +700,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setSelectedProjectIdState(null);
         setActiveView("projects");
       }
+      projectService.deleteProject(id);
       logActivity("project_deleted", `Deleted project "${proj?.name || id}"`);
     },
     [currentUser.role, projects, selectedProjectId, logActivity]
@@ -709,8 +740,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
 
       const projectTargetId = data.project_id || selectedProjectId || projects[0]?.id || "proj_mobile";
+      const newTaskId = generateId();
       const newTask: Task = {
-        id: generateId("task"),
+        id: newTaskId,
         workspace_id: activeWorkspaceId,
         project_id: projectTargetId,
         title: data.title || "New Task",
@@ -741,7 +773,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return nextTasks;
       });
 
-      syncTaskToSupabase(newTask);
+      taskService.createTask(newTask);
       logActivity("task_created", `Created task "${newTask.title}"`, projectTargetId, newTask.id);
 
       // Create notification for assignees
@@ -788,7 +820,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const nextTasks = prev.map((t) => {
           if (t.id === id) {
             const updated = { ...t, ...updates, updated_at: new Date().toISOString() };
-            syncTaskToSupabase(updated);
+            taskService.updateTask(id, updates);
             return updated;
           }
           return t;
@@ -828,6 +860,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (editingTask?.id === id) {
         setEditingTask(null);
       }
+      taskService.deleteTask(id);
       logActivity("task_deleted", `Deleted task "${task?.title || id}"`);
     },
     [currentUser.role, tasks, editingTask, recalculateProjectProgress, broadcastSync, logActivity]
@@ -878,7 +911,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           setEditingTask({ ...editingTask, status: targetStatus });
         }
 
-        syncTaskToSupabase(updatedMovedTask);
+        taskService.moveTask(taskId, targetStatus, insertIndex);
         broadcastSync({ tasks: nextTasks });
         return nextTasks;
       });
@@ -950,8 +983,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Subtasks ---
   const addSubtask = useCallback(
     (taskId: string, title: string) => {
+      const newSubId = generateId();
       const newSub: Subtask = {
-        id: generateId("sub"),
+        id: newSubId,
         task_id: taskId,
         title,
         completed: false,
@@ -960,6 +994,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateTask(taskId, {
         subtasks: [...(tasks.find((t) => t.id === taskId)?.subtasks || []), newSub],
       });
+      taskService.addSubtask(taskId, title);
     },
     [tasks, updateTask]
   );
@@ -968,8 +1003,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (taskId: string, subtaskId: string) => {
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return;
-      const nextSubs = task.subtasks.map((s) => (s.id === subtaskId ? { ...s, completed: !s.completed } : s));
+      const targetSub = task.subtasks.find((s) => s.id === subtaskId);
+      const nextCompleted = targetSub ? !targetSub.completed : true;
+      const nextSubs = task.subtasks.map((s) => (s.id === subtaskId ? { ...s, completed: nextCompleted } : s));
       updateTask(taskId, { subtasks: nextSubs });
+      taskService.toggleSubtask(subtaskId, nextCompleted);
     },
     [tasks, updateTask]
   );
@@ -980,6 +1018,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (!task) return;
       const nextSubs = task.subtasks.filter((s) => s.id !== subtaskId);
       updateTask(taskId, { subtasks: nextSubs });
+      taskService.deleteSubtask(subtaskId);
     },
     [tasks, updateTask]
   );
@@ -987,8 +1026,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Comments ---
   const addComment = useCallback(
     (taskId: string, content: string) => {
+      const newCommentId = generateId();
       const newComment: Comment = {
-        id: generateId("comm"),
+        id: newCommentId,
         task_id: taskId,
         user_id: currentUser.id,
         user: currentUser,
@@ -999,6 +1039,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return;
       updateTask(taskId, { comments: [...task.comments, newComment] });
+      taskService.addComment(taskId, currentUser.id, content);
       logActivity("comment_added", `Added a comment on "${task.title}"`, task.project_id, taskId);
     },
     [tasks, currentUser, updateTask, logActivity]
@@ -1068,8 +1109,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Notes with Supabase Sync ---
   const createNote = useCallback(
     (data: Partial<Note>): Note => {
+      const newNoteId = generateId();
       const newNote: Note = {
-        id: generateId("note"),
+        id: newNoteId,
         workspace_id: activeWorkspaceId,
         project_id: data.project_id || selectedProjectId || undefined,
         author_id: currentUser.id,
@@ -1084,7 +1126,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       setNotes((prev) => [newNote, ...prev]);
       logActivity("note_created", `Created note "${newNote.title}"`);
-      syncNoteToSupabase(newNote);
+      noteService.createNote(newNote);
       return newNote;
     },
     [activeWorkspaceId, selectedProjectId, currentUser, logActivity]
@@ -1095,7 +1137,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       prev.map((n) => {
         if (n.id === id) {
           const updated = { ...n, ...updates, updated_at: new Date().toISOString() };
-          syncNoteToSupabase(updated);
+          noteService.updateNote(id, updates);
           return updated;
         }
         return n;
@@ -1106,13 +1148,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const deleteNote = useCallback(
     (id: string) => {
       setNotes((prev) => prev.filter((n) => n.id !== id));
+      noteService.deleteNote(id);
       logActivity("note_deleted", `Deleted note`);
     },
     [logActivity]
   );
 
   const togglePinNote = useCallback((id: string) => {
-    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, is_pinned: !n.is_pinned } : n)));
+    setNotes((prev) => prev.map((n) => {
+      if (n.id === id) {
+        const nextPinned = !n.is_pinned;
+        noteService.updateNote(id, { is_pinned: nextPinned });
+        return { ...n, is_pinned: nextPinned };
+      }
+      return n;
+    }));
   }, []);
 
   const convertNoteToTask = useCallback(
@@ -1138,8 +1188,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      const newAnnId = generateId();
       const newAnn: Announcement = {
-        id: generateId("ann"),
+        id: newAnnId,
         workspace_id: activeWorkspaceId,
         author_id: currentUser.id,
         author: currentUser,
@@ -1153,7 +1204,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       setAnnouncements((prev) => [newAnn, ...prev]);
       logActivity("announcement_posted", `Posted announcement: "${title}"`);
-      syncAnnouncementToSupabase(newAnn);
+      workspaceService.createAnnouncement(newAnn);
 
       // Notify other users
       users.forEach((u) => {
@@ -1355,8 +1406,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Clients & Files ---
   const createClient = useCallback(
     (clientData: Partial<Client>): Client => {
+      const newClientId = generateId();
       const newClient: Client = {
-        id: generateId("client"),
+        id: newClientId,
         workspace_id: activeWorkspaceId,
         name: clientData.name || "Untitled Client",
         company: clientData.company || "",
@@ -1370,6 +1422,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       setClients((prev) => [newClient, ...prev]);
       logActivity("client_created", `Added client "${newClient.name}"`);
+      clientService.createClient(newClient);
       broadcastSync({ clients: [newClient, ...clients] });
       return newClient;
     },
@@ -1381,6 +1434,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setClients((prev) =>
         prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
       );
+      clientService.updateClient(id, updates);
       logActivity("client_updated", `Updated client details`);
     },
     [logActivity]
@@ -1390,6 +1444,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       const target = clients.find((c) => c.id === id);
       setClients((prev) => prev.filter((c) => c.id !== id));
+      clientService.deleteClient(id);
       logActivity("client_deleted", `Removed client "${target?.name || id}"`);
     },
     [clients, logActivity]
@@ -1405,8 +1460,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       client_id?: string;
       task_id?: string;
     }): ProjectFile => {
+      const newFileId = generateId();
       const newFile: ProjectFile = {
-        id: generateId("file"),
+        id: newFileId,
         workspace_id: activeWorkspaceId,
         project_id: fileData.project_id || selectedProjectId || undefined,
         client_id: fileData.client_id || undefined,
@@ -1421,6 +1477,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       setFiles((prev) => [newFile, ...prev]);
       logActivity("file_uploaded", `Uploaded "${newFile.name}"`);
+      fileService.uploadFile({
+        ...newFile,
+        workspace_id: activeWorkspaceId,
+      });
       broadcastSync({ files: [newFile, ...files] });
       return newFile;
     },
@@ -1431,6 +1491,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       const target = files.find((f) => f.id === id);
       setFiles((prev) => prev.filter((f) => f.id !== id));
+      fileService.deleteFile(id);
       logActivity("file_deleted", `Deleted file "${target?.name || id}"`);
     },
     [files, logActivity]

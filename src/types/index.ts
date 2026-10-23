@@ -86,6 +86,7 @@ export interface Subtask {
   order_index: number;
   assignee_id?: string;
   due_date?: string;
+  created_at?: string;
 }
 
 export interface Client {
@@ -134,7 +135,7 @@ export interface Comment {
   id: string;
   task_id: string;
   user_id: string;
-  user: User;
+  user?: User;
   content: string;
   created_at: string;
   updated_at?: string;
