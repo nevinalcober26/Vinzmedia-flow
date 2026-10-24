@@ -143,6 +143,10 @@ interface StoreContextType extends ReturnType<typeof useWorkspaceRoles> {
   // Actions - Workspace
   setActiveWorkspaceId: (id: string) => void;
   createWorkspace: (name: string, description?: string) => void;
+  updateWorkspace: (
+    id: string,
+    patch: Partial<Pick<Workspace, "name" | "tagline" | "description" | "logo_url" | "logo_path">>
+  ) => Promise<{ success: boolean; error?: string }>;
   inviteMember: (email: string, role: Role) => void;
   updateMemberRole: (userId: string, role: Role) => void;
   removeMember: (userId: string) => void;
@@ -2102,6 +2106,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [currentUser, logActivity]
   );
 
+  const updateWorkspace = useCallback(
+    async (
+      id: string,
+      patch: Partial<Pick<Workspace, "name" | "tagline" | "description" | "logo_url" | "logo_path">>
+    ): Promise<{ success: boolean; error?: string }> => {
+      const previous = workspaces.find((w) => w.id === id);
+      setWorkspaces((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch } : w)));
+      const error = await workspaceService.updateWorkspace(id, patch);
+      if (error) {
+        if (previous) {
+          setWorkspaces((prev) => prev.map((w) => (w.id === id ? previous : w)));
+        }
+        return { success: false, error };
+      }
+      logActivity("workspace_updated", `Updated workspace branding${patch.name ? ` for "${patch.name}"` : ""}`);
+      return { success: true };
+    },
+    [workspaces, logActivity]
+  );
+
   const refreshTeamData = useCallback(async () => {
     let targetWsId = activeWorkspaceId || "b0000000-0000-0000-0000-000000000001";
     try {
@@ -2412,6 +2436,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         setActiveWorkspaceId,
         createWorkspace,
+        updateWorkspace,
         inviteMember,
         updateMemberRole,
         removeMember,

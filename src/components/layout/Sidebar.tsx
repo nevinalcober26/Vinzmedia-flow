@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useStore } from "@/context/StoreContext";
 import { useConfirm } from "@/context/ToastContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
+import { WorkspaceLogo } from "@/components/common/WorkspaceLogo";
 import { EditProjectModal } from "@/components/modals/EditProjectModal";
 import {
   LayoutDashboard,
@@ -326,9 +327,11 @@ export function Sidebar() {
               onClick={() => setIsWorkspaceMenuOpen(!isWorkspaceMenuOpen)}
               className="flex items-center space-x-2.5 w-full text-left p-2.5 rounded-xl hover:bg-sidebar-accent/60 transition-all border border-sidebar-border/70 bg-card group cursor-pointer shadow-sm"
             >
-              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shadow-sm shadow-indigo-500/20 flex-shrink-0 group-hover:scale-105 transition-transform">
-                {activeWorkspace.name.charAt(0)}
-              </div>
+              <WorkspaceLogo
+                name={activeWorkspace.name}
+                logoUrl={activeWorkspace.logo_url}
+                className="w-8 h-8 group-hover:scale-105 transition-transform"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex flex-col items-start gap-1">
                   <p className="text-xs font-bold truncate text-sidebar-foreground tracking-tight">
@@ -336,7 +339,7 @@ export function Sidebar() {
                   </p>
                 </div>
                 <p className="text-[10px] text-muted-foreground truncate">
-                  Workspace
+                  {activeWorkspace.tagline || "Workspace"}
                 </p>
               </div>
               <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
@@ -373,9 +376,12 @@ export function Sidebar() {
                           }`}
                         >
                           <div className="flex items-center space-x-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold shadow-xs flex-shrink-0">
-                              {ws.name.charAt(0)}
-                            </div>
+                            <WorkspaceLogo
+                              name={ws.name}
+                              logoUrl={ws.logo_url}
+                              className="w-6 h-6 rounded-lg"
+                              textClassName="text-[9px]"
+                            />
                             <span className="truncate text-xs">{ws.name}</span>
                           </div>
                           {isCurrent && (
@@ -401,9 +407,11 @@ export function Sidebar() {
             }
             onMouseLeave={hideTooltip}
           >
-            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shadow-sm shadow-indigo-500/20">
-              {activeWorkspace.name.charAt(0)}
-            </div>
+            <WorkspaceLogo
+              name={activeWorkspace.name}
+              logoUrl={activeWorkspace.logo_url}
+              className="w-8 h-8"
+            />
           </button>
         )}
 

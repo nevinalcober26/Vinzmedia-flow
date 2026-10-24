@@ -15,6 +15,8 @@ export const workspaceService = {
         name: w.name,
         slug: w.slug,
         logo_url: w.logo_url || undefined,
+        logo_path: w.logo_path || undefined,
+        tagline: w.tagline || undefined,
         description: w.description || undefined,
         owner_id: w.owner_id,
         plan: w.plan || "pro",
@@ -22,6 +24,59 @@ export const workspaceService = {
       }));
     } catch {
       return [];
+    }
+  },
+
+  /** Persist workspace branding / profile fields. Returns an error message on failure. */
+  async updateWorkspace(
+    workspaceId: string,
+    patch: Partial<Pick<Workspace, "name" | "tagline" | "description" | "logo_url" | "logo_path">>
+  ): Promise<string | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    const payload: Record<string, string | null> = {};
+    (["name", "tagline", "description", "logo_url", "logo_path"] as const).forEach((key) => {
+      if (key in patch) payload[key] = (patch[key] as string | undefined) ?? null;
+    });
+    const { data, error } = await supabase.from("workspaces").update(payload).eq("id", workspaceId).select("id").maybeSingle();
+    if (error) return error.message;
+    return data ? null : "Your account cannot update this workspace. Ask the Owner to check your workspace access.";
+  },
+
+  /** Upload a logo into the `workspace-logos` bucket under `<workspaceId>/`. */
+  async uploadWorkspaceLogo(
+    workspaceId: string,
+    file: File
+  ): Promise<{ url: string; path: string } | { error: string }> {
+    if (!isSupabaseConfigured || !supabase) return { error: "Supabase is not configured." };
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return { error: "Your sign-in has expired. Sign in again before uploading a logo." };
+    if (file.size > 2 * 1024 * 1024) return { error: "Choose a logo smaller than 2 MB." };
+    if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"].includes(file.type)) {
+      return { error: "Choose a PNG, JPG, WEBP, SVG, or GIF logo." };
+    }
+    const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+    const path = `${workspaceId}/${Date.now()}-logo.${ext}`;
+    const { data, error } = await supabase.storage
+      .from("workspace-logos")
+      .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type });
+    if (error || !data) {
+      const message = error?.message || "Upload failed.";
+      if (/row.level security|permission denied|bucket not found/i.test(message)) {
+        return { error: "Supabase blocked the logo upload. Run fix_workspace_logo_upload.sql in your project's SQL Editor, then retry. Your role needs Manage Workspace access." };
+      }
+      return { error: message };
+    }
+    const { data: urlData } = supabase.storage.from("workspace-logos").getPublicUrl(data.path);
+    return { url: urlData.publicUrl, path: data.path };
+  },
+
+  /** Best-effort removal of a previous logo object. */
+  async removeWorkspaceLogo(path?: string): Promise<void> {
+    if (!path || !isSupabaseConfigured || !supabase) return;
+    try {
+      await supabase.storage.from("workspace-logos").remove([path]);
+    } catch {
+      /* ignore – old file cleanup is non-critical */
     }
   },
 

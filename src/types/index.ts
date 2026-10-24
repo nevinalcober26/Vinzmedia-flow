@@ -38,6 +38,10 @@ export interface Workspace {
   name: string;
   slug: string;
   logo_url?: string;
+  /** Storage object path inside the `workspace-logos` bucket (used to remove old logos). */
+  logo_path?: string;
+  /** Short brand line shown under the workspace name, e.g. "Design & Development". */
+  tagline?: string;
   description?: string;
   owner_id: string;
   plan: 'free' | 'pro' | 'enterprise';
