@@ -221,7 +221,7 @@ export function TimeLogsView() {
   }, [timeEntries, activeTimer?.seconds, tasks, projects]);
 
   // Weekly timesheet rows come from recorded sessions, not the task catalog.
-  const { sessionRows, dayTotals, weeklyTotalHours } = useMemo(() => {
+  const { projectSessionRows, dayTotals, weeklyTotalHours, weeklyTotalSeconds } = useMemo(() => {
     const dailySeconds: Record<string, number> = {};
     weekDays.forEach((day) => { dailySeconds[format(day, "yyyy-MM-dd")] = 0; });
     const rows = timeEntries.filter((entry) => {
@@ -243,9 +243,18 @@ export function TimeLogsView() {
       const day = format(parseISO(entry.started_at), "yyyy-MM-dd");
       dailySeconds[day] += entry.duration_seconds || 0;
     });
-    const dayTotals = Object.fromEntries(Object.entries(dailySeconds).map(([day, seconds]) => [day, Math.round(seconds / 360) / 10]));
+    const grouped = new Map<string, TimeEntry[]>();
+    rows.forEach((entry) => {
+      const key = entry.project_id || "unassigned";
+      grouped.set(key, [...(grouped.get(key) || []), entry]);
+    });
+    const projectSessionRows = Array.from(grouped, ([projectId, entries]) => ({
+      projectId,
+      entries,
+      totalSeconds: entries.reduce((sum, entry) => sum + (entry.duration_seconds || 0), 0),
+    }));
     const totalSeconds = Object.values(dailySeconds).reduce((sum, seconds) => sum + seconds, 0);
-    return { sessionRows: rows, dayTotals, weeklyTotalHours: Math.round(totalSeconds / 360) / 10 };
+    return { projectSessionRows, dayTotals: dailySeconds, weeklyTotalHours: Math.round(totalSeconds / 360) / 10, weeklyTotalSeconds: totalSeconds };
   }, [weekDays, timeEntries, tasks, projects, selectedProjectFilter, selectedDepartmentFilter, search, hideZeroHours]);
 
   // Weekly progress percentage & status
@@ -272,11 +281,11 @@ export function TimeLogsView() {
             <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
               Time Logs & Labor Tracking
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                {weeklyTotalHours.toFixed(1)} hrs This Week
+                {weeklyTotalSeconds ? formatDuration(weeklyTotalSeconds) : "0m"} This Week
               </span>
             </h1>
             <p className="text-xs text-muted-foreground">
-              Monitor daily table columns, weekly capacity hours, and active task stopwatches
+              See each task, work summary, and time spent in its day column
             </p>
           </div>
         </div>
@@ -574,7 +583,7 @@ export function TimeLogsView() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-secondary/40 border-b border-border/80 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  <th className="py-3 px-4 min-w-[240px]">Work summary & task</th>
+                  <th className="py-3 px-4 min-w-[180px]">Project</th>
 
                   {/* 7 Daily Table Columns with Daily Totals in the Header */}
                   {weekDays.map((day) => {
@@ -588,7 +597,7 @@ export function TimeLogsView() {
                       <th
                         key={dayStr}
                         onClick={() => setSelectedDate(day)}
-                        className={`py-3 px-3 text-center min-w-[90px] transition-colors cursor-pointer ${
+                        className={`py-3 px-3 text-center min-w-[190px] transition-colors cursor-pointer ${
                           isSelectedDay
                             ? "bg-primary/10 ring-1 ring-inset ring-primary/30"
                             : isTodayHeader
@@ -619,7 +628,7 @@ export function TimeLogsView() {
                             dayTotal > 0 ? "text-primary" : "text-muted-foreground/60"
                           }`}
                         >
-                          {dayTotal.toFixed(1)}h
+                          {dayTotal ? formatDuration(dayTotal) : "0m"}
                         </div>
                       </th>
                     );
@@ -629,7 +638,7 @@ export function TimeLogsView() {
                   <th className="py-3 px-4 text-center min-w-[110px] bg-secondary/60 text-foreground">
                     <div>Total Week</div>
                     <div className="text-[10px] font-mono font-bold text-primary">
-                      {weeklyTotalHours.toFixed(1)} / {weeklyTargetHours}h
+                      {weeklyTotalSeconds ? formatDuration(weeklyTotalSeconds) : "0m"} / {weeklyTargetHours}h
                     </div>
                   </th>
 
@@ -638,20 +647,30 @@ export function TimeLogsView() {
               </thead>
 
               <tbody className="divide-y divide-border/60">
-                {sessionRows.length === 0 ? (
+                {projectSessionRows.length === 0 ? (
                   <tr><td colSpan={10} className="p-0"><EmptyState className="border-0 rounded-none shadow-none" icon={Clock} title="No time recorded this week" description="Choose a project and task in the timeclock, then add a work summary to record a session." actionLabel="Reset filters" onAction={() => { setSearch(""); setSelectedProjectFilter("all"); setSelectedDepartmentFilter("all"); setHideZeroHours(false); }} /></td></tr>
-                ) : sessionRows.map((entry) => {
-                  const task = tasks.find((item) => item.id === entry.task_id);
-                  const project = projects.find((item) => item.id === entry.project_id);
-                  const entryDay = format(parseISO(entry.started_at), "yyyy-MM-dd");
-                  return <tr key={entry.id} className="hover:bg-secondary/20 transition-colors">
-                    <td className="px-4 py-3"><p className="max-w-[320px] font-semibold text-foreground leading-snug break-words">{entry.work_summary || entry.description || "Work session"}</p><p className="mt-1 text-[10px] text-muted-foreground">{project?.name || entry.project_name || "Project"}{task ? ` · ${task.title}` : ""}</p></td>
+                ) : projectSessionRows.map(({ projectId, entries, totalSeconds }) => {
+                  const project = projects.find((item) => item.id === projectId);
+                  return <tr key={projectId} className="align-top hover:bg-secondary/10 transition-colors">
+                    <td className="border-r border-border/50 px-4 py-4">
+                      <div className="flex items-start gap-2"><span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: project?.color || "#6366f1" }} /><div><p className="font-semibold leading-snug text-foreground">{project?.name || entries[0]?.project_name || "Project"}</p><p className="mt-1 text-[10px] text-muted-foreground">{entries.length} {entries.length === 1 ? "session" : "sessions"} this week</p></div></div>
+                    </td>
                     {weekDays.map((day) => {
                       const dayKey = format(day, "yyyy-MM-dd");
-                      return <td key={dayKey} className={`px-2 py-3 text-center font-mono text-xs ${isToday(day) ? "bg-emerald-500/5" : ""}`}>{dayKey === entryDay ? formatDuration(entry.duration_seconds) : <span className="text-muted-foreground/40">—</span>}</td>;
+                      const dayEntries = entries.filter((entry) => format(parseISO(entry.started_at), "yyyy-MM-dd") === dayKey);
+                      return <td key={dayKey} className={`border-r border-border/40 px-2 py-3 ${isToday(day) ? "bg-emerald-500/5" : ""}`}>
+                        {dayEntries.length ? <div className="space-y-2">{dayEntries.map((entry) => {
+                          const task = tasks.find((item) => item.id === entry.task_id);
+                          return <div key={entry.id} className="rounded-xl border border-border/70 bg-background p-2.5 text-left shadow-xs">
+                            <div className="flex items-start justify-between gap-2"><span className="min-w-0 truncate text-[10px] font-semibold text-primary" title={task?.title || entry.task_title || "Project work"}>{task?.title || entry.task_title || "Project work"}</span><span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">{formatDuration(entry.duration_seconds)}</span></div>
+                            <p className="mt-1.5 break-words text-[11px] leading-relaxed text-foreground">{entry.work_summary || entry.description || "Work session"}</p>
+                            <p className="mt-1.5 text-[10px] text-muted-foreground">{format(parseISO(entry.started_at), "h:mm a")}</p>
+                          </div>;
+                        })}</div> : <span className="block py-5 text-center text-muted-foreground/40">—</span>}
+                      </td>;
                     })}
-                    <td className="bg-secondary/30 px-4 py-3 text-center font-mono text-xs font-bold">{formatDuration(entry.duration_seconds)}</td>
-                    <td className="px-4 py-3 text-center"><button type="button" onClick={() => setViewMode("detailed_logs")} className="text-[10px] font-semibold text-primary hover:underline">View log</button></td>
+                    <td className="bg-secondary/20 px-3 py-4 text-center font-mono text-xs font-bold text-foreground">{formatDuration(totalSeconds)}</td>
+                    <td className="px-3 py-4 text-center"><button type="button" onClick={() => setViewMode("detailed_logs")} className="text-[10px] font-semibold text-primary hover:underline">View logs</button></td>
                   </tr>;
                 })}
               </tbody>
@@ -661,7 +680,7 @@ export function TimeLogsView() {
                 <tr className="bg-secondary/60 border-t-2 border-border font-bold text-xs text-foreground">
                   <td className="py-3.5 px-4 flex items-center space-x-2">
                     <CheckCircle2 className="w-4 h-4 text-primary" />
-                    <span>Daily Total Hours:</span>
+                    <span>Daily total:</span>
                   </td>
 
                   {/* Daily Total Hours Column Sums */}
@@ -677,7 +696,7 @@ export function TimeLogsView() {
                               : "text-muted-foreground/60"
                           }`}
                         >
-                          {dayTotal.toFixed(1)}h
+                          {dayTotal ? formatDuration(dayTotal) : "0m"}
                         </span>
                       </td>
                     );
@@ -685,7 +704,7 @@ export function TimeLogsView() {
 
                   {/* Grand Weekly Total Hours Column Sum */}
                   <td className="py-3.5 px-4 text-center font-mono font-black text-sm bg-primary/20 text-primary">
-                    {weeklyTotalHours.toFixed(1)}h
+                    {weeklyTotalSeconds ? formatDuration(weeklyTotalSeconds) : "0m"}
                   </td>
 
                   <td className="py-3.5 px-4 text-center text-[10px] text-muted-foreground font-mono">
