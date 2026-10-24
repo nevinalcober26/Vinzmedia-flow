@@ -244,7 +244,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Auth state
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!isSupabaseConfigured);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
   // Core collections (Live dynamic data loaded from Supabase)
@@ -317,6 +317,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       let targetWsId = "b0000000-0000-0000-0000-000000000001";
       if (isSupabaseConfigured && supabase) {
         try {
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError || !session?.user) {
+            setIsAuthenticated(false);
+            setIsInitialized(true);
+            return;
+          }
+          setCurrentUserIdState(session.user.id);
+          setIsAuthenticated(true);
           const [dbWorkspaces, dbUsers, pending, invites] = await Promise.all([
             workspaceService.getWorkspaces(),
             workspaceService.getUsers(),
@@ -334,9 +342,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (dbUsers && dbUsers.length > 0) {
             const approved = dbUsers.filter((u) => u.approval_status !== "pending");
             setUsers(approved);
-            if (approved.length > 0) {
-              setCurrentUserIdState(approved[0].id);
-            }
+            // Identity comes from Supabase Auth, never the first profile row.
           }
 
           setPendingApprovals(pending || []);
@@ -380,24 +386,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setIsInitialized(true);
     };
 
-    loadDynamicData();
-
-    // 3. Supabase Auth listener
-    let authSub: any = null;
+    // Auth callbacks stay synchronous to avoid holding the auth client lock.
+    let authSub: { unsubscribe: () => void } | null = null;
+    let authReload: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+    let loadedUserId: string | null | undefined;
     if (isSupabaseConfigured && supabase) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          setIsAuthenticated(true);
-          setCurrentUserIdState(session.user.id);
-        }
-      });
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session?.user) {
-          setIsAuthenticated(true);
-          setCurrentUserIdState(session.user.id);
+        if (cancelled) return;
+        const userId = session?.user.id || null;
+        setIsAuthenticated(Boolean(userId));
+        if (userId) setCurrentUserIdState(userId);
+        if (userId === loadedUserId) return;
+        loadedUserId = userId;
+        clearTimeout(authReload);
+        if (!userId) {
+          setIsInitialized(true);
+          return;
         }
+        setIsInitialized(false);
+        authReload = setTimeout(() => { if (!cancelled) void loadDynamicData(); }, 0);
       });
       authSub = subscription;
+    } else {
+      void loadDynamicData();
     }
 
     // 4. Supabase Real-Time Live Sync
@@ -437,6 +449,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     return () => {
+      cancelled = true;
+      clearTimeout(authReload);
       authSub?.unsubscribe();
       if (realtimeChannel && supabase) {
         supabase.removeChannel(realtimeChannel);
@@ -748,29 +762,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return { success: true };
       }
 
-      // 3. Default secure account fallback (Owner)
-      if (cleanEmail === "vinz@vinzmedia.com" && password === "KurtMarx2020!") {
-        const defaultOwner: User = {
-          id: "a0000000-0000-0000-0000-000000000001",
-          email: "vinz@vinzmedia.com",
-          full_name: "Vinz Media",
-          username: "vinzmedia",
-          avatar_url: "",
-          role: "owner",
-          title: "Founder & Workspace Owner",
-          department: "Executive",
-          status: "online",
-          approval_status: "approved",
-          created_at: new Date().toISOString(),
-        };
-        setIsAuthenticated(true);
-        setCurrentUserIdState(defaultOwner.id);
-        setUsers((prev) => (prev.some((u) => u.id === defaultOwner.id) ? prev : [defaultOwner, ...prev]));
-        logActivity("user_login", `${defaultOwner.full_name} signed in`);
-        toast.success("Welcome back, Vinz!", "Successfully signed in to workspace.");
-        return { success: true };
+      if (isSupabaseConfigured) {
+        const message = res.error || "Sign in with your Supabase account to reconnect to the workspace.";
+        toast.error("Sign In Failed", message);
+        return { success: false, error: message };
       }
 
+      // Local demo mode is available only when no database is configured.
       const existing = users.find((u) => u.email.toLowerCase() === cleanEmail);
       if (existing) {
         if (existing.approval_status === "pending") {
@@ -819,6 +817,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
 
+      if (isSupabaseConfigured) {
+        toast.error("Could not create account", res.error || "Please check your email confirmation and try again.");
+        return false;
+      }
       const newUserId = generateId();
       const newUser: User = {
         id: newUserId,
@@ -848,6 +850,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const demoLogin = useCallback(
     (role: Role) => {
+      if (isSupabaseConfigured) return;
       const targetUser = users.find((u) => u.role === role) || users[0];
       setCurrentUserIdState(targetUser.id);
       setIsAuthenticated(true);

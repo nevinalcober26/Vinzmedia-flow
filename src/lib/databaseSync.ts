@@ -18,6 +18,16 @@ export async function checkSupabaseHealth(): Promise<DatabaseHealthStatus> {
     };
   }
 
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session) {
+    return {
+      isConfigured: true,
+      connected: false,
+      tables: {},
+      message: "Supabase is configured. Sign in again to restore authenticated database access.",
+    };
+  }
+
   const tableNames = [
     "profiles",
     "workspaces",
@@ -55,7 +65,7 @@ export async function checkSupabaseHealth(): Promise<DatabaseHealthStatus> {
     tables: tableStatus,
     message: anyConnected
       ? "Successfully connected to Supabase database tables."
-      : "Connected to Supabase project, but tables are pending. Run the migration script in Supabase SQL editor.",
+      : "Database requests failed. Check workspace membership, access policies, and connection errors before running migrations.",
   };
 }
 
