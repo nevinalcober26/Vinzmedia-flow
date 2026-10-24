@@ -195,7 +195,11 @@ export function NotificationsPopover({ onClose }: NotificationsPopoverProps) {
   const handleNotificationClick = (notif: (typeof notifications)[0]) => {
     markNotificationRead(notif.id);
     if (notif.link_url) {
-      if (notif.link_url.startsWith("/tasks/")) {
+      if (notif.link_url.startsWith("/timelogs")) {
+        sessionStorage.setItem("vinzflow_weekly_review_target", notif.link_url.split("?")[1] || "");
+        setActiveView("timelogs");
+        window.dispatchEvent(new Event("vinzflow:weekly-review"));
+      } else if (notif.link_url.startsWith("/tasks/")) {
         const taskId = notif.link_url.replace("/tasks/", "");
         const task = tasks.find((t) => t.id === taskId);
         if (task) {

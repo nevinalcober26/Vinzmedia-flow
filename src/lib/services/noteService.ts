@@ -27,6 +27,7 @@ export const noteService = {
         is_pinned: row.is_pinned || false,
         is_private: row.is_private || false,
         tags: row.tags || [],
+        color: row.color || "yellow",
         created_at: row.created_at,
         updated_at: row.updated_at,
       }));
@@ -49,6 +50,7 @@ export const noteService = {
         is_pinned: note.is_pinned || false,
         is_private: note.is_private || false,
         tags: note.tags || [],
+        color: note.color || "yellow",
       };
 
       const { data, error } = await supabase.from("notes").insert(payload).select().single();
@@ -72,9 +74,10 @@ export const noteService = {
       if (updates.is_pinned !== undefined) payload.is_pinned = updates.is_pinned;
       if (updates.project_id !== undefined) payload.project_id = updates.project_id || null;
       if (updates.tags !== undefined) payload.tags = updates.tags;
+      if (updates.color !== undefined) payload.color = updates.color;
 
-      const { error } = await supabase.from("notes").update(payload).eq("id", id);
-      return !error;
+      const { data, error } = await supabase.from("notes").update(payload).eq("id", id).select("id").maybeSingle();
+      return !error && Boolean(data);
     } catch {
       return false;
     }

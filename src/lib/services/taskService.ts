@@ -16,17 +16,6 @@ export const taskService = {
         console.error("Error fetching tasks from Supabase:", tasksError);
       }
 
-      // Resilience: If no tasks found for this workspace, fetch all workspace tasks
-      if (!tasksData || tasksData.length === 0) {
-        const { data: allTasks } = await supabase
-          .from("tasks")
-          .select("*")
-          .order("order_index", { ascending: true });
-        if (allTasks && allTasks.length > 0) {
-          tasksData = allTasks;
-        }
-      }
-
       if (!tasksData || tasksData.length === 0) return [];
 
       const taskIds = tasksData.map((t) => t.id);

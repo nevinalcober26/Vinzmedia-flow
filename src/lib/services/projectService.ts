@@ -15,23 +15,14 @@ export const projectService = {
         console.error("Error fetching projects from Supabase:", error);
       }
 
-      // Resilience: If no projects found with specific workspace_id, check if any projects exist
-      if ((!data || data.length === 0)) {
-        const { data: allProjects, error: allErr } = await supabase
-          .from("projects")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (allProjects && allProjects.length > 0) {
-          data = allProjects;
-        }
-      }
+      if (error || !data?.length) return [];
 
       // Load associated payment installments from project_payments table
       const paymentsMap: Record<string, any[]> = {};
       try {
         const { data: payRows } = await supabase
           .from("project_payments")
-          .select("*")
+          .select("*").in("project_id", data.map((project) => project.id))
           .order("installment_number", { ascending: true });
         if (payRows) {
           payRows.forEach((p: any) => {

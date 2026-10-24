@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   User,
   Workspace,
@@ -142,7 +142,7 @@ interface StoreContextType extends ReturnType<typeof useWorkspaceRoles> {
 
   // Actions - Workspace
   setActiveWorkspaceId: (id: string) => void;
-  createWorkspace: (name: string, description?: string) => void;
+  createWorkspace: (name: string, description?: string) => Promise<boolean>;
   updateWorkspace: (
     id: string,
     patch: Partial<Pick<Workspace, "name" | "tagline" | "description" | "logo_url" | "logo_path">>
@@ -264,6 +264,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const activeWsRef = useRef(activeWorkspaceId);
+  activeWsRef.current = activeWorkspaceId;
+  const [workspaceMemberIds, setWorkspaceMemberIds] = useState<string[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [widgets, setWidgets] = useState<DashboardWidgetConfig[]>(initialWidgets);
@@ -316,7 +319,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch {}
 
     // 2. Fetch real dynamic database tables from Supabase
-    const activeWsRef = { current: "b0000000-0000-0000-0000-000000000001" };
+
     const loadDynamicData = async () => {
       let targetWsId = "b0000000-0000-0000-0000-000000000001";
       if (isSupabaseConfigured && supabase) {
@@ -338,7 +341,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
           if (dbWorkspaces && dbWorkspaces.length > 0) {
             setWorkspaces(dbWorkspaces);
-            targetWsId = dbWorkspaces[0].id;
+            const savedWorkspace = localStorage.getItem("vinzflow_active_workspace");
+            targetWsId = dbWorkspaces.find((workspace) => workspace.id === savedWorkspace)?.id || dbWorkspaces[0].id;
             activeWsRef.current = targetWsId;
             setActiveWorkspaceIdState(targetWsId);
           }
@@ -424,28 +428,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, async () => {
           const currentWs = activeWsRef.current || "b0000000-0000-0000-0000-000000000001";
           const freshTasks = await taskService.getTasks(currentWs);
-          if (freshTasks && freshTasks.length > 0) {
+          if (activeWsRef.current === currentWs && freshTasks) {
             setTasks(freshTasks);
           }
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, async () => {
           const currentWs = activeWsRef.current || "b0000000-0000-0000-0000-000000000001";
           const freshProjects = await projectService.getProjects(currentWs);
-          if (freshProjects && freshProjects.length > 0) {
+          if (activeWsRef.current === currentWs && freshProjects) {
             setProjects(freshProjects);
           }
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "files" }, async () => {
           const currentWs = activeWsRef.current || "b0000000-0000-0000-0000-000000000001";
           const freshFiles = await fileService.getFiles(currentWs);
-          if (freshFiles && freshFiles.length > 0) {
+          if (activeWsRef.current === currentWs && freshFiles) {
             setFiles(freshFiles);
           }
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, async () => {
           const currentWs = activeWsRef.current || "b0000000-0000-0000-0000-000000000001";
           const freshClients = await clientService.getClients(currentWs);
-          if (freshClients && freshClients.length > 0) {
+          if (activeWsRef.current === currentWs && freshClients) {
             setClients(freshClients);
           }
         })
@@ -461,6 +465,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!isInitialized || !isAuthenticated) return;
+    let cancelled = false;
+    const workspaceId = activeWorkspaceId;
+    const merge = <T extends { workspace_id?: string }>(previous: T[], next: T[]) => [...previous.filter((item) => item.workspace_id !== workspaceId), ...next];
+    setWorkspaceMemberIds([]);
+    setPendingApprovals([]);
+    setActiveInvites(inviteService.getActiveInvites(workspaceId));
+    setColumns((previous) => previous.some((column) => column.workspace_id === workspaceId) ? previous : [...previous, ...initialColumns.map((column) => ({ ...column, id: `${workspaceId}:${column.status_key}`, workspace_id: workspaceId, project_id: undefined }))]);
+    const load = async () => {
+      if (!supabase || !isSupabaseConfigured) return;
+      const [p, t, n, a, c, f, logs, members, pending] = await Promise.all([
+        projectService.getProjects(workspaceId), taskService.getTasks(workspaceId), noteService.getNotes(workspaceId),
+        workspaceService.getAnnouncements(workspaceId), clientService.getClients(workspaceId), fileService.getFiles(workspaceId),
+        workspaceService.getActivityLogs(workspaceId), supabase.from("workspace_members").select("user_id").eq("workspace_id", workspaceId), inviteService.getPendingApprovals(workspaceId),
+      ]);
+      if (cancelled) return;
+      setProjects((previous) => merge(previous, p)); setTasks((previous) => merge(previous, t));
+      setNotes((previous) => merge(previous, n)); setAnnouncements((previous) => merge(previous, a));
+      setClients((previous) => merge(previous, c)); setFiles((previous) => merge(previous, f));
+      setActivityLogs((previous) => merge(previous, logs));
+      setWorkspaceMemberIds((members.data || []).map((row) => row.user_id));
+      setPendingApprovals(pending);
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [isInitialized, isAuthenticated, activeWorkspaceId]);
+
+  useEffect(() => {
+    if (!isInitialized || !isAuthenticated || !supabase) return;
+    let cancelled = false;
+    const refresh = async () => {
+      const { data, error } = await supabase!.from("notifications").select("*").eq("workspace_id", activeWorkspaceId).eq("user_id", currentUserId).order("created_at", { ascending: false }).limit(100);
+      if (!cancelled && !error && data) setNotifications((previous) => [
+        ...data,
+        ...previous.filter((item) => item.workspace_id === activeWorkspaceId && item.user_id === currentUserId && item.id.startsWith("notif_") && !data.some((remote) => remote.id === item.id)),
+      ]);
+    };
+    void refresh();
+    const timer = setInterval(() => { void refresh(); }, 30000);
+    window.addEventListener("focus", refresh);
+    return () => { cancelled = true; clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [isInitialized, isAuthenticated, activeWorkspaceId, currentUserId]);
 
   // Keep the stopwatch and recent sessions available after a refresh. Supabase is
   // the shared source once the project timeclock SQL has been installed.
@@ -553,7 +601,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
     const channel = new BroadcastChannel("vinzflow_sync_channel");
     channel.onmessage = (event) => {
-      if (event.data?.type === "SYNC_STATE") {
+      if (event.data?.type === "SYNC_STATE" && event.data.workspaceId === activeWsRef.current) {
         const d = event.data.payload;
         if (d.tasks) setTasks(d.tasks);
         if (d.projects) setProjects(d.projects);
@@ -576,7 +624,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined" && "BroadcastChannel" in window) {
       try {
         const channel = new BroadcastChannel("vinzflow_sync_channel");
-        channel.postMessage({ type: "SYNC_STATE", payload: stateUpdates });
+        channel.postMessage({ type: "SYNC_STATE", workspaceId: activeWsRef.current, payload: stateUpdates });
         channel.close();
       } catch (err) {
         console.error("Broadcast failed:", err);
@@ -634,37 +682,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const visibleProjects = useMemo(() => {
     // Owners and Admins always see all workspace projects
     if (roleAccess.currentRole.base_role === "owner" || roleAccess.currentRole.base_role === "admin") {
-      return projects;
+      return projects.filter((p) => p.workspace_id === activeWorkspaceId);
     }
     // Regular members, project managers, and guests see projects where:
     // 1. all_members is true (or undefined = public to workspace)
     // 2. OR user is the project owner
     // 3. OR user's id is present in member_ids
     return projects.filter((p) => {
+      if (p.workspace_id !== activeWorkspaceId) return false;
       if (p.all_members !== false && (p.all_members === true || !p.member_ids || p.member_ids.length === 0)) {
         return true;
       }
       return p.owner_id === currentUser.id || (p.member_ids || []).includes(currentUser.id);
     });
-  }, [projects, currentUser, roleAccess.currentRole.base_role]);
+  }, [projects, currentUser, roleAccess.currentRole.base_role, activeWorkspaceId]);
 
   // Tasks scoped to visible projects
   const visibleTasks = useMemo(() => {
     if (roleAccess.currentRole.base_role === "owner" || roleAccess.currentRole.base_role === "admin") {
-      return tasks;
+      return tasks.filter((task) => task.workspace_id === activeWorkspaceId);
     }
     const visibleProjIds = new Set(visibleProjects.map((p) => p.id));
-    return tasks.filter((t) => !t.project_id || visibleProjIds.has(t.project_id));
-  }, [tasks, visibleProjects, roleAccess.currentRole.base_role]);
+    return tasks.filter((t) => t.workspace_id === activeWorkspaceId && (!t.project_id || visibleProjIds.has(t.project_id)));
+  }, [tasks, visibleProjects, roleAccess.currentRole.base_role, activeWorkspaceId]);
 
   // Files scoped to visible projects
   const visibleFiles = useMemo(() => {
     if (roleAccess.currentRole.base_role === "owner" || roleAccess.currentRole.base_role === "admin") {
-      return files;
+      return files.filter((file) => file.workspace_id === activeWorkspaceId);
     }
     const visibleProjIds = new Set(visibleProjects.map((p) => p.id));
-    return files.filter((f) => !f.project_id || visibleProjIds.has(f.project_id));
-  }, [files, visibleProjects, roleAccess.currentRole.base_role]);
+    return files.filter((f) => f.workspace_id === activeWorkspaceId && (!f.project_id || visibleProjIds.has(f.project_id)));
+  }, [files, visibleProjects, roleAccess.currentRole.base_role, activeWorkspaceId]);
 
   const activeProject = useMemo(() => {
     if (!selectedProjectId) return null;
@@ -672,8 +721,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [visibleProjects, selectedProjectId]);
 
   const unreadNotificationCount = useMemo(() => {
-    return notifications.filter((n) => !n.is_read && n.user_id === currentUserId).length;
-  }, [notifications, currentUserId]);
+    return notifications.filter((n) => !n.is_read && n.user_id === currentUserId && n.workspace_id === activeWorkspaceId).length;
+  }, [notifications, currentUserId, activeWorkspaceId]);
 
   // Helper: Log Activity
   const logActivity = useCallback(
@@ -882,8 +931,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setActiveWorkspaceId = useCallback((id: string) => {
+    setPendingApprovals([]);
+    setWorkspaceMemberIds([]);
+    setActiveInvites(inviteService.getActiveInvites(id));
     setActiveWorkspaceIdState(id);
+    setActiveView("dashboard");
+    setIsQuickNoteOpen(false);
+    setIsCreateTaskModalOpen(false);
+    setIsCreateProjectModalOpen(false);
+    localStorage.setItem("vinzflow_active_workspace", id);
     setSelectedProjectIdState(null);
+    setEditingTask(null);
   }, []);
 
   const setSelectedProjectId = useCallback((id: string | null) => {
@@ -1599,19 +1657,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [can, toast, activeWorkspaceId, selectedProjectId, currentUser, logActivity]
   );
 
-  const updateNote = useCallback((id: string, updates: Partial<Note>) => {
-      if (!can("note:edit")) return;
-    setNotes((prev) =>
-      prev.map((n) => {
-        if (n.id === id) {
-          const updated = { ...n, ...updates, updated_at: new Date().toISOString() };
-          noteService.updateNote(id, updates);
-          return updated;
-        }
-        return n;
-      })
-    );
-  }, [can, ]);
+  const updateNote = useCallback(async (id: string, updates: Partial<Note>) => {
+    if (!can("note:edit")) return;
+    const previous = notes.find((note) => note.id === id && note.workspace_id === activeWorkspaceId);
+    if (!previous) return;
+    const next = { ...updates, updated_at: new Date().toISOString() };
+    setNotes((items) => items.map((note) => note.id === id ? { ...note, ...next } : note));
+    if (isSupabaseConfigured && !(await noteService.updateNote(id, next))) {
+      setNotes((items) => items.map((note) => note.id === id ? previous : note));
+      toast.error("Note was not saved", "Run the workspace collaboration SQL and check your note-edit access.");
+    }
+  }, [can, notes, activeWorkspaceId, toast]);
 
   const deleteNote = useCallback(
     (id: string) => {
@@ -1677,7 +1733,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       workspaceService.createAnnouncement(newAnn);
 
       // Notify other users
-      users.forEach((u) => {
+      users.filter((user) => workspaceMemberIds.includes(user.id)).forEach((u) => {
         if (u.id !== currentUser.id) {
           const notif: Notification = {
             id: generateId("notif"),
@@ -1694,7 +1750,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       });
     },
-    [can, currentUser.role, activeWorkspaceId, currentUser, logActivity, users]
+    [can, currentUser.role, activeWorkspaceId, currentUser, logActivity, users, workspaceMemberIds]
   );
 
   const markAnnouncementRead = useCallback(
@@ -1706,36 +1762,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [currentUser.id]
   );
 
-  const addAnnouncementReaction = useCallback(
-    (id: string, emoji: string) => {
-      setAnnouncements((prev) =>
-        prev.map((a) => {
-          if (a.id === id) {
-            const reactions = a.reactions || [];
-            const existing = reactions.find((r) => r.emoji === emoji);
-            let nextReactions;
-            if (existing) {
-              const hasReacted = existing.user_ids.includes(currentUser.id);
-              nextReactions = reactions.map((r) =>
-                r.emoji === emoji
-                  ? {
-                      ...r,
-                      count: hasReacted ? r.count - 1 : r.count + 1,
-                      user_ids: hasReacted ? r.user_ids.filter((u) => u !== currentUser.id) : [...r.user_ids, currentUser.id],
-                    }
-                  : r
-              );
-            } else {
-              nextReactions = [...reactions, { emoji, count: 1, user_ids: [currentUser.id] }];
-            }
-            return { ...a, reactions: nextReactions };
-          }
-          return a;
-        })
-      );
-    },
-    [currentUser.id]
-  );
+  const addAnnouncementReaction = useCallback(async (id: string, emoji: string) => {
+    if (!announcements.some((item) => item.id === id && item.workspace_id === activeWorkspaceId)) return;
+    if (!supabase || !isSupabaseConfigured) return;
+    const { data, error } = await supabase.rpc("toggle_announcement_reaction", { target_id: id, reaction_emoji: emoji });
+    if (error) { toast.error("Reaction was not saved", "Run the workspace collaboration SQL, then retry."); return; }
+    setAnnouncements((items) => items.map((item) => item.id === id ? { ...item, reactions: data || [] } : item));
+  }, [announcements, activeWorkspaceId, toast]);
 
   // --- Notifications ---
   const addNotification = useCallback(
@@ -1806,7 +1839,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const now = Date.now();
 
     // 1. Scan Delayed Tasks
-    tasks.forEach((t) => {
+    tasks.filter((task) => task.workspace_id === activeWorkspaceId).forEach((t) => {
       if (t.due_date && t.status !== "done" && t.status !== "completed" && isOverdue(t.due_date, t.status)) {
         const notifId = `notif_delayed_task_${t.id}`;
         const daysPast = Math.max(1, Math.floor((now - new Date(t.due_date).getTime()) / (1000 * 60 * 60 * 24)));
@@ -1825,7 +1858,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     // 2. Scan Delayed Payments
-    projects.forEach((p) => {
+    projects.filter((project) => project.workspace_id === activeWorkspaceId).forEach((p) => {
       const currency = p.currency || "$";
 
       // Fixed Price: Target date overdue without full settlement
@@ -1911,15 +1944,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const markNotificationRead = useCallback((id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
-  }, []);
+    if (supabase && !id.startsWith("notif_")) void supabase.from("notifications").update({ is_read: true }).eq("id", id).eq("user_id", currentUserId).then(() => {});
+  }, [currentUserId]);
 
   const markAllNotificationsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => (n.user_id === currentUserId ? { ...n, is_read: true } : n)));
-  }, [currentUserId]);
+    setNotifications((prev) => prev.map((n) => (n.user_id === currentUserId && n.workspace_id === activeWorkspaceId ? { ...n, is_read: true } : n)));
+    if (supabase) void supabase.from("notifications").update({ is_read: true }).eq("user_id", currentUserId).eq("workspace_id", activeWorkspaceId).then(() => {});
+  }, [currentUserId, activeWorkspaceId]);
 
   const clearAllNotifications = useCallback(() => {
-    setNotifications((prev) => prev.filter((n) => n.user_id !== currentUserId));
-  }, [currentUserId]);
+    setNotifications((prev) => prev.filter((n) => n.user_id !== currentUserId || n.workspace_id !== activeWorkspaceId));
+    if (supabase) void supabase.from("notifications").delete().eq("user_id", currentUserId).eq("workspace_id", activeWorkspaceId).then(() => {});
+  }, [currentUserId, activeWorkspaceId]);
 
   // --- Time Tracking ---
   const startTimer = useCallback(
@@ -2091,23 +2127,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [timeEntries, tasks, currentUser.id, updateTask]);
 
   // --- Workspaces & Members ---
-  const createWorkspace = useCallback(
-    (name: string, description?: string) => {
-      const newWs: Workspace = {
-        id: generateId("ws"),
-        name,
-        slug: name.toLowerCase().replace(/\s+/g, "-"),
-        description,
-        owner_id: currentUser.id,
-        plan: "pro",
-        created_at: new Date().toISOString(),
-      };
-      setWorkspaces((prev) => [...prev, newWs]);
-      setActiveWorkspaceIdState(newWs.id);
-      logActivity("workspace_created", `Created new workspace "${name}"`);
-    },
-    [currentUser, logActivity]
-  );
+  const createWorkspace = useCallback(async (name: string, description?: string): Promise<boolean> => {
+    const newWs: Workspace = { id: generateId("ws"), name: name.trim(),
+      slug: `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${crypto.randomUUID().slice(0, 8)}`,
+      description, owner_id: currentUser.id, plan: "pro", created_at: new Date().toISOString() };
+    if (!newWs.name) return false;
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from("workspaces").insert(newWs).select("id").single();
+      if (error) { toast.error("Could not create workspace", error.message); return false; }
+    }
+    setWorkspaces((previous) => [...previous, newWs]);
+    setActiveWorkspaceId(newWs.id);
+    setActiveView("dashboard");
+    return true;
+  }, [currentUser.id, setActiveWorkspaceId, toast]);
 
   const updateWorkspace = useCallback(
     async (
@@ -2385,24 +2418,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         demoLogin,
 
         // Data
-        users,
+        users: users.filter((user) => user.id === activeWorkspace.owner_id || workspaceMemberIds.includes(user.id)),
         workspaces,
         activeWorkspace,
         activeWorkspaceId,
         projects: visibleProjects,
-        allProjects: projects,
+        allProjects: projects.filter((p) => p.workspace_id === activeWorkspaceId),
         activeProject,
         selectedProjectId,
-        columns,
+        columns: columns.filter((column) => column.workspace_id === activeWorkspaceId),
         tasks: visibleTasks,
-        notes,
-        announcements,
-        notifications,
+        notes: notes.filter((item) => item.workspace_id === activeWorkspaceId),
+        announcements: announcements.filter((item) => item.workspace_id === activeWorkspaceId),
+        notifications: notifications.filter((item) => item.workspace_id === activeWorkspaceId),
         unreadNotificationCount,
-        activityLogs,
+        activityLogs: activityLogs.filter((item) => item.workspace_id === activeWorkspaceId),
         widgets,
-        timeEntries,
-        clients,
+        timeEntries: timeEntries.filter((item) => item.workspace_id === activeWorkspaceId),
+        clients: clients.filter((item) => item.workspace_id === activeWorkspaceId),
         files: visibleFiles,
         activeTimer,
         theme,
@@ -2445,7 +2478,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         removeMember,
 
         pendingApprovals,
-        activeInvites,
+        activeInvites: activeInvites.filter((invite) => invite.workspace_id === activeWorkspaceId),
         createInviteLink,
         approveMember,
         rejectMember,

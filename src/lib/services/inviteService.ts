@@ -247,7 +247,13 @@ export const inviteService = {
 
   // Get list of users waiting for administrator/owner approval
   async getPendingApprovals(workspaceId: string): Promise<User[]> {
-    const local = getLocalPending().filter((u) => u.approval_status === "pending");
+    const emails = new Set(getLocalInvites().filter((invite) => invite.workspace_id === workspaceId).map((invite) => invite.email.toLowerCase()));
+    if (isSupabaseConfigured && supabase) {
+      const { data: invites } = await supabase.from("workspace_invites").select("email").eq("workspace_id", workspaceId);
+      (invites || []).forEach((invite) => { if (invite.email) emails.add(invite.email.toLowerCase()); });
+    }
+    const local = getLocalPending().filter((u) => u.approval_status === "pending" && emails.has(u.email.toLowerCase()));
+    if (!emails.size) return [];
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -255,6 +261,7 @@ export const inviteService = {
           .from("profiles")
           .select("*")
           .eq("approval_status", "pending")
+          .in("email", Array.from(emails))
           .order("created_at", { ascending: false });
 
         if (!error && data) {

@@ -15,18 +15,10 @@ export const clientService = {
         console.error("Error fetching clients from Supabase:", error);
       }
 
-      if (!clientsData || clientsData.length === 0) {
-        const { data: allClients } = await supabase
-          .from("clients")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (allClients && allClients.length > 0) {
-          clientsData = allClients;
-        }
-      }
+      if (error || !clientsData?.length) return [];
 
       // Fetch client projects
-      const { data: cpData } = await supabase.from("client_projects").select("client_id, project_id");
+      const { data: cpData } = await supabase.from("client_projects").select("client_id, project_id").in("client_id", clientsData.map((client) => client.id));
       const projectsByClient: Record<string, string[]> = {};
       (cpData || []).forEach((row) => {
         if (!projectsByClient[row.client_id]) projectsByClient[row.client_id] = [];

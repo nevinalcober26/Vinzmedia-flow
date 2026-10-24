@@ -165,10 +165,10 @@ export function WorkspaceSettingsView() {
     }
   };
 
-  const handleCreateWs = (e: React.FormEvent) => {
+  const handleCreateWs = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWsName.trim()) return;
-    createWorkspace(newWsName.trim());
+    if (!(await createWorkspace(newWsName.trim()))) return;
     setNewWsName("");
     toast.success("Workspace Created", `Created workspace "${newWsName.trim()}".`);
   };

@@ -60,6 +60,7 @@ export function Navbar() {
     setIsQuickNoteOpen,
     setIsCreateTaskModalOpen,
     unreadNotificationCount,
+    notifications,
     activeTimer,
     stopTimer,
     setActiveView,
@@ -258,6 +259,7 @@ export function Navbar() {
             )}
           </button>
 
+          {notifications.some((item) => !item.is_read && item.user_id === currentUser.id && item.link_url?.startsWith("/timelogs?")) && <button onClick={() => setIsNotifOpen(true)} className="hidden sm:inline-flex rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600">Weekly summary due</button>}
           {/* Notifications Popover trigger */}
           <div className="relative">
             <button

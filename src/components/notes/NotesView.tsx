@@ -562,14 +562,16 @@ export function NotesView() {
                       placeholder="+ Add tag (Press Enter)"
                       value={newTagInput}
                       onChange={(e) => setNewTagInput(e.target.value)}
+                      onBlur={() => {
+                        const tag = newTagInput.trim().replace(/^#+/, "");
+                        if (!tag) { setNewTagInput(""); return; }
+                        const newTags = Array.from(new Set([...(editingNote.tags || []), tag]));
+                        updateNote(editingNote.id, { tags: newTags });
+                        setEditingNote({ ...editingNote, tags: newTags });
+                        setNewTagInput("");
+                      }}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && newTagInput.trim()) {
-                          e.preventDefault();
-                          const newTags = [...(editingNote.tags || []), newTagInput.trim()];
-                          updateNote(editingNote.id, { tags: newTags });
-                          setEditingNote({ ...editingNote, tags: newTags });
-                          setNewTagInput("");
-                        }
+                        if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
                       }}
                       className="px-2.5 py-0.5 text-xs bg-black/5 dark:bg-white/10 rounded-full border border-black/10 dark:border-white/20 outline-hidden placeholder:opacity-50"
                     />

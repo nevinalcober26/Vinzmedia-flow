@@ -1,5 +1,6 @@
 "use client";
 
+import { WeeklyTimeReview } from "./WeeklyTimeReview";
 import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -130,6 +131,21 @@ export function TimeLogsView() {
   const yesterdayStr = useMemo(() => format(yesterdayDate, "yyyy-MM-dd"), [yesterdayDate]);
 
   // Week Interval: Monday to Sunday
+  useEffect(() => {
+    const openReview = () => {
+    const target = sessionStorage.getItem("vinzflow_weekly_review_target");
+    if (!target) return;
+    sessionStorage.removeItem("vinzflow_weekly_review_target");
+    const params = new URLSearchParams(target);
+    const week = params.get("week"); const project = params.get("project");
+    if (week && /^\d{4}-\d{2}-\d{2}$/.test(week)) setSelectedDate(new Date(`${week}T12:00:00`));
+    if (project) setSelectedProjectFilter(project);
+    };
+    openReview();
+    window.addEventListener("vinzflow:weekly-review", openReview);
+    return () => window.removeEventListener("vinzflow:weekly-review", openReview);
+  }, []);
+
   const weekStart = useMemo(() => startOfWeek(selectedDate, { weekStartsOn: 1 }), [selectedDate]);
   const weekEnd = useMemo(() => endOfWeek(weekStart, { weekStartsOn: 1 }), [weekStart]);
   const weekDays = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [weekStart, weekEnd]);
@@ -344,6 +360,7 @@ export function TimeLogsView() {
 
   return (
     <div className="flex h-full flex-col space-y-4 overflow-y-auto pr-1">
+      <WeeklyTimeReview week={format(weekStart, "yyyy-MM-dd")} selectedProject={selectedProjectFilter} onReview={setSelectedProjectFilter} />
       {/* Top Banner & Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
         <div className="flex items-center space-x-3">
