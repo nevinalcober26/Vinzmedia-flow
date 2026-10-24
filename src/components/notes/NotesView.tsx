@@ -152,6 +152,7 @@ export function NotesView() {
       color,
       tags: ["Brainstorm"],
     });
+    if (!created) return;
     setEditingNote(created);
     toast.success("Sticky Note Added", "New sticky note pinned to your board.");
   };

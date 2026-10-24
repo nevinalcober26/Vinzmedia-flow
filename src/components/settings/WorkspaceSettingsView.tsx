@@ -20,12 +20,14 @@ import {
   X as XIcon,
 } from "lucide-react";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { RoleManagement } from "@/components/team/RoleManagement";
 import { DatabaseSchemaView } from "./DatabaseSchemaView";
 
 export function WorkspaceSettingsView() {
   const confirm = useConfirm();
   const toast = useToast();
   const {
+    can,
     activeWorkspace,
     createWorkspace,
     workspaces,
@@ -45,7 +47,7 @@ export function WorkspaceSettingsView() {
     setInvoiceSender(getInvoiceSenderSettings(activeWorkspace.id, activeWorkspace.name));
   }, [activeWorkspace.id, activeWorkspace.name]);
 
-  const canEdit = ["owner", "admin"].includes(currentUser.role);
+  const canEdit = can("workspace:manage");
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,17 +63,6 @@ export function WorkspaceSettingsView() {
     setNewWsName("");
     toast.success("Workspace Created", `Created workspace "${newWsName.trim()}".`);
   };
-
-  const rbacMatrix = [
-    { permission: "Delete Workspace & Billing", owner: true, admin: false, pm: false, member: false, guest: false },
-    { permission: "Manage Workspace Settings", owner: true, admin: true, pm: false, member: false, guest: false },
-    { permission: "Invite Team Members & Change Roles", owner: true, admin: true, pm: true, member: false, guest: false },
-    { permission: "Create & Delete Projects", owner: true, admin: true, pm: true, member: false, guest: false },
-    { permission: "Post Workspace Announcements", owner: true, admin: true, pm: true, member: false, guest: false },
-    { permission: "Create, Edit & Move Tasks", owner: true, admin: true, pm: true, member: true, guest: false },
-    { permission: "Add Comments & Emoji Reactions", owner: true, admin: true, pm: true, member: true, guest: true },
-    { permission: "View Projects, Boards, & Gantt", owner: true, admin: true, pm: true, member: true, guest: true },
-  ];
 
   return (
     <div className="flex flex-col h-full space-y-5 max-w-5xl mx-auto w-full pb-16 overflow-y-auto">
@@ -125,7 +116,7 @@ export function WorkspaceSettingsView() {
             }}>
               {([
                 ["company", "Company name"], ["email", "Billing email"],
-                ["address", "Address"], ["taxId", "Tax ID"],
+                ["address", "Address"], ["taxId", "Tax ID"], ["logoUrl", "Invoice logo URL (optional)"],
               ] as const).map(([field, label]) => (
                 <label key={field} className="space-y-1.5 font-semibold text-foreground">
                   <span>{label}</span>
@@ -206,57 +197,7 @@ export function WorkspaceSettingsView() {
       {/* Tab: Database */}
       {activeTab === "database" && <DatabaseSchemaView />}
 
-      {/* Tab: RBAC */}
-      {activeTab === "rbac" && (
-        <div className="space-y-4">
-          <div className="p-6 rounded-2xl bg-card border border-border shadow-2xs space-y-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-bold text-foreground">Role-Based Access Control (RBAC) Matrix</h3>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Permissions are enforced in frontend user interfaces and database Row Level Security policies.
-            </p>
-
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-secondary/60 text-muted-foreground uppercase text-[10px]">
-                  <tr>
-                    <th className="p-3 font-semibold">Permission Action</th>
-                    <th className="p-3 text-center">Owner</th>
-                    <th className="p-3 text-center">Admin</th>
-                    <th className="p-3 text-center">PM</th>
-                    <th className="p-3 text-center">Member</th>
-                    <th className="p-3 text-center">Guest</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {rbacMatrix.map((row) => (
-                    <tr key={row.permission} className="hover:bg-secondary/30">
-                      <td className="p-3 font-medium text-foreground">{row.permission}</td>
-                      <td className="p-3 text-center">
-                        {row.owner ? <Check className="w-4 h-4 text-emerald-500 mx-auto" /> : <XIcon className="w-4 h-4 text-muted-foreground/30 mx-auto" />}
-                      </td>
-                      <td className="p-3 text-center">
-                        {row.admin ? <Check className="w-4 h-4 text-emerald-500 mx-auto" /> : <XIcon className="w-4 h-4 text-muted-foreground/30 mx-auto" />}
-                      </td>
-                      <td className="p-3 text-center">
-                        {row.pm ? <Check className="w-4 h-4 text-emerald-500 mx-auto" /> : <XIcon className="w-4 h-4 text-muted-foreground/30 mx-auto" />}
-                      </td>
-                      <td className="p-3 text-center">
-                        {row.member ? <Check className="w-4 h-4 text-emerald-500 mx-auto" /> : <XIcon className="w-4 h-4 text-muted-foreground/30 mx-auto" />}
-                      </td>
-                      <td className="p-3 text-center">
-                        {row.guest ? <Check className="w-4 h-4 text-emerald-500 mx-auto" /> : <XIcon className="w-4 h-4 text-muted-foreground/30 mx-auto" />}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+      {activeTab === "rbac" && <RoleManagement />}
 
       {/* Tab: Danger */}
       {activeTab === "danger" && (

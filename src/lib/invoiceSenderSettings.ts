@@ -3,6 +3,7 @@ export interface InvoiceSenderSettings {
   address: string;
   email: string;
   taxId: string;
+  logoUrl: string;
 }
 
 const storageKey = (workspaceId: string) => `vinzflow_invoice_sender_${workspaceId}`;
@@ -10,6 +11,7 @@ const storageKey = (workspaceId: string) => `vinzflow_invoice_sender_${workspace
 export function getInvoiceSenderSettings(workspaceId: string, workspaceName: string): InvoiceSenderSettings {
   const defaults = {
     company: workspaceName,
+    logoUrl: "",
     address: "Suite 2400, Horizon Executive Tower",
     email: "billing@vinzmedia.com",
     taxId: "US-EIN-94-2849102",

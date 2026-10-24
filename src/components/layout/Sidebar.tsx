@@ -41,6 +41,9 @@ import { ActiveView } from "@/types";
 export function Sidebar() {
   const confirm = useConfirm();
   const {
+    canAccessView,
+    can,
+    currentRole,
     activeView,
     setActiveView,
     activeWorkspace,
@@ -412,7 +415,7 @@ export function Sidebar() {
           <Search className="h-4 w-4 shrink-0" />
           {!isCollapsed && <><span className="flex-1 text-left text-xs">Search anything…</span><kbd className="rounded border border-sidebar-border px-1 text-[10px]">⌘K</kbd></>}
         </button>
-        <button onClick={() => setIsCreateTaskModalOpen(true)} aria-label="Create task" title="Create task" className={`flex h-9 w-full items-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 ${isCollapsed ? "justify-center" : "gap-2 px-2.5"}`}>
+        <button disabled={!can("task:create")} style={!can("task:create") ? { display: "none" } : undefined} onClick={() => setIsCreateTaskModalOpen(true)} aria-label="Create task" title="Create task" className={`flex h-9 w-full items-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 ${isCollapsed ? "justify-center" : "gap-2 px-2.5"}`}>
           <Plus className="h-4 w-4 shrink-0" />
           {!isCollapsed && <span className="text-xs font-medium">Create task</span>}
         </button>
@@ -422,12 +425,12 @@ export function Sidebar() {
         onScroll={hideTooltip}
         className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-3"
       >
-        {navSections.map((section) => (
+        {navSections.map((section) => ({ ...section, items: section.items.filter((item) => canAccessView(item.id)) })).filter((section) => section.items.length > 0).map((section) => (
           <div key={section.id} className="space-y-1">
             {!isCollapsed ? (
               <div className="px-2 pt-2 pb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/75">
                 <span>{section.title}</span>
-                {section.isProjectsGroup && (
+                {section.isProjectsGroup && can("project:create") && (
                   <button
                     onClick={() => setIsCreateProjectModalOpen(true)}
                     title="Create new project"
@@ -687,14 +690,14 @@ export function Sidebar() {
             hideTooltip();
             setIsProfileModalOpen(true);
           }}
-          title={isCollapsed ? `${currentUser.full_name} (${currentUser.role.replace("_", " ")})` : undefined}
+          title={isCollapsed ? `${currentUser.full_name} (${currentRole.name})` : undefined}
           aria-label={currentUser.full_name}
           onMouseEnter={(e) =>
             showTooltip(
               e,
               currentUser.full_name,
               undefined,
-              `Signed in as ${currentUser.role.replace("_", " ")}`
+              `Signed in as ${currentRole.name}`
             )
           }
           onMouseLeave={hideTooltip}
@@ -711,7 +714,7 @@ export function Sidebar() {
                 </p>
               </div>
               <p className="text-[10px] text-muted-foreground truncate capitalize">
-                {currentUser.role.replace("_", " ")}
+                {currentRole.name}
               </p>
             </div>
           )}
@@ -723,6 +726,7 @@ export function Sidebar() {
             handleNavClick("settings");
           }}
           title={isCollapsed ? "Workspace Settings • Insights & Admin" : undefined}
+          style={!canAccessView("settings") ? { display: "none" } : undefined}
           aria-label="Workspace Settings"
           onMouseEnter={(e) =>
             showTooltip(e, "Workspace Settings", undefined, "Insights & Admin")

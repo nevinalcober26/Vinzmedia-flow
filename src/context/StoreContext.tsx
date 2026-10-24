@@ -47,7 +47,7 @@ import {
   syncNoteToSupabase,
   syncAnnouncementToSupabase,
 } from "@/lib/databaseSync";
-import { hasPermission } from "@/lib/permissions";
+import { useWorkspaceRoles, defaultRoleKey } from "@/hooks/useWorkspaceRoles";
 
 interface ActiveTimer {
   taskId?: string;
@@ -59,7 +59,7 @@ interface ActiveTimer {
   seconds: number;
 }
 
-interface StoreContextType {
+interface StoreContextType extends ReturnType<typeof useWorkspaceRoles> {
   // Auth & RBAC
   isAuthenticated: boolean;
   currentUser: User;
@@ -179,7 +179,7 @@ interface StoreContextType {
   deleteColumn: (id: string) => void;
 
   // Notes
-  createNote: (noteData: Partial<Note>) => Note;
+  createNote: (noteData: Partial<Note>) => Note | null;
   updateNote: (id: string, updates: Partial<Note>) => void;
   deleteNote: (id: string) => void;
   togglePinNote: (id: string) => void;
@@ -609,10 +609,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
   }, [workspaces, activeWorkspaceId]);
 
+  const roleAccess = useWorkspaceRoles(activeWorkspaceId, currentUser.id, currentUser.role, activeWorkspace.owner_id);
+  const { can, assignWorkspaceRole } = roleAccess;
+
   // User-filtered projects based on RBAC & Project Member Assignment
   const visibleProjects = useMemo(() => {
     // Owners and Admins always see all workspace projects
-    if (currentUser.role === "owner" || currentUser.role === "admin") {
+    if (roleAccess.currentRole.base_role === "owner" || roleAccess.currentRole.base_role === "admin") {
       return projects;
     }
     // Regular members, project managers, and guests see projects where:
@@ -625,25 +628,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       return p.owner_id === currentUser.id || (p.member_ids || []).includes(currentUser.id);
     });
-  }, [projects, currentUser]);
+  }, [projects, currentUser, roleAccess.currentRole.base_role]);
 
   // Tasks scoped to visible projects
   const visibleTasks = useMemo(() => {
-    if (currentUser.role === "owner" || currentUser.role === "admin") {
+    if (roleAccess.currentRole.base_role === "owner" || roleAccess.currentRole.base_role === "admin") {
       return tasks;
     }
     const visibleProjIds = new Set(visibleProjects.map((p) => p.id));
     return tasks.filter((t) => !t.project_id || visibleProjIds.has(t.project_id));
-  }, [tasks, visibleProjects, currentUser.role]);
+  }, [tasks, visibleProjects, roleAccess.currentRole.base_role]);
 
   // Files scoped to visible projects
   const visibleFiles = useMemo(() => {
-    if (currentUser.role === "owner" || currentUser.role === "admin") {
+    if (roleAccess.currentRole.base_role === "owner" || roleAccess.currentRole.base_role === "admin") {
       return files;
     }
     const visibleProjIds = new Set(visibleProjects.map((p) => p.id));
     return files.filter((f) => !f.project_id || visibleProjIds.has(f.project_id));
-  }, [files, visibleProjects, currentUser.role]);
+  }, [files, visibleProjects, roleAccess.currentRole.base_role]);
 
   const activeProject = useMemo(() => {
     if (!selectedProjectId) return null;
@@ -934,7 +937,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Project Management with RBAC & Supabase Sync ---
   const createProject = useCallback(
     (data: Partial<Project>): Project | null => {
-      if (!hasPermission(currentUser.role, "project:create")) {
+      if (!can("project:create")) {
         toast.error("Permission Denied", `Users with role "${currentUser.role}" cannot create projects.`);
         return null;
       }
@@ -985,12 +988,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       toast.success("Project Created", `Project "${newProj.name}" created successfully.`);
       return newProj;
     },
-    [currentUser.role, activeWorkspaceId, currentUser.id, logActivity, broadcastSync, projects, toast]
+    [can, currentUser.role, activeWorkspaceId, currentUser.id, logActivity, broadcastSync, projects, toast]
   );
 
   const updateProject = useCallback(
     (id: string, updates: Partial<Project>) => {
-      if (!hasPermission(currentUser.role, "project:edit")) {
+      if (!can("project:edit")) {
         toast.error("Permission Denied", "Your role does not allow editing project properties.");
         return;
       }
@@ -1034,12 +1037,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         );
       }
     },
-    [currentUser.role, logActivity, toast]
+    [can, currentUser.role, logActivity, toast]
   );
 
   const deleteProject = useCallback(
     (id: string) => {
-      if (!hasPermission(currentUser.role, "project:delete")) {
+      if (!can("project:delete")) {
         toast.error("Permission Denied", "Only Workspace Owners and Admins can delete projects.");
         return;
       }
@@ -1054,18 +1057,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       logActivity("project_deleted", `Deleted project "${proj?.name || id}"`);
       toast.delete("Project Deleted", `Project "${proj?.name || "Project"}" was deleted.`);
     },
-    [currentUser.role, projects, selectedProjectId, logActivity, toast]
+    [can, currentUser.role, projects, selectedProjectId, logActivity, toast]
   );
 
   const archiveProject = useCallback(
     (id: string) => {
+      if (!can("project:archive")) return;
       updateProject(id, { status: "archived" });
     },
-    [updateProject]
+    [can, updateProject]
   );
 
   const duplicateProject = useCallback(
     (id: string) => {
+      if (!can("project:create")) return;
       const source = projects.find((p) => p.id === id);
       if (!source) return;
       const duplicated: Project = {
@@ -1079,7 +1084,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       logActivity("project_duplicated", `Duplicated project "${source.name}"`, duplicated.id);
       syncProjectToSupabase(duplicated);
     },
-    [projects, logActivity]
+    [can, projects, logActivity]
   );
 
   const togglePaymentPaid = useCallback(
@@ -1161,7 +1166,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Task & Kanban Management with RBAC & Supabase Sync ---
   const createTask = useCallback(
     (data: Partial<Task>): Task | null => {
-      if (!hasPermission(currentUser.role, "task:create")) {
+      if (!can("task:create")) {
         toast.error("Permission Denied", "Guests cannot create tasks.");
         return null;
       }
@@ -1228,6 +1233,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     },
     [
       currentUser.role,
+      can,
       selectedProjectId,
       projects,
       activeWorkspaceId,
@@ -1242,7 +1248,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const updateTask = useCallback(
     (id: string, updates: Partial<Task>) => {
-      if (!hasPermission(currentUser.role, "task:edit")) {
+      if (!can("task:edit")) {
         toast.error("Permission Denied", "Guests cannot modify task fields.");
         return;
       }
@@ -1269,12 +1275,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
       logActivity("task_updated", `Updated task properties`, undefined, id);
     },
-    [currentUser.role, recalculateProjectProgress, editingTask, broadcastSync, logActivity, toast]
+    [can, currentUser.role, recalculateProjectProgress, editingTask, broadcastSync, logActivity, toast]
   );
 
   const deleteTask = useCallback(
     (id: string) => {
-      if (!hasPermission(currentUser.role, "task:delete")) {
+      if (!can("task:delete")) {
         toast.error("Permission Denied", "Your role does not permit deleting tasks.");
         return;
       }
@@ -1295,12 +1301,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       logActivity("task_deleted", `Deleted task "${task?.title || id}"`);
       toast.delete("Task Deleted", `Task "${task?.title || "Task"}" deleted.`);
     },
-    [currentUser.role, tasks, editingTask, recalculateProjectProgress, broadcastSync, logActivity, toast]
+    [can, currentUser.role, tasks, editingTask, recalculateProjectProgress, broadcastSync, logActivity, toast]
   );
 
   const moveTask = useCallback(
     (taskId: string, targetStatus: string, newIndex?: number, targetDepartment?: string) => {
-      if (!hasPermission(currentUser.role, "task:move")) {
+      if (!can("task:move")) {
         toast.error("Permission Denied", "Guests cannot move board columns.");
         return;
       }
@@ -1368,7 +1374,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         taskId
       );
     },
-    [currentUser.role, recalculateProjectProgress, editingTask, broadcastSync, logActivity]
+    [can, currentUser.role, recalculateProjectProgress, editingTask, broadcastSync, logActivity]
   );
 
   const reorderTasksInColumn = useCallback(
@@ -1420,7 +1426,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const bulkDeleteTasks = useCallback(
     (taskIds: string[]) => {
-      if (!hasPermission(currentUser.role, "task:delete")) {
+      if (!can("task:delete")) {
         toast.error("Permission Denied", "Your role does not allow bulk deletion.");
         return;
       }
@@ -1428,7 +1434,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       logActivity("bulk_task_delete", `Deleted ${taskIds.length} tasks`);
       toast.delete("Tasks Deleted", `Deleted ${taskIds.length} tasks.`);
     },
-    [currentUser.role, logActivity, toast]
+    [can, currentUser.role, logActivity, toast]
   );
 
   // --- Subtasks ---
@@ -1477,6 +1483,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Comments ---
   const addComment = useCallback(
     (taskId: string, content: string) => {
+      if (!can("comment:create")) return;
       const newCommentId = generateId();
       const newComment: Comment = {
         id: newCommentId,
@@ -1489,11 +1496,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return;
-      updateTask(taskId, { comments: [...task.comments, newComment] });
+      setTasks((previous) => previous.map((item) => item.id === taskId ? { ...item, comments: [...item.comments, newComment] } : item));
       taskService.addComment(taskId, currentUser.id, content);
       logActivity("comment_added", `Added a comment on "${task.title}"`, task.project_id, taskId);
     },
-    [tasks, currentUser, updateTask, logActivity]
+    [can, tasks, currentUser, updateTask, logActivity]
   );
 
   const addCommentReaction = useCallback(
@@ -1559,7 +1566,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // --- Notes with Supabase Sync ---
   const createNote = useCallback(
-    (data: Partial<Note>): Note => {
+    (data: Partial<Note>): Note | null => {
+      if (!can("note:create")) { toast.error("Access restricted", "Your role cannot create notes."); return null; }
       const newNoteId = generateId();
       const newNote: Note = {
         id: newNoteId,
@@ -1581,10 +1589,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       noteService.createNote(newNote);
       return newNote;
     },
-    [activeWorkspaceId, selectedProjectId, currentUser, logActivity]
+    [can, toast, activeWorkspaceId, selectedProjectId, currentUser, logActivity]
   );
 
   const updateNote = useCallback((id: string, updates: Partial<Note>) => {
+      if (!can("note:edit")) return;
     setNotes((prev) =>
       prev.map((n) => {
         if (n.id === id) {
@@ -1595,18 +1604,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return n;
       })
     );
-  }, []);
+  }, [can, ]);
 
   const deleteNote = useCallback(
     (id: string) => {
+      if (!can("note:edit")) return;
       setNotes((prev) => prev.filter((n) => n.id !== id));
       noteService.deleteNote(id);
       logActivity("note_deleted", `Deleted note`);
     },
-    [logActivity]
+    [can, logActivity]
   );
 
   const togglePinNote = useCallback((id: string) => {
+      if (!can("note:edit")) return;
     setNotes((prev) => prev.map((n) => {
       if (n.id === id) {
         const nextPinned = !n.is_pinned;
@@ -1615,7 +1626,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       return n;
     }));
-  }, []);
+  }, [can, ]);
 
   const convertNoteToTask = useCallback(
     (noteId: string, projectId: string) => {
@@ -1635,7 +1646,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // --- Announcements with RBAC & Supabase Sync ---
   const createAnnouncement = useCallback(
     (title: string, content: string, priority: "urgent" | "important" | "general", isPinned?: boolean) => {
-      if (!hasPermission(currentUser.role, "announcement:create")) {
+      if (!can("announcement:create")) {
         toast.error("Permission Denied", "Only Admins, Owners, and Project Managers can post announcements.");
         return;
       }
@@ -1676,7 +1687,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       });
     },
-    [currentUser.role, activeWorkspaceId, currentUser, logActivity, users]
+    [can, currentUser.role, activeWorkspaceId, currentUser, logActivity, users]
   );
 
   const markAnnouncementRead = useCallback(
@@ -2110,6 +2121,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const createInviteLink = useCallback(
     async (email: string, role: Role = "member") => {
+      if (!can("members:invite")) throw new Error("Your role cannot invite members");
       const targetWsId = activeWorkspaceId || "b0000000-0000-0000-0000-000000000001";
       const res = await inviteService.createInvite(
         targetWsId,
@@ -2122,7 +2134,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       logActivity("invite_created", `Generated invitation link for ${email || "new teammate"}`);
       return res;
     },
-    [activeWorkspaceId, currentUser, logActivity]
+    [can, activeWorkspaceId, currentUser, logActivity]
   );
 
   const approveMember = useCallback(
@@ -2196,29 +2208,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [createInviteLink]
   );
 
-  const updateMemberRole = useCallback(
-    async (userId: string, role: Role) => {
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
-      toast.success("Role Updated", `Role updated to ${role}`);
-      if (isSupabaseConfigured && supabase) {
-        try {
-          await supabase.from("profiles").update({ role }).eq("id", userId);
-          await supabase
-            .from("workspace_members")
-            .update({ role })
-            .eq("workspace_id", activeWorkspaceId)
-            .eq("user_id", userId);
-          logActivity("role_updated", `Updated member role to ${role}`);
-        } catch (err) {
-          console.error("Failed to update member role in Supabase:", err);
-        }
-      }
-    },
-    [activeWorkspaceId, logActivity, toast]
-  );
+  const updateMemberRole = useCallback(async (userId: string, role: Role) => {
+    const saved = await assignWorkspaceRole(userId, defaultRoleKey(role));
+    if (saved) toast.success("Role updated", "Workspace access has been updated.");
+    else toast.error("Role could not be saved", "Check your role-management access and database setup.");
+  }, [assignWorkspaceRole, toast]);
 
   const removeMember = useCallback(
     async (userId: string) => {
+      if (!can("members:remove") || userId === activeWorkspace.owner_id || userId === currentUser.id) return;
       const target = users.find((u) => u.id === userId);
       setUsers((prev) => prev.filter((u) => u.id !== userId));
       toast.delete("Member Removed", `${target?.full_name || "Member"} removed from workspace`);
@@ -2233,7 +2231,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       logActivity("member_removed", `Removed ${target?.full_name || userId} from workspace`);
     },
-    [activeWorkspaceId, logActivity, toast, users]
+    [can, activeWorkspaceId, logActivity, toast, users]
   );
 
   // --- Clients & Files ---
@@ -2333,6 +2331,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetAllData = useCallback(() => {
+      if (!can("workspace:manage")) return;
     localStorage.removeItem(STORAGE_KEY);
     setUsers((prev) => prev.filter((u) => u.email === "vinz@vinzmedia.com" || u.approval_status === "approved"));
     setTasks([]);
@@ -2340,7 +2339,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setAnnouncements([]);
     setActivityLogs([]);
     setSelectedProjectIdState(null);
-  }, []);
+  }, [can, ]);
 
   return (
     <StoreContext.Provider
@@ -2379,6 +2378,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         theme,
         onlineUsers,
 
+        ...roleAccess,
         activeView,
         isViewLoading,
         isInitialized,

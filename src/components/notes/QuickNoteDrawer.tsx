@@ -60,6 +60,7 @@ export function QuickNoteDrawer() {
       color: newColor,
       tags: ["Scratchpad"],
     });
+    if (!created) return;
     setActiveNoteId(created.id);
     setNewTitle("");
     setNewContent("");

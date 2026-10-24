@@ -83,6 +83,7 @@ export function ProjectInvoiceModal({
   const [clientTaxId, setClientTaxId] = useState<string>("");
 
   // Originating Entity (Agency Details)
+  const [providerLogo, setProviderLogo] = useState("/icon.svg");
   const [providerCompany, setProviderCompany] = useState<string>("");
   const [providerEmail, setProviderEmail] = useState<string>("billing@vinzmedia.com");
   const [providerAddress, setProviderAddress] = useState<string>("Suite 2400, Horizon Executive Tower");
@@ -255,6 +256,7 @@ export function ProjectInvoiceModal({
 
       // Agency Provider
       const sender = getInvoiceSenderSettings(activeWorkspace.id, activeWorkspace.name);
+      setProviderLogo(sender.logoUrl || activeWorkspace.logo_url || "/icon.svg");
       setProviderCompany(sender.company);
       setProviderAddress(sender.address);
       setProviderEmail(sender.email);
@@ -557,16 +559,12 @@ export function ProjectInvoiceModal({
     }
   };
 
-  const handlePrint = () => {
-    // Switch to preview mode for printing if in form mode
-    if (activeTab !== "preview") {
-      setActiveTab("preview");
-      setTimeout(() => {
-        window.print();
-      }, 150);
-    } else {
-      window.print();
-    }
+  const handlePrint = async () => {
+    setActiveTab("preview");
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    await document.fonts.ready;
+    await Promise.all(Array.from(document.querySelectorAll<HTMLImageElement>("#invoice-printable-area img")).map((image) => image.decode().catch(() => undefined)));
+    window.print();
   };
 
   // Escape to close
@@ -617,8 +615,8 @@ export function ProjectInvoiceModal({
                 max-width: 100% !important;
                 margin: 0 !important;
                 padding: 32px !important;
-                background: #ffffff !important;
-                color: #0f172a !important;
+                background: #0a1018 !important;
+                color: #f6f9fc !important;
                 box-shadow: none !important;
                 border: none !important;
                 -webkit-print-color-adjust: exact !important;
@@ -1236,7 +1234,7 @@ export function ProjectInvoiceModal({
             <div key="invoice-preview" id="invoice-preview-panel" role="tabpanel" aria-labelledby="invoice-preview-tab" className="invoice-preview-scroll min-h-0 flex-1 overflow-y-auto bg-background p-3 sm:p-7">
               <article id="invoice-printable-area" className="invoice-document mx-auto max-w-[820px] rounded-xl border border-border bg-card p-6 shadow-soft sm:p-10">
                 <div className="invoice-brand mb-9">
-                  <span className="invoice-brand-mark" aria-hidden="true">V</span>
+                  <img src={providerLogo} alt={`${providerCompany} logo`} className="invoice-logo" onError={(event) => { if (!event.currentTarget.src.endsWith("/icon.svg")) event.currentTarget.src = "/icon.svg"; }} />
                   <div><p className="text-lg font-bold tracking-tight">VINZMEDIA</p><p className="text-xs">Design &amp; Development</p></div>
                 </div>
                 <p className="invoice-eyebrow mb-2">Invoice / {project.billing_type === "fixed" ? "Project milestone" : "Professional services"}</p>

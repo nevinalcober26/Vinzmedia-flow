@@ -28,6 +28,8 @@ import {
 import confetti from "canvas-confetti";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { Role, User } from "@/types";
+import { RoleManagement } from "./RoleManagement";
+import { defaultRoleKey } from "@/hooks/useWorkspaceRoles";
 
 export function TeamView() {
   const {
@@ -40,14 +42,19 @@ export function TeamView() {
     approveMember,
     rejectMember,
     revokeInvite,
-    updateMemberRole,
+    workspaceRoles,
+    roleAssignments,
+    assignWorkspaceRole,
+    canManageRoles,
+    can,
+    activeWorkspace,
     removeMember,
   } = useStore();
 
   const toast = useToast();
   const confirm = useConfirm();
 
-  const [activeTab, setActiveTab] = useState<"directory" | "approvals" | "invites">("directory");
+  const [activeTab, setActiveTab] = useState<"directory" | "approvals" | "invites" | "roles">("directory");
   const [searchQuery, setSearchQuery] = useState("");
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -56,7 +63,7 @@ export function TeamView() {
   const [hasCopied, setHasCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const canManageRoles = ["owner", "admin"].includes(currentUser.role);
+
 
   const filteredMembers = users.filter((u) => {
     if (!searchQuery.trim()) return true;
@@ -145,8 +152,11 @@ export function TeamView() {
     }
   };
 
+  if (activeTab === "roles") return <div className="h-full overflow-y-auto space-y-5 pb-8"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Roles & access</h2><button onClick={() => setActiveTab("directory")} className="rounded-lg border border-border px-3 py-2 text-xs">Back to members</button></div><RoleManagement /></div>;
+
   return (
     <div className="flex flex-col h-full space-y-4">
+      {canManageRoles && <button onClick={() => setActiveTab("roles")} className="self-end rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-xs font-semibold text-primary">Manage roles & access</button>}
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1">
         <div>
@@ -161,7 +171,7 @@ export function TeamView() {
           </p>
         </div>
 
-        {canManageRoles && (
+        {can("members:invite") && (
           <button
             onClick={() => {
               setGeneratedLink("");
@@ -282,27 +292,23 @@ export function TeamView() {
 
                         {/* Role Selector or Badge */}
                         <div className="flex items-center space-x-1.5">
-                          {canManageRoles && member.id !== currentUser.id ? (
+                          {canManageRoles && member.id !== currentUser.id && member.id !== activeWorkspace.owner_id ? (
                             <select
-                              value={member.role}
+                              value={member.id === activeWorkspace.owner_id ? "owner" : roleAssignments[member.id] || defaultRoleKey(member.role)}
                               onChange={(e) =>
-                                updateMemberRole(member.id, e.target.value as Role)
+                                void assignWorkspaceRole(member.id, e.target.value).then((ok) => ok ? toast.success("Role updated") : toast.error("Could not update role", "Check your role access and Supabase setup."))
                               }
                               className="bg-secondary/70 text-[11px] font-semibold rounded-xl px-2.5 py-1 text-foreground border border-border focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer hover:bg-secondary"
                             >
-                              <option value="owner">👑 Owner — Workspace Authority</option>
-                              <option value="admin">🛡️ Admin — Operations & Review</option>
-                              <option value="project_manager">📁 Project Manager — Task Lead</option>
-                              <option value="member">👤 Member — Standard Contributor</option>
-                              <option value="guest">👁️ Guest — Read-only Reviewer</option>
+                              {workspaceRoles.filter((role) => role.key !== "owner").map((role) => <option key={role.key} value={role.key}>{role.name}</option>)}
                             </select>
                           ) : (
                             <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-primary/10 text-primary capitalize border border-primary/20">
-                              {member.role.replace("_", " ")}
+                              {workspaceRoles.find((role) => role.key === (member.id === activeWorkspace.owner_id ? "owner" : roleAssignments[member.id] || defaultRoleKey(member.role)))?.name || member.role}
                             </span>
                           )}
 
-                          {canManageRoles && member.id !== currentUser.id && (
+                          {canManageRoles && member.id !== currentUser.id && member.id !== activeWorkspace.owner_id && (
                             <button
                               onClick={() => handleRemoveMember(member)}
                               title="Remove member"
@@ -463,7 +469,7 @@ export function TeamView() {
           </div>
 
           {activeInvites.length === 0 ? (
-            <EmptyState icon={LinkIcon} title="Bring your team together" description="Create an invitation link when you're ready to welcome a new teammate." actionLabel={canManageRoles ? "Create invitation link" : undefined} onAction={canManageRoles ? () => { setGeneratedLink(""); setInviteEmail(""); setIsInviteModalOpen(true); } : undefined} />
+            <EmptyState icon={LinkIcon} title="Bring your team together" description="Create an invitation link when you're ready to welcome a new teammate." actionLabel={can("members:invite") ? "Create invitation link" : undefined} onAction={can("members:invite") ? () => { setGeneratedLink(""); setInviteEmail(""); setIsInviteModalOpen(true); } : undefined} />
           ) : (
             <div className="space-y-3">
               {activeInvites.map((inv) => {

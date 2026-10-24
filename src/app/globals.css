@@ -380,8 +380,8 @@
 /* Print Stylesheet for High-Quality PDF Invoicing */
 @media print {
   body {
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: #0a1018 !important;
+    color: #f6f9fc !important;
   }
   body * {
     visibility: hidden;
@@ -398,8 +398,8 @@
     max-width: 100% !important;
     margin: 0 !important;
     padding: 24px !important;
-    background: #ffffff !important;
-    color: #111827 !important;
+    background: #0a1018 !important;
+    color: #f6f9fc !important;
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
@@ -409,7 +409,7 @@
   }
   @page {
     size: A4 portrait;
-    margin: 12mm;
+    margin: 0;
   }
 }
 
@@ -476,3 +476,6 @@
 body:has(.invoice-overlay) .workspace-quick-actions { display: none; }
 body:has(.quick-note-drawer) .workspace-quick-actions { display: none; }
 .dark .quick-note-drawer > div { background-color: hsl(var(--card)) !important; }
+
+.invoice-logo { width: auto; max-width: 160px; height: 48px; object-fit: contain; object-position: left center; }
+@media print { body, .invoice-document, .invoice-document * { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; } }

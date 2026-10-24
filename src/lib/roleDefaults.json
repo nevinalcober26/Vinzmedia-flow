@@ -1,0 +1,148 @@
+[
+  {
+    "key": "owner",
+    "name": "Owner",
+    "base_role": "owner",
+    "sidebar": [
+      "dashboard",
+      "my_tasks",
+      "projects",
+      "calendar",
+      "timelogs",
+      "billing",
+      "clients",
+      "team",
+      "announcements",
+      "notes",
+      "workload",
+      "activity",
+      "settings"
+    ],
+    "permissions": [
+      "workspace:manage",
+      "workspace:delete",
+      "members:invite",
+      "members:manage_roles",
+      "members:remove",
+      "project:create",
+      "project:edit",
+      "project:delete",
+      "project:archive",
+      "task:create",
+      "task:edit",
+      "task:delete",
+      "task:move",
+      "announcement:create",
+      "note:create",
+      "note:edit",
+      "comment:create"
+    ]
+  },
+  {
+    "key": "super_admin",
+    "name": "Super Admin",
+    "base_role": "admin",
+    "sidebar": [
+      "dashboard",
+      "my_tasks",
+      "projects",
+      "calendar",
+      "timelogs",
+      "billing",
+      "clients",
+      "team",
+      "announcements",
+      "notes",
+      "workload",
+      "activity",
+      "settings"
+    ],
+    "permissions": [
+      "workspace:manage",
+      "workspace:delete",
+      "members:invite",
+      "members:manage_roles",
+      "members:remove",
+      "project:create",
+      "project:edit",
+      "project:delete",
+      "project:archive",
+      "task:create",
+      "task:edit",
+      "task:delete",
+      "task:move",
+      "announcement:create",
+      "note:create",
+      "note:edit",
+      "comment:create"
+    ]
+  },
+  {
+    "key": "project_manager",
+    "name": "Project Manager",
+    "base_role": "project_manager",
+    "sidebar": [
+      "dashboard",
+      "my_tasks",
+      "projects",
+      "calendar",
+      "timelogs",
+      "clients",
+      "team",
+      "announcements",
+      "notes",
+      "workload",
+      "activity"
+    ],
+    "permissions": [
+      "members:invite",
+      "project:create",
+      "project:edit",
+      "project:archive",
+      "task:create",
+      "task:edit",
+      "task:delete",
+      "task:move",
+      "announcement:create",
+      "note:create",
+      "note:edit",
+      "comment:create"
+    ]
+  },
+  {
+    "key": "member",
+    "name": "Member",
+    "base_role": "member",
+    "sidebar": [
+      "dashboard",
+      "my_tasks",
+      "projects",
+      "calendar",
+      "timelogs",
+      "announcements",
+      "notes"
+    ],
+    "permissions": [
+      "task:create",
+      "task:edit",
+      "task:move",
+      "note:create",
+      "note:edit",
+      "comment:create"
+    ]
+  },
+  {
+    "key": "guest",
+    "name": "Guest",
+    "base_role": "guest",
+    "sidebar": [
+      "dashboard",
+      "projects",
+      "announcements",
+      "notes"
+    ],
+    "permissions": [
+      "comment:create"
+    ]
+  }
+]

@@ -43,7 +43,7 @@ import { TimeLogsView } from "@/components/timelogs/TimeLogsView";
 
 export default function Home() {
   const router = useRouter();
-  const { activeView, isAuthenticated, isViewLoading, isInitialized } = useStore();
+  const { activeView, isAuthenticated, isViewLoading, isInitialized, canAccessView } = useStore();
 
   useEffect(() => {
     if (isInitialized && !isAuthenticated) {
@@ -83,6 +83,7 @@ export default function Home() {
   };
 
   const renderActiveView = () => {
+    if (!canAccessView(activeView)) return <div className="m-6 rounded-2xl border border-border bg-card p-10 text-center"><h2 className="text-lg font-semibold">Access restricted</h2><p className="mt-2 text-sm text-muted-foreground">Your workspace role does not have access to this page. Contact your Owner or Super Admin to request access.</p></div>;
     switch (activeView) {
       case "dashboard":
         return <MainDashboard />;
