@@ -3,13 +3,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Clock3, Play, Square, X } from "lucide-react";
+import { ArrowRight, Clock3, FileSpreadsheet, Play, Square, X } from "lucide-react";
 import { useStore } from "@/context/StoreContext";
 import { useToast } from "@/context/ToastContext";
 import { formatTimerDisplay } from "@/lib/utils";
+import { exportTimeEntriesCsv } from "@/lib/exportTimeEntries";
 
 export function TimeClockWidget({ onOpen }: { onOpen?: () => void }) {
-  const { projects, tasks, activeTimer, startProjectTimer, updateTimerSummary, stopTimer, setActiveView } = useStore();
+  const { projects, tasks, timeEntries, activeTimer, startProjectTimer, updateTimerSummary, stopTimer, setActiveView } = useStore();
   const toast = useToast();
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -106,6 +107,7 @@ export function TimeClockWidget({ onOpen }: { onOpen?: () => void }) {
                   <label className="block space-y-1.5 text-xs font-semibold"><span>Task</span>{activeTimer ? <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 font-medium">{activeTimer.taskTitle}</div> : <select value={taskId} onChange={(event) => setTaskId(event.target.value)} disabled={!projectId} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-foreground outline-hidden focus:ring-2 focus:ring-primary/30 disabled:opacity-50"><option value="">{tasks.some((task) => task.project_id === projectId) ? "Choose a task" : "No tasks in this project"}</option>{tasks.filter((task) => task.project_id === projectId).map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</select>}</label>
                   <label className="block space-y-1.5 text-xs font-semibold"><span>Work summary</span><textarea rows={3} value={summary} onChange={(event) => { setSummary(event.target.value); if (activeTimer) updateTimerSummary(event.target.value); }} placeholder="What are you working on?" className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 font-normal leading-relaxed text-foreground outline-hidden focus:ring-2 focus:ring-primary/30" /><span className="block font-normal text-muted-foreground">Saved with this session in Time Tracking.</span></label>
                   {activeTimer ? <button type="button" onClick={stop} disabled={!summary.trim()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-3 text-xs font-bold text-white hover:bg-rose-600 disabled:opacity-50"><Square className="h-4 w-4 fill-current" /> Stop &amp; save session</button> : <button type="button" onClick={start} disabled={!projectId || !taskId || !summary.trim()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"><Play className="h-4 w-4 fill-current" /> Start timeclock</button>}
+                  <button type="button" onClick={() => { const count = exportTimeEntriesCsv(timeEntries, projects, tasks); toast.success("CSV exported", `${count} time ${count === 1 ? "entry" : "entries"} downloaded.`); }} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-semibold text-foreground hover:border-primary/40 hover:text-primary"><FileSpreadsheet className="h-4 w-4" /> Export time logs as CSV</button>
                   <button type="button" onClick={() => { setIsOpen(false); setActiveView("timelogs"); }} className="flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary">View time tracking logs <ArrowRight className="h-3.5 w-3.5" /></button>
                 </div>
               </motion.section>

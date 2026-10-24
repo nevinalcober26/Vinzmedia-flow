@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { TimeEntry } from "@/types";
+import { format } from "date-fns";
 
 export const timeEntryService = {
   async getTimeEntries(workspaceId: string): Promise<TimeEntry[] | null> {
@@ -47,6 +48,7 @@ export const timeEntryService = {
       work_summary: entry.work_summary || entry.description,
       duration_seconds: entry.duration_seconds,
       started_at: entry.started_at,
+      entry_date: format(new Date(entry.started_at), "yyyy-MM-dd"),
       ended_at: entry.ended_at || null,
       is_billable: entry.is_billable,
       });
@@ -57,6 +59,40 @@ export const timeEntryService = {
       return true;
     } catch (error) {
       console.warn("Could not save time entry:", error);
+      return false;
+    }
+  },
+
+  async updateTimeEntry(entry: TimeEntry): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const { data, error } = await supabase.from("time_entries").update({
+      project_id: entry.project_id,
+      task_id: entry.task_id,
+      description: entry.description,
+      work_summary: entry.work_summary,
+      duration_seconds: entry.duration_seconds,
+      started_at: entry.started_at,
+      entry_date: format(new Date(entry.started_at), "yyyy-MM-dd"),
+      ended_at: entry.ended_at || null,
+      is_billable: entry.is_billable,
+    }).eq("id", entry.id).eq("user_id", entry.user_id).select("id").maybeSingle();
+      if (error) console.warn("Could not update time entry:", error.message);
+      return !error && Boolean(data);
+    } catch (error) {
+      console.warn("Could not update time entry:", error);
+      return false;
+    }
+  },
+
+  async deleteTimeEntry(entry: TimeEntry): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const { data, error } = await supabase.from("time_entries").delete().eq("id", entry.id).eq("user_id", entry.user_id).select("id").maybeSingle();
+      if (error) console.warn("Could not delete time entry:", error.message);
+      return !error && Boolean(data);
+    } catch (error) {
+      console.warn("Could not delete time entry:", error);
       return false;
     }
   },

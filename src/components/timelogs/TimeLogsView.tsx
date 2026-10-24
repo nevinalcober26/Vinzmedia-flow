@@ -1,7 +1,7 @@
 "use client";
 
 import { EmptyState } from "@/components/common/EmptyState";
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Clock,
@@ -51,6 +51,7 @@ import { useToast } from "@/context/ToastContext";
 import { Task, Project, TimeEntry, User } from "@/types";
 import { formatDuration, formatTimerDisplay, formatDate } from "@/lib/utils";
 import { formatCurrencyAmount } from "@/lib/currencyRates";
+import { exportTimeEntriesCsv } from "@/lib/exportTimeEntries";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { ClientAvatar } from "@/components/common/ClientAvatar";
 import { getDepartmentBadge, getTaskTypeBadge } from "@/lib/taskTypes";
@@ -66,6 +67,8 @@ export function TimeLogsView() {
     startTimer,
     stopTimer,
     addManualTimeEntry,
+    updateTimeEntry,
+    deleteTimeEntry,
     updateTask,
     currentUser,
     setSelectedProjectId,
@@ -110,10 +113,15 @@ export function TimeLogsView() {
   // Manual Log Time Modal state
   const [isLogTimeModalOpen, setIsLogTimeModalOpen] = useState(false);
   const [modalTaskId, setModalTaskId] = useState<string>("");
+  const [modalProjectId, setModalProjectId] = useState<string>("");
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [modalHours, setModalHours] = useState<string>("1");
   const [modalMinutes, setModalMinutes] = useState<string>("30");
+  const [modalSeconds, setModalSeconds] = useState<string>("0");
   const [modalNote, setModalNote] = useState<string>("");
   const [modalDate, setModalDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const timesheetScrollRef = useRef<HTMLDivElement>(null);
+  const todayColumnRef = useRef<HTMLTableCellElement>(null);
 
   // Date Calculations
   const today = useMemo(() => new Date(), []);
@@ -126,6 +134,16 @@ export function TimeLogsView() {
   const weekEnd = useMemo(() => endOfWeek(weekStart, { weekStartsOn: 1 }), [weekStart]);
   const weekDays = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [weekStart, weekEnd]);
   const isCurrentWeek = useMemo(() => isSameDay(startOfWeek(today, { weekStartsOn: 1 }), weekStart), [today, weekStart]);
+
+  useEffect(() => {
+    if (viewMode !== "timesheet" || !isCurrentWeek) return;
+    const frame = requestAnimationFrame(() => {
+      const scroll = timesheetScrollRef.current;
+      const todayColumn = todayColumnRef.current;
+      if (scroll && todayColumn) scroll.scrollTo({ left: todayColumn.offsetLeft - scroll.clientWidth / 2 + todayColumn.clientWidth / 2, behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [viewMode, isCurrentWeek, weekStart]);
 
   // Navigation functions
   const goToToday = () => {
@@ -154,29 +172,80 @@ export function TimeLogsView() {
 
   // Quick Open Modal for specific task and optional day
   const openLogTimeForTask = (taskId: string, targetDateStr?: string) => {
+    setEditingEntryId(null);
     setModalTaskId(taskId);
+    setModalProjectId(tasks.find((task) => task.id === taskId)?.project_id || "");
     setModalHours("1");
     setModalMinutes("0");
+    setModalSeconds("0");
     setModalNote("");
     setModalDate(targetDateStr || format(selectedDate, "yyyy-MM-dd"));
     setIsLogTimeModalOpen(true);
   };
 
-  const handleSaveManualTime = (e: React.FormEvent) => {
+  const openManualTime = () => {
+    setEditingEntryId(null);
+    setModalProjectId("");
+    setModalTaskId("");
+    setModalHours("0");
+    setModalMinutes("30");
+    setModalSeconds("0");
+    setModalNote("");
+    setModalDate(format(selectedDate, "yyyy-MM-dd"));
+    setIsLogTimeModalOpen(true);
+  };
+
+  const openEditTime = (entry: TimeEntry) => {
+    setEditingEntryId(entry.id);
+    setModalProjectId(entry.project_id || "");
+    setModalTaskId(entry.task_id || "");
+    setModalHours(String(Math.floor(entry.duration_seconds / 3600)));
+    setModalMinutes(String(Math.floor((entry.duration_seconds % 3600) / 60)));
+    setModalSeconds(String(entry.duration_seconds % 60));
+    setModalNote(entry.work_summary || entry.description || "");
+    setModalDate(format(parseISO(entry.started_at), "yyyy-MM-dd"));
+    setIsLogTimeModalOpen(true);
+  };
+
+  const handleSaveManualTime = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalTaskId) {
       toast.error("Please select a task", "A task must be selected to log time.");
       return;
     }
-    const totalMinutes = (Number(modalHours) || 0) * 60 + (Number(modalMinutes) || 0);
-    if (totalMinutes <= 0) {
-      toast.error("Invalid duration", "Please enter at least 1 minute.");
+    const totalMinutes = Number(modalHours) * 60 + Number(modalMinutes);
+    const seconds = Number(modalSeconds);
+    const durationSeconds = totalMinutes * 60 + seconds;
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || !modalNote.trim()) {
+      toast.error("Complete the entry", "Add time spent and a work summary.");
       return;
     }
-
-    addManualTimeEntry(modalTaskId, totalMinutes, modalNote.trim() || undefined, modalDate);
-    toast.success("Time Logged!", `Added ${totalMinutes}m to task on ${modalDate}.`);
+    if (editingEntryId) {
+      const existing = timeEntries.find((entry) => entry.id === editingEntryId);
+      if (!existing) return;
+      const date = new Date(existing.started_at);
+      const [year, month, day] = modalDate.split("-").map(Number);
+      date.setFullYear(year, month - 1, day);
+      const saved = await updateTimeEntry(existing.id, modalTaskId, durationSeconds, modalNote.trim(), date.toISOString());
+      if (!saved) { toast.error("Could not update log", "Check your Supabase permissions and try again."); return; }
+      toast.success("Time log updated", "The card now shows your changes.");
+    } else {
+      addManualTimeEntry(modalTaskId, totalMinutes, modalNote.trim(), modalDate, seconds);
+      toast.success("Time logged", `${formatDuration(durationSeconds)} added to the selected task.`);
+    }
     setIsLogTimeModalOpen(false);
+  };
+
+  const handleDeleteTime = async (entry: TimeEntry) => {
+    if (!window.confirm(`Delete this ${formatDuration(entry.duration_seconds)} time entry? This cannot be undone.`)) return;
+    const deleted = await deleteTimeEntry(entry.id);
+    if (deleted) toast.success("Time entry deleted", "The weekly totals have been updated.");
+    else toast.error("Could not delete log", "Check your Supabase permissions and try again.");
+  };
+
+  const exportTimeLogs = () => {
+    const count = exportTimeEntriesCsv(timeEntries, projects, tasks);
+    toast.success("CSV exported", `${count} time ${count === 1 ? "entry" : "entries"} downloaded.`);
   };
 
   // Grouped tasks by Project map
@@ -327,12 +396,11 @@ export function TimeLogsView() {
           </div>
 
           {/* Quick Manual Log Button */}
+          <button type="button" onClick={exportTimeLogs} className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-xs hover:border-primary/40 hover:text-primary">
+            <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+          </button>
           <button
-            onClick={() => {
-              setModalTaskId(tasks[0]?.id || "");
-              setModalDate(format(selectedDate, "yyyy-MM-dd"));
-              setIsLogTimeModalOpen(true);
-            }}
+            onClick={openManualTime}
             className="flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -579,7 +647,7 @@ export function TimeLogsView() {
       {/* VIEW 1: WEEKLY TIMESHEET TABLE (User Request: "The timelogs should be table columns show the total of hours per day, and total of hours per week!") */}
       {viewMode === "timesheet" && (
         <div className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
+          <div ref={timesheetScrollRef} className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-secondary/40 border-b border-border/80 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -596,12 +664,13 @@ export function TimeLogsView() {
                     return (
                       <th
                         key={dayStr}
+                        ref={isTodayHeader ? todayColumnRef : undefined}
                         onClick={() => setSelectedDate(day)}
                         className={`py-3 px-3 text-center min-w-[190px] transition-colors cursor-pointer ${
-                          isSelectedDay
+                          isTodayHeader
+                            ? "bg-primary/15 ring-2 ring-inset ring-primary/50 text-primary"
+                            : isSelectedDay
                             ? "bg-primary/10 ring-1 ring-inset ring-primary/30"
-                            : isTodayHeader
-                            ? "bg-emerald-500/10"
                             : "hover:bg-secondary/60"
                         }`}
                       >
@@ -658,13 +727,13 @@ export function TimeLogsView() {
                     {weekDays.map((day) => {
                       const dayKey = format(day, "yyyy-MM-dd");
                       const dayEntries = entries.filter((entry) => format(parseISO(entry.started_at), "yyyy-MM-dd") === dayKey);
-                      return <td key={dayKey} className={`border-r border-border/40 px-2 py-3 ${isToday(day) ? "bg-emerald-500/5" : ""}`}>
+                      return <td key={dayKey} className={`border-r border-border/40 px-2 py-3 ${isToday(day) ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}>
                         {dayEntries.length ? <div className="space-y-2">{dayEntries.map((entry) => {
                           const task = tasks.find((item) => item.id === entry.task_id);
-                          return <div key={entry.id} className="rounded-xl border border-border/70 bg-background p-2.5 text-left shadow-xs">
+                          return <div key={entry.id} className="group rounded-xl border border-border/70 bg-background p-2.5 text-left shadow-xs hover:border-primary/30 hover:shadow-sm">
                             <div className="flex items-start justify-between gap-2"><span className="min-w-0 truncate text-[10px] font-semibold text-primary" title={task?.title || entry.task_title || "Project work"}>{task?.title || entry.task_title || "Project work"}</span><span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">{formatDuration(entry.duration_seconds)}</span></div>
                             <p className="mt-1.5 break-words text-[11px] leading-relaxed text-foreground">{entry.work_summary || entry.description || "Work session"}</p>
-                            <p className="mt-1.5 text-[10px] text-muted-foreground">{format(parseISO(entry.started_at), "h:mm a")}</p>
+                            <div className="mt-2 flex items-center justify-between gap-2"><p className="text-[10px] text-muted-foreground">{format(parseISO(entry.started_at), "h:mm a")}</p>{entry.user_id === currentUser.id && <div className="flex items-center gap-0.5"><button type="button" onClick={() => openEditTime(entry)} title="Edit time entry" aria-label="Edit time entry" className="rounded-md p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary"><Edit2 className="h-3 w-3" /></button><button type="button" onClick={() => handleDeleteTime(entry)} title="Delete time entry" aria-label="Delete time entry" className="rounded-md p-1 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600"><Trash2 className="h-3 w-3" /></button></div>}</div>
                           </div>;
                         })}</div> : <span className="block py-5 text-center text-muted-foreground/40">—</span>}
                       </td>;
@@ -1042,8 +1111,8 @@ export function TimeLogsView() {
                     <Clock className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-foreground">Log Work Time</h3>
-                    <p className="text-[11px] text-muted-foreground">Record labor hours on a project task</p>
+                    <h3 className="text-sm font-bold text-foreground">{editingEntryId ? "Edit Time Entry" : "Log Work Time"}</h3>
+                    <p className="text-[11px] text-muted-foreground">Record a task, work summary, and exact time spent</p>
                   </div>
                 </div>
                 <button
@@ -1056,21 +1125,28 @@ export function TimeLogsView() {
 
               <form onSubmit={handleSaveManualTime} className="flex-1 flex flex-col overflow-hidden">
                 <div className="p-4 sm:p-5 space-y-3 flex-1 overflow-y-auto text-xs">
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">Project</label>
+                  <select value={modalProjectId} onChange={(e) => { setModalProjectId(e.target.value); setModalTaskId(""); }} required className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary shadow-xs">
+                    <option value="">Select a project...</option>
+                    {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                  </select>
+                </div>
                 {/* Select Task */}
                 <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Target Task</label>
+                  <label className="font-semibold text-foreground">Task</label>
                   <select
                     value={modalTaskId}
                     onChange={(e) => setModalTaskId(e.target.value)}
                     required
+                    disabled={!modalProjectId}
                     className="w-full bg-background border border-border rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary shadow-xs"
                   >
                     <option value="">Select a task...</option>
-                    {tasks.map((t) => {
-                      const p = projects.find((proj) => proj.id === t.project_id);
+                    {tasks.filter((task) => task.project_id === modalProjectId).map((t) => {
                       return (
                         <option key={t.id} value={t.id}>
-                          {t.title} {p ? `(${p.name})` : ""}
+                          {t.title}
                         </option>
                       );
                     })}
@@ -1112,7 +1188,7 @@ export function TimeLogsView() {
                 </div>
 
                 {/* Duration inputs */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <label className="font-semibold text-foreground">Hours</label>
                     <input
@@ -1135,14 +1211,16 @@ export function TimeLogsView() {
                       className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary shadow-xs font-mono"
                     />
                   </div>
+                  <div className="space-y-1.5"><label className="font-semibold text-foreground">Seconds</label><input type="number" min="0" max="59" value={modalSeconds} onChange={(e) => setModalSeconds(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary shadow-xs font-mono" /></div>
                 </div>
 
-                {/* Note */}
+                {/* Work summary */}
                 <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Work Performed Note (Optional)</label>
+                  <label className="font-semibold text-foreground">Work summary</label>
                   <textarea
                     rows={2}
-                    placeholder="Brief description of work done..."
+                    required
+                    placeholder="What work was completed?"
                     value={modalNote}
                     onChange={(e) => setModalNote(e.target.value)}
                     className="w-full bg-background border border-border rounded-xl p-2.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary resize-none shadow-xs"
@@ -1164,7 +1242,7 @@ export function TimeLogsView() {
                   className="px-4 py-1.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md flex items-center space-x-1.5 cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>Save Log</span>
+                  <span>{editingEntryId ? "Save Changes" : "Save Log"}</span>
                 </button>
               </div>
             </form>

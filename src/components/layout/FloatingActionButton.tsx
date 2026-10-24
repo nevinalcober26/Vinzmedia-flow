@@ -76,6 +76,17 @@ export function FloatingActionButton() {
       },
     },
     {
+      id: "add_note",
+      label: "Add Note",
+      sublabel: "Open a new scratchpad note",
+      icon: StickyNote,
+      onClick: () => {
+        setIsOpen(false);
+        setIsQuickNoteOpen(true);
+        window.dispatchEvent(new Event("vinzflow:new-note"));
+      },
+    },
+    {
       id: "upload_document",
       label: "Upload Document",
       sublabel: "Attach briefs, PDFs, spreadsheets & files",
@@ -163,17 +174,6 @@ export function FloatingActionButton() {
 
         <TimeClockWidget onOpen={() => setIsOpen(false)} />
 
-        <motion.button
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
-          onClick={() => { setIsOpen(false); setIsQuickNoteOpen(true); window.dispatchEvent(new Event("vinzflow:new-note")); }}
-          className="relative z-50 mb-3 flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-xs font-semibold text-foreground shadow-soft hover:border-primary/50 hover:text-primary"
-          aria-label="Add note"
-          title="Add note"
-        >
-          <StickyNote className="h-4 w-4" /> Add note
-        </motion.button>
-
         {/* Floating Action Master Button */}
         <motion.button
           whileHover={{ scale: 1.04 }}
@@ -186,7 +186,7 @@ export function FloatingActionButton() {
           }`}
           aria-expanded={isOpen}
           aria-label={isOpen ? "Close quick actions" : "Open quick actions"}
-          title={isOpen ? "Close Actions" : "Quick Actions (Create Task, Project, Upload)"}
+          title={isOpen ? "Close Actions" : "Quick Actions (Task, Project, Note, Upload)"}
         >
           {/* Smooth rotating icon from Plus to X */}
           <motion.div

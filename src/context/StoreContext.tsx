@@ -208,7 +208,9 @@ interface StoreContextType {
   startProjectTimer: (projectId: string, taskId: string, summary: string) => boolean;
   updateTimerSummary: (summary: string) => void;
   stopTimer: (summary?: string) => void;
-  addManualTimeEntry: (taskId: string, durationMinutes: number, description?: string, customDate?: string) => void;
+  addManualTimeEntry: (taskId: string, durationMinutes: number, description?: string, customDate?: string, extraSeconds?: number) => void;
+  updateTimeEntry: (id: string, taskId: string, durationSeconds: number, summary: string, startedAt: string) => Promise<boolean>;
+  deleteTimeEntry: (id: string) => Promise<boolean>;
 
   // Clients & Files / Media
   createClient: (clientData: Partial<Client>) => Client;
@@ -1993,9 +1995,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [activeTimer, tasks, projects, activeWorkspaceId, currentUser, updateTask, logActivity, toast]);
 
   const addManualTimeEntry = useCallback(
-    (taskId: string, durationMinutes: number, description?: string, customDate?: string) => {
+    (taskId: string, durationMinutes: number, description?: string, customDate?: string, extraSeconds = 0) => {
       const task = tasks.find((t) => t.id === taskId);
-      const seconds = durationMinutes * 60;
+      const seconds = durationMinutes * 60 + extraSeconds;
       let startedAt: string;
       if (customDate) {
         const d = new Date(customDate.includes("T") ? customDate : `${customDate}T12:00:00`);
@@ -2030,6 +2032,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     },
     [tasks, projects, activeWorkspaceId, currentUser, updateTask, toast]
   );
+
+  const updateTimeEntry = useCallback(async (id: string, taskId: string, durationSeconds: number, summary: string, startedAt: string): Promise<boolean> => {
+    const previous = timeEntries.find((entry) => entry.id === id);
+    const task = tasks.find((item) => item.id === taskId && item.workspace_id === activeWorkspaceId);
+    const project = projects.find((item) => item.id === task?.project_id);
+    if (!previous || previous.user_id !== currentUser.id || !task || !project || !summary.trim() || durationSeconds <= 0) return false;
+    const next: TimeEntry = {
+      ...previous,
+      task_id: task.id,
+      task_title: task.title,
+      project_id: project.id,
+      project_name: project.name,
+      workspace_id: activeWorkspaceId,
+      description: summary.trim(),
+      work_summary: summary.trim(),
+      duration_seconds: durationSeconds,
+      started_at: startedAt,
+      ended_at: previous.ended_at ? new Date(new Date(startedAt).getTime() + durationSeconds * 1000).toISOString() : undefined,
+    };
+    if (isSupabaseConfigured && !(await timeEntryService.updateTimeEntry(next))) return false;
+    setTimeEntries((entries) => entries.map((entry) => entry.id === id ? next : entry));
+    const oldTask = tasks.find((item) => item.id === previous.task_id);
+    if (oldTask && oldTask.id !== task.id) updateTask(oldTask.id, { tracked_seconds: Math.max(0, (oldTask.tracked_seconds || 0) - previous.duration_seconds) });
+    updateTask(task.id, { tracked_seconds: Math.max(0, (task.tracked_seconds || 0) + durationSeconds - (oldTask?.id === task.id ? previous.duration_seconds : 0)) });
+    return true;
+  }, [timeEntries, tasks, projects, activeWorkspaceId, currentUser.id, updateTask]);
+
+  const deleteTimeEntry = useCallback(async (id: string): Promise<boolean> => {
+    const entry = timeEntries.find((item) => item.id === id);
+    if (!entry || entry.user_id !== currentUser.id) return false;
+    if (isSupabaseConfigured && !(await timeEntryService.deleteTimeEntry(entry))) return false;
+    setTimeEntries((entries) => entries.filter((item) => item.id !== id));
+    const task = tasks.find((item) => item.id === entry.task_id);
+    if (task) updateTask(task.id, { tracked_seconds: Math.max(0, (task.tracked_seconds || 0) - entry.duration_seconds) });
+    return true;
+  }, [timeEntries, tasks, currentUser.id, updateTask]);
 
   // --- Workspaces & Members ---
   const createWorkspace = useCallback(
@@ -2430,6 +2468,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         updateTimerSummary,
         stopTimer,
         addManualTimeEntry,
+        updateTimeEntry,
+        deleteTimeEntry,
 
         createClient,
         updateClient,
