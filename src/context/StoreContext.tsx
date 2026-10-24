@@ -2080,7 +2080,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const deleteTimeEntry = useCallback(async (id: string): Promise<boolean> => {
     const entry = timeEntries.find((item) => item.id === id);
     if (!entry || entry.user_id !== currentUser.id) return false;
-    if (isSupabaseConfigured && !(await timeEntryService.deleteTimeEntry(entry))) return false;
+    if (isSupabaseConfigured) {
+      const result = await timeEntryService.deleteTimeEntry(entry);
+      if (!result.success) throw new Error(result.error || "Could not delete this entry.");
+    }
     setTimeEntries((entries) => entries.filter((item) => item.id !== id));
     const task = tasks.find((item) => item.id === entry.task_id);
     if (task) updateTask(task.id, { tracked_seconds: Math.max(0, (task.tracked_seconds || 0) - entry.duration_seconds) });

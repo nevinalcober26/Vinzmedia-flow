@@ -238,9 +238,13 @@ export function TimeLogsView() {
 
   const handleDeleteTime = async (entry: TimeEntry) => {
     if (!window.confirm(`Delete this ${formatDuration(entry.duration_seconds)} time entry? This cannot be undone.`)) return;
-    const deleted = await deleteTimeEntry(entry.id);
-    if (deleted) toast.success("Time entry deleted", "The weekly totals have been updated.");
-    else toast.error("Could not delete log", "Check your Supabase permissions and try again.");
+    try {
+      const deleted = await deleteTimeEntry(entry.id);
+      if (deleted) toast.success("Time entry removed", "The weekly totals have been updated.");
+      else toast.error("Could not delete log", "You can only delete your own time entries.");
+    } catch (error) {
+      toast.error("Could not delete log", error instanceof Error ? error.message : "Check your connection and try again.");
+    }
   };
 
   const exportTimeLogs = () => {
