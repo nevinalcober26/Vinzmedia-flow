@@ -205,7 +205,7 @@ interface StoreContextType {
 
   // Time Tracking
   startTimer: (taskId: string) => void;
-  startProjectTimer: (projectId: string, summary: string) => boolean;
+  startProjectTimer: (projectId: string, taskId: string, summary: string) => boolean;
   updateTimerSummary: (summary: string) => void;
   stopTimer: (summary?: string) => void;
   addManualTimeEntry: (taskId: string, durationMinutes: number, description?: string, customDate?: string) => void;
@@ -1925,21 +1925,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [activeTimer, tasks, projects, activeWorkspaceId, updateTask]
   );
 
-  const startProjectTimer = useCallback((projectId: string, summary: string): boolean => {
+  const startProjectTimer = useCallback((projectId: string, taskId: string, summary: string): boolean => {
     const project = visibleProjects.find((item) => item.id === projectId && item.workspace_id === activeWorkspaceId);
-    if (activeTimer || !project || !summary.trim()) return false;
+    const task = tasks.find((item) => item.id === taskId && item.project_id === projectId && item.workspace_id === activeWorkspaceId);
+    if (activeTimer || !project || !task || !summary.trim()) return false;
     const timer: ActiveTimer = {
+      taskId: task.id,
       projectId: project.id,
       projectName: project.name,
-      taskTitle: project.name,
+      taskTitle: task.title,
       summary: summary.trim(),
       startedAt: Date.now(),
       seconds: 0,
     };
     setActiveTimer(timer);
     localStorage.setItem(`vinzflow_active_timer_${activeWorkspaceId}`, JSON.stringify(timer));
+    updateTask(task.id, { is_timer_running: true });
     return true;
-  }, [activeTimer, visibleProjects, activeWorkspaceId]);
+  }, [activeTimer, visibleProjects, tasks, activeWorkspaceId, updateTask]);
 
   const updateTimerSummary = useCallback((summary: string) => {
     if (!activeTimer || !summary.trim()) return;

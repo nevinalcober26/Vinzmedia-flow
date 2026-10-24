@@ -9,11 +9,12 @@ import { useToast } from "@/context/ToastContext";
 import { formatTimerDisplay } from "@/lib/utils";
 
 export function TimeClockWidget({ onOpen }: { onOpen?: () => void }) {
-  const { projects, activeTimer, startProjectTimer, updateTimerSummary, stopTimer, setActiveView } = useStore();
+  const { projects, tasks, activeTimer, startProjectTimer, updateTimerSummary, stopTimer, setActiveView } = useStore();
   const toast = useToast();
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [projectId, setProjectId] = useState("");
+  const [taskId, setTaskId] = useState("");
   const [summary, setSummary] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -23,6 +24,7 @@ export function TimeClockWidget({ onOpen }: { onOpen?: () => void }) {
     if (!isOpen) return;
     setSummary(activeTimer?.summary || "");
     setProjectId(activeTimer?.projectId || projects[0]?.id || "");
+    setTaskId(activeTimer?.taskId || "");
   }, [isOpen, activeTimer?.projectId]);
   useEffect(() => {
     if (!isOpen) return;
@@ -45,14 +47,14 @@ export function TimeClockWidget({ onOpen }: { onOpen?: () => void }) {
   }, [isOpen]);
 
   const start = () => {
-    if (!projectId || !summary.trim()) return;
-    if (startProjectTimer(projectId, summary)) toast.success("Timeclock started", "Your work summary will be saved with the session.");
+    if (!projectId || !taskId || !summary.trim()) return;
+    if (startProjectTimer(projectId, taskId, summary)) toast.success("Timeclock started", "Your task and work summary will be saved with the session.");
   };
 
   const stop = () => {
     stopTimer(summary);
     setIsOpen(false);
-    toast.success("Time session recorded", "Find the work summary in Time Tracking → Session Logs.");
+    toast.success("Time session recorded", "The work summary and time spent are in Time Tracking.");
   };
 
   return (
@@ -99,10 +101,11 @@ export function TimeClockWidget({ onOpen }: { onOpen?: () => void }) {
                   {activeTimer && <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4"><p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Recording · {activeTimer.projectName}</p><p className="mt-2 font-mono text-3xl font-semibold tabular-nums text-foreground">{formatTimerDisplay(activeTimer.seconds)}</p>{activeTimer.taskId && <p className="mt-1 text-xs text-muted-foreground">Task: {activeTimer.taskTitle}</p>}</div>}
                   <label className="block space-y-1.5 text-xs font-semibold">
                     <span>Project</span>
-                    {activeTimer ? <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 font-medium">{activeTimer.projectName}</div> : <select value={projectId} onChange={(event) => setProjectId(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-foreground outline-hidden focus:ring-2 focus:ring-primary/30"><option value="">Choose a project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>}
+                    {activeTimer ? <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 font-medium">{activeTimer.projectName}</div> : <select value={projectId} onChange={(event) => { setProjectId(event.target.value); setTaskId(""); }} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-foreground outline-hidden focus:ring-2 focus:ring-primary/30"><option value="">Choose a project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>}
                   </label>
+                  <label className="block space-y-1.5 text-xs font-semibold"><span>Task</span>{activeTimer ? <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 font-medium">{activeTimer.taskTitle}</div> : <select value={taskId} onChange={(event) => setTaskId(event.target.value)} disabled={!projectId} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-foreground outline-hidden focus:ring-2 focus:ring-primary/30 disabled:opacity-50"><option value="">{tasks.some((task) => task.project_id === projectId) ? "Choose a task" : "No tasks in this project"}</option>{tasks.filter((task) => task.project_id === projectId).map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</select>}</label>
                   <label className="block space-y-1.5 text-xs font-semibold"><span>Work summary</span><textarea rows={3} value={summary} onChange={(event) => { setSummary(event.target.value); if (activeTimer) updateTimerSummary(event.target.value); }} placeholder="What are you working on?" className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 font-normal leading-relaxed text-foreground outline-hidden focus:ring-2 focus:ring-primary/30" /><span className="block font-normal text-muted-foreground">Saved with this session in Time Tracking.</span></label>
-                  {activeTimer ? <button type="button" onClick={stop} disabled={!summary.trim()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-3 text-xs font-bold text-white hover:bg-rose-600 disabled:opacity-50"><Square className="h-4 w-4 fill-current" /> Stop &amp; save session</button> : <button type="button" onClick={start} disabled={!projectId || !summary.trim()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"><Play className="h-4 w-4 fill-current" /> Start timeclock</button>}
+                  {activeTimer ? <button type="button" onClick={stop} disabled={!summary.trim()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-3 text-xs font-bold text-white hover:bg-rose-600 disabled:opacity-50"><Square className="h-4 w-4 fill-current" /> Stop &amp; save session</button> : <button type="button" onClick={start} disabled={!projectId || !taskId || !summary.trim()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"><Play className="h-4 w-4 fill-current" /> Start timeclock</button>}
                   <button type="button" onClick={() => { setIsOpen(false); setActiveView("timelogs"); }} className="flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary">View time tracking logs <ArrowRight className="h-3.5 w-3.5" /></button>
                 </div>
               </motion.section>

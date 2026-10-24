@@ -197,165 +197,56 @@ export function TimeLogsView() {
     return map;
   }, [clients]);
 
-  // Overall KPI statistics
+  // Overall KPI statistics reflect recorded sessions, including project-only history.
   const kpis = useMemo(() => {
-    let totalSeconds = 0;
+    let totalSeconds = activeTimer?.seconds || 0;
     let totalBillableValue = 0;
-    let tasksWithTime = 0;
-
-    tasks.forEach((t) => {
-      const sec = t.tracked_seconds || 0;
-      totalSeconds += sec;
-      if (sec > 0) tasksWithTime++;
-
-      const proj = projects.find((p) => p.id === t.project_id);
-      const rate = proj?.hourly_rate || 0;
-      totalBillableValue += (sec / 3600) * rate;
+    const loggedTaskIds = new Set<string>();
+    timeEntries.forEach((entry) => {
+      totalSeconds += entry.duration_seconds || 0;
+      if (entry.task_id) loggedTaskIds.add(entry.task_id);
+      if (entry.is_billable) {
+        const project = projects.find((item) => item.id === entry.project_id);
+        totalBillableValue += ((entry.duration_seconds || 0) / 3600) * (project?.hourly_rate || 0);
+      }
     });
 
     return {
       totalHours: Math.round((totalSeconds / 3600) * 10) / 10,
       totalSeconds,
       totalBillableValue,
-      tasksWithTime,
+      tasksWithTime: loggedTaskIds.size,
       totalTasks: tasks.length,
     };
-  }, [tasks, projects]);
+  }, [timeEntries, activeTimer?.seconds, tasks, projects]);
 
-  // Filtered Tasks for Timesheet Table
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      if (selectedProjectFilter !== "all" && task.project_id !== selectedProjectFilter) return false;
-      if (selectedDepartmentFilter !== "all" && task.department !== selectedDepartmentFilter) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const matchTitle = task.title.toLowerCase().includes(q);
-        const matchAssignees = (task.assignee_ids || []).some((uid) => {
-          const u = users.find((user) => user.id === uid);
-          return u?.full_name.toLowerCase().includes(q);
-        });
-        if (!matchTitle && !matchAssignees) return false;
-      }
-      return true;
-    });
-  }, [tasks, selectedProjectFilter, selectedDepartmentFilter, search, users]);
-
-  // Helper to get seconds logged for a task on a specific day
-  const getTaskSecondsForDay = (task: Task, dayDateStr: string, dayDate: Date): number => {
-    const isTodayCell = isToday(dayDate);
-    const isYesterdayCell = isSameDay(dayDate, yesterdayDate);
-
-    // Filter timeEntries matching this task and date
-    const matching = timeEntries.filter((e) => {
-      if (e.task_id !== task.id) return false;
-      try {
-        const eDate = format(parseISO(e.started_at), "yyyy-MM-dd");
-        return eDate === dayDateStr;
-      } catch {
-        return false;
-      }
-    });
-
-    let seconds = matching.reduce((acc, e) => acc + (e.duration_seconds || 0), 0);
-
-    // Include real-time active stopwatch if running on this task on today
-    if (activeTimer?.taskId === task.id && isTodayCell) {
-      seconds += activeTimer.seconds;
-    }
-
-    // Fallback for tasks with tracked_seconds but no granular time_entries (sample/demo data)
-    if (seconds === 0 && (task.tracked_seconds || 0) > 0) {
-      const hasAnyEntriesForTask = timeEntries.some((e) => e.task_id === task.id);
-      if (!hasAnyEntriesForTask && isCurrentWeek) {
-        if (isTodayCell) {
-          seconds = Math.round((task.tracked_seconds || 0) * 0.6);
-        } else if (isYesterdayCell) {
-          seconds = Math.round((task.tracked_seconds || 0) * 0.4);
-        }
-      }
-    }
-
-    return seconds;
-  };
-
-  // Computations for Weekly Timesheet Table
-  const { taskRowsData, projectRowsData, dayTotals, weeklyTotalHours } = useMemo(() => {
-    const dayTotalsMap: Record<string, number> = {};
-    weekDays.forEach((d) => {
-      dayTotalsMap[format(d, "yyyy-MM-dd")] = 0;
-    });
-
-    let totalWeekSec = 0;
-
-    const rows = filteredTasks.map((task) => {
-      const daySecondsList: number[] = [];
-      let taskWeekSec = 0;
-
-      weekDays.forEach((d) => {
-        const dateStr = format(d, "yyyy-MM-dd");
-        const sec = getTaskSecondsForDay(task, dateStr, d);
-        daySecondsList.push(sec);
-        taskWeekSec += sec;
-        dayTotalsMap[dateStr] = (dayTotalsMap[dateStr] || 0) + sec;
-      });
-
-      totalWeekSec += taskWeekSec;
-
-      return {
-        task,
-        daySecondsList,
-        taskWeekSec,
-        taskWeekHours: Math.round((taskWeekSec / 3600) * 10) / 10,
-      };
-    });
-
-    const projectSecondsByDay = new Map<string, number>();
-    const projectsWithSessions = new Set<string>();
-    timeEntries.forEach((entry) => {
-      if (entry.task_id || !entry.project_id) return;
-      projectsWithSessions.add(entry.project_id);
+  // Weekly timesheet rows come from recorded sessions, not the task catalog.
+  const { sessionRows, dayTotals, weeklyTotalHours } = useMemo(() => {
+    const dailySeconds: Record<string, number> = {};
+    weekDays.forEach((day) => { dailySeconds[format(day, "yyyy-MM-dd")] = 0; });
+    const rows = timeEntries.filter((entry) => {
       const startedAt = parseISO(entry.started_at);
-      if (!isValid(startedAt)) return;
+      if (!isValid(startedAt)) return false;
       const day = format(startedAt, "yyyy-MM-dd");
-      const key = `${entry.project_id}:${day}`;
-      projectSecondsByDay.set(key, (projectSecondsByDay.get(key) || 0) + entry.duration_seconds);
+      if (!(day in dailySeconds)) return false;
+      if (selectedProjectFilter !== "all" && entry.project_id !== selectedProjectFilter) return false;
+      const task = tasks.find((item) => item.id === entry.task_id);
+      if (selectedDepartmentFilter !== "all" && task?.department !== selectedDepartmentFilter) return false;
+      if (search.trim()) {
+        const project = projects.find((item) => item.id === entry.project_id);
+        const searchable = [entry.work_summary, entry.description, task?.title, project?.name].join(" ").toLowerCase();
+        if (!searchable.includes(search.trim().toLowerCase())) return false;
+      }
+      return !hideZeroHours || entry.duration_seconds > 0;
+    }).sort((a, b) => b.started_at.localeCompare(a.started_at));
+    rows.forEach((entry) => {
+      const day = format(parseISO(entry.started_at), "yyyy-MM-dd");
+      dailySeconds[day] += entry.duration_seconds || 0;
     });
-
-    const projectRows = projects.filter((project) => {
-      if (selectedProjectFilter !== "all" && project.id !== selectedProjectFilter) return false;
-      if (selectedDepartmentFilter !== "all") return false;
-      if (search.trim() && !project.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
-      return projectsWithSessions.has(project.id) ||
-        (activeTimer?.projectId === project.id && !activeTimer.taskId);
-    }).map((project) => {
-      const daySecondsList = weekDays.map((day) => {
-        const dateStr = format(day, "yyyy-MM-dd");
-        const savedSeconds = projectSecondsByDay.get(`${project.id}:${dateStr}`) || 0;
-        const runningSeconds = activeTimer?.projectId === project.id && !activeTimer.taskId && isToday(day) ? activeTimer.seconds : 0;
-        const seconds = savedSeconds + runningSeconds;
-        dayTotalsMap[dateStr] = (dayTotalsMap[dateStr] || 0) + seconds;
-        return seconds;
-      });
-      const projectWeekSec = daySecondsList.reduce((sum, seconds) => sum + seconds, 0);
-      totalWeekSec += projectWeekSec;
-      return { project, daySecondsList, projectWeekSec };
-    });
-
-    // Optional filter: hide zero hours
-    const visibleRows = hideZeroHours ? rows.filter((r) => r.taskWeekSec > 0) : rows;
-
-    const dayTotalsHours: Record<string, number> = {};
-    Object.keys(dayTotalsMap).forEach((k) => {
-      dayTotalsHours[k] = Math.round((dayTotalsMap[k] / 3600) * 10) / 10;
-    });
-
-    return {
-      taskRowsData: visibleRows,
-      projectRowsData: hideZeroHours ? projectRows.filter((row) => row.projectWeekSec > 0) : projectRows,
-      dayTotals: dayTotalsHours,
-      weeklyTotalHours: Math.round((totalWeekSec / 3600) * 10) / 10,
-    };
-  }, [filteredTasks, projects, selectedProjectFilter, selectedDepartmentFilter, search, weekDays, timeEntries, activeTimer, hideZeroHours, isCurrentWeek, yesterdayDate]);
+    const dayTotals = Object.fromEntries(Object.entries(dailySeconds).map(([day, seconds]) => [day, Math.round(seconds / 360) / 10]));
+    const totalSeconds = Object.values(dailySeconds).reduce((sum, seconds) => sum + seconds, 0);
+    return { sessionRows: rows, dayTotals, weeklyTotalHours: Math.round(totalSeconds / 360) / 10 };
+  }, [weekDays, timeEntries, tasks, projects, selectedProjectFilter, selectedDepartmentFilter, search, hideZeroHours]);
 
   // Weekly progress percentage & status
   const weeklyProgressPercent = Math.min(100, (weeklyTotalHours / weeklyTargetHours) * 100);
@@ -642,7 +533,7 @@ export function TimeLogsView() {
             <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search task or assignee..."
+              placeholder="Search summary or task..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border/70 rounded-lg text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary shadow-xs"
@@ -683,7 +574,7 @@ export function TimeLogsView() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-secondary/40 border-b border-border/80 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  <th className="py-3 px-4 min-w-[240px]">Task & Project Details</th>
+                  <th className="py-3 px-4 min-w-[240px]">Work summary & task</th>
 
                   {/* 7 Daily Table Columns with Daily Totals in the Header */}
                   {weekDays.map((day) => {
@@ -747,144 +638,22 @@ export function TimeLogsView() {
               </thead>
 
               <tbody className="divide-y divide-border/60">
-                {taskRowsData.length === 0 && projectRowsData.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="p-0">
-                      <EmptyState className="border-0 rounded-none shadow-none" icon={Clock} title="Nothing on this timesheet yet" description="Start the project timeclock or track time on a task to see work here." actionLabel="Reset filters" onAction={() => { setSearch(""); setSelectedProjectFilter("all"); setSelectedDepartmentFilter("all"); setHideZeroHours(false); }} />
-                    </td>
-                  </tr>
-                ) : (<>
-                  {taskRowsData.map(({ task, daySecondsList, taskWeekHours }) => {
-                    const project = projects.find((p) => p.id === task.project_id);
-                    const isTimerRunningOnThisTask = activeTimer?.taskId === task.id;
-                    const deptBadge = getDepartmentBadge(task.department || "Engineering");
-
-                    return (
-                      <tr
-                        key={task.id}
-                        className={`hover:bg-secondary/20 transition-colors ${
-                          isTimerRunningOnThisTask ? "bg-emerald-500/5" : ""
-                        }`}
-                      >
-                        {/* Task & Project Meta */}
-                        <td className="py-3 px-4">
-                          <div className="flex items-start space-x-2">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
-                              style={{ backgroundColor: project?.color || "#6366f1" }}
-                            />
-                            <div className="min-w-0">
-                              <h4 className="font-bold text-foreground text-xs leading-snug line-clamp-1 hover:text-primary transition-colors">
-                                {task.title}
-                              </h4>
-                              <div className="flex items-center space-x-2 mt-0.5 text-[10px] text-muted-foreground flex-wrap gap-y-0.5">
-                                <span className="font-medium text-foreground/80">{project?.name || "General"}</span>
-                                <span>•</span>
-                                <span className={`px-1.5 py-0.2 rounded font-medium border ${deptBadge.bg} ${deptBadge.text} ${deptBadge.border}`}>
-                                  {task.department || "Engineering"}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* 7 Daily Table Columns showing hours per day */}
-                        {weekDays.map((day, dIdx) => {
-                          const dayStr = format(day, "yyyy-MM-dd");
-                          const daySec = daySecondsList[dIdx] || 0;
-                          const dayHours = Math.round((daySec / 3600) * 10) / 10;
-                          const isTodayCol = isToday(day);
-
-                          return (
-                            <td
-                              key={dayStr}
-                              className={`py-3 px-2 text-center font-mono text-xs group/cell relative ${
-                                isTodayCol ? "bg-emerald-500/5" : ""
-                              }`}
-                            >
-                              {dayHours > 0 ? (
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-md font-bold ${
-                                    isTimerRunningOnThisTask && isTodayCol
-                                      ? "bg-emerald-500 text-white animate-pulse"
-                                      : "bg-primary/10 text-primary border border-primary/20"
-                                  }`}
-                                >
-                                  {dayHours.toFixed(1)}h
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground/40 group-hover/cell:opacity-0 transition-opacity">
-                                  —
-                                </span>
-                              )}
-
-                              {/* Hover Quick Log Button for this specific day */}
-                              <button
-                                onClick={() => openLogTimeForTask(task.id, dayStr)}
-                                title={`Log time on ${format(day, "MMM d")}`}
-                                className="absolute inset-0 m-auto w-5 h-5 opacity-0 group-hover/cell:opacity-100 flex items-center justify-center rounded bg-primary text-primary-foreground text-[10px] font-bold shadow-xs transition-opacity cursor-pointer"
-                              >
-                                +
-                              </button>
-                            </td>
-                          );
-                        })}
-
-                        {/* Task Total Week Hours */}
-                        <td className="py-3 px-4 text-center font-mono font-bold text-xs bg-secondary/30 text-foreground">
-                          <span
-                            className={`px-2.5 py-1 rounded-lg ${
-                              taskWeekHours > 0 ? "bg-primary/15 text-primary font-bold" : "text-muted-foreground"
-                            }`}
-                          >
-                            {taskWeekHours.toFixed(1)}h
-                          </span>
-                        </td>
-
-                        {/* Row Actions: Stopwatch & + Log */}
-                        <td className="py-3 px-4 text-center">
-                          <div className="flex items-center justify-center space-x-1">
-                            {/* Play / Stop Timer */}
-                            {isTimerRunningOnThisTask ? (
-                              <button
-                                onClick={() => stopTimer()}
-                                title="Stop active stopwatch"
-                                className="p-1 rounded-md bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-xs animate-pulse cursor-pointer"
-                              >
-                                <Square className="w-3 h-3 fill-white" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => startTimer(task.id)}
-                                title="Start Stopwatch"
-                                className="p-1 rounded-md bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all cursor-pointer"
-                              >
-                                <Play className="w-3 h-3 fill-current" />
-                              </button>
-                            )}
-
-                            {/* Quick Add Log */}
-                            <button
-                              onClick={() => openLogTimeForTask(task.id)}
-                              title="Add manual time entry"
-                              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {projectRowsData.map(({ project, daySecondsList, projectWeekSec }) => (
-                    <tr key={`project-time-${project.id}`} className="bg-primary/5 hover:bg-primary/10">
-                      <td className="px-4 py-3"><p className="text-xs font-bold text-foreground">{project.name}</p><p className="text-[10px] text-muted-foreground">Project time · no task</p></td>
-                      {daySecondsList.map((seconds, index) => <td key={index} className="px-2 py-3 text-center font-mono text-xs">{seconds > 0 ? `${(seconds / 3600).toFixed(1)}h` : "—"}</td>)}
-                      <td className="bg-secondary/30 px-4 py-3 text-center font-mono text-xs font-bold">{(projectWeekSec / 3600).toFixed(1)}h</td>
-                      <td className="px-4 py-3 text-center"><button type="button" onClick={() => setViewMode("detailed_logs")} className="text-[10px] font-semibold text-primary hover:underline">View log</button></td>
-                    </tr>
-                  ))}
-                </>)}
+                {sessionRows.length === 0 ? (
+                  <tr><td colSpan={10} className="p-0"><EmptyState className="border-0 rounded-none shadow-none" icon={Clock} title="No time recorded this week" description="Choose a project and task in the timeclock, then add a work summary to record a session." actionLabel="Reset filters" onAction={() => { setSearch(""); setSelectedProjectFilter("all"); setSelectedDepartmentFilter("all"); setHideZeroHours(false); }} /></td></tr>
+                ) : sessionRows.map((entry) => {
+                  const task = tasks.find((item) => item.id === entry.task_id);
+                  const project = projects.find((item) => item.id === entry.project_id);
+                  const entryDay = format(parseISO(entry.started_at), "yyyy-MM-dd");
+                  return <tr key={entry.id} className="hover:bg-secondary/20 transition-colors">
+                    <td className="px-4 py-3"><p className="max-w-[320px] font-semibold text-foreground leading-snug break-words">{entry.work_summary || entry.description || "Work session"}</p><p className="mt-1 text-[10px] text-muted-foreground">{project?.name || entry.project_name || "Project"}{task ? ` · ${task.title}` : ""}</p></td>
+                    {weekDays.map((day) => {
+                      const dayKey = format(day, "yyyy-MM-dd");
+                      return <td key={dayKey} className={`px-2 py-3 text-center font-mono text-xs ${isToday(day) ? "bg-emerald-500/5" : ""}`}>{dayKey === entryDay ? formatDuration(entry.duration_seconds) : <span className="text-muted-foreground/40">—</span>}</td>;
+                    })}
+                    <td className="bg-secondary/30 px-4 py-3 text-center font-mono text-xs font-bold">{formatDuration(entry.duration_seconds)}</td>
+                    <td className="px-4 py-3 text-center"><button type="button" onClick={() => setViewMode("detailed_logs")} className="text-[10px] font-semibold text-primary hover:underline">View log</button></td>
+                  </tr>;
+                })}
               </tbody>
 
               {/* TABLE FOOTER: Daily Totals & Total of Hours Per Week */}
