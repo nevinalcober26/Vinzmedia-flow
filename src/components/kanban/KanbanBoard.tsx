@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { getDepartmentBadge, DEFAULT_DEPARTMENTS } from "@/lib/taskTypes";
 import confetti from "canvas-confetti";
+import { ShareBoard } from "@/components/sharing/ShareBoard";
 
 interface KanbanBoardProps {
   projectId?: string | null;
@@ -400,6 +401,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       <div className="flex flex-wrap items-center justify-between gap-3 px-1 py-1">
         {/* Left Filter controls */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
+          <ShareBoard projectId={currentProject?.id} />
           {/* Quick Search */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
