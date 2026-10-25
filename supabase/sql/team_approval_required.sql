@@ -1,5 +1,32 @@
--- Run after workspace_roles.sql and migration 004 (invites).
+-- Run after workspace_roles.sql. Missing invitation schema is created below.
 BEGIN;
+-- Fail with an actionable message before making changes if RBAC has not been installed.
+DO $$ BEGIN
+ IF to_regprocedure('private.workspace_access(uuid,text)') IS NULL THEN
+  RAISE EXCEPTION 'Run workspace_roles.sql first, then run this entire file again';
+ END IF;
+END $$;
+
+-- Older installations may not have migration 004. Preserve existing profiles and invites.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS approval_status text NOT NULL DEFAULT 'approved'
+ CHECK (approval_status IN ('pending','approved','rejected'));
+CREATE TABLE IF NOT EXISTS public.workspace_invites (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
+ email text,
+ token text NOT NULL UNIQUE,
+ role text NOT NULL DEFAULT 'member' CHECK(role IN ('owner','admin','project_manager','member','guest')),
+ invited_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+ status text NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','approved','rejected','expired')),
+ username text,
+ full_name text,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ expires_at timestamptz NOT NULL DEFAULT now()+interval '7 days'
+);
+ALTER TABLE public.workspace_invites ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_workspace_invites_workspace_id ON public.workspace_invites(workspace_id);
+
 CREATE TABLE IF NOT EXISTS public.workspace_join_requests (
  workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,

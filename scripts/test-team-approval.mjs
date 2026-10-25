@@ -22,6 +22,10 @@ INSERT INTO workspace_members VALUES('${ws}','${id(1)}','owner'),('${ws}','${id(
 GRANT ALL ON profiles,workspace_members TO authenticated;
 CREATE POLICY legacy_open ON workspace_members FOR ALL USING(true) WITH CHECK(true);`);
 await db.exec(readFileSync("supabase/sql/workspace_roles.sql", "utf8"));
+// Reproduce installations missing the entire invitations migration, not just a populated schema.
+if (process.env.TEST_LEGACY_INVITES !== "1") {
+  await db.exec("DROP TABLE workspace_invites; ALTER TABLE profiles DROP COLUMN username; ALTER TABLE profiles DROP COLUMN approval_status;");
+}
 const sql = readFileSync("supabase/sql/team_approval_required.sql", "utf8");
 await db.exec(sql);
 await db.exec(sql);

@@ -1,6 +1,6 @@
 # Team approval required
 
-Run the complete `team_approval_required.sql` file in Supabase SQL Editor after `workspace_roles.sql` and the existing invitation schema (migration 004). Then refresh the app. Codex has not applied this SQL to the live project.
+Run the complete `team_approval_required.sql` file in Supabase SQL Editor after `workspace_roles.sql`. The script now creates the invitations table and missing profile approval columns itself; migration 004 is not required. Then refresh the app. Codex has not applied this SQL to the live project.
 
 Owners and Admins create an invitation with the intended role. Registration creates a pending request for that specific workspace. It does not create membership or grant sidebar/project access. In **Team → Pending Approvals**, an Owner or Admin approves or rejects the applicant. Only successful approval activates the invited role, including Admin, Project Manager, Member and Guest. Ownership is not transferable by invitation.
 
