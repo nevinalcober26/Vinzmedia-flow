@@ -79,6 +79,7 @@ interface StoreContextType extends ReturnType<typeof useWorkspaceRoles> {
 
   // Invites & Approvals
   pendingApprovals: User[];
+  teamLoadError: string;
   activeInvites: WorkspaceInvite[];
   createInviteLink: (email: string, role?: Role) => Promise<{ invite: WorkspaceInvite; inviteUrl: string }>;
   approveMember: (applicant: User) => Promise<boolean>;
@@ -253,6 +254,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // Core collections (Live dynamic data loaded from Supabase)
   const [users, setUsers] = useState<User[]>([]);
+  const [teamLoadError, setTeamLoadError] = useState("");
   const [pendingApprovals, setPendingApprovals] = useState<User[]>([]);
   const [activeInvites, setActiveInvites] = useState<WorkspaceInvite[]>([]);
   const [currentUserId, setCurrentUserIdState] = useState<string>("");
@@ -2178,17 +2180,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const [dbUsers, pending, invites, members] = await Promise.all([
         workspaceService.getUsers(),
-        inviteService.getPendingApprovals(targetWsId),
+        inviteService.getPendingApprovals(targetWsId, true),
         inviteService.getActiveInvites(targetWsId),
         supabase.from("workspace_members").select("user_id").eq("workspace_id", targetWsId),
       ]);
       if (activeWsRef.current !== targetWsId) return;
+      if (members.error) throw new Error("Could not load active workspace members: " + members.error.message);
+      setTeamLoadError("");
       if (!members.error) setWorkspaceMemberIds((members.data || []).map(member => member.user_id));
       if (dbUsers.length) setUsers(dbUsers.filter(user => user.approval_status !== "pending" && user.approval_status !== "rejected"));
       setPendingApprovals(pending);
       setActiveInvites(invites);
     } catch (error) {
-      console.error("Failed to refresh team data:", error);
+      if (activeWsRef.current === targetWsId) setTeamLoadError(error instanceof Error ? error.message : "Could not refresh team data.");
     }
   }, [activeWorkspaceId, isAuthenticated]);
 
@@ -2501,6 +2505,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         removeMember,
 
         pendingApprovals,
+        teamLoadError,
         activeInvites: activeInvites.filter((invite) => invite.workspace_id === activeWorkspaceId),
         createInviteLink,
         approveMember,

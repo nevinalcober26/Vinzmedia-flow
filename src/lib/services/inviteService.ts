@@ -154,12 +154,13 @@ export const inviteService = {
     }
   },
 
-  async getPendingApprovals(workspaceId: string): Promise<User[]> {
+  async getPendingApprovals(workspaceId: string, strict = false): Promise<User[]> {
     if (!supabase) return [];
     const { data, error } = await supabase.rpc("pending_workspace_joins", {
       target_workspace: workspaceId,
     });
     if (error) {
+      if (strict) throw new Error("Could not load Pending Approvals. Check your connection and run the latest team approval SQL in Supabase. " + error.message);
       console.warn("Pending approvals unavailable:", error.message);
       return [];
     }

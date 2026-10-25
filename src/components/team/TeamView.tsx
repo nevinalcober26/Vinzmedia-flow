@@ -1,5 +1,6 @@
 "use client";
 
+import { supabase } from "@/lib/supabase";
 import { EmptyState } from "@/components/common/EmptyState";
 import React, { useState, useEffect } from "react";
 import { useStore } from "@/context/StoreContext";
@@ -37,6 +38,7 @@ export function TeamView() {
     currentUser,
     tasks,
     pendingApprovals,
+    teamLoadError,
     refreshTeamData,
     activeInvites,
     createInviteLink,
@@ -58,6 +60,9 @@ export function TeamView() {
   const confirm = useConfirm();
 
   const [activeTab, setActiveTab] = useState<"directory" | "approvals" | "invites" | "roles">("directory");
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -78,6 +83,21 @@ export function TeamView() {
       u.role.toLowerCase().includes(query)
     );
   });
+
+  const recoverAccount = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!supabase || !canManageRoles) return;
+    setRecovering(true); setRecoveryMessage("");
+    try {
+      const { data, error } = await supabase.rpc("queue_registered_team_account", { target_workspace: activeWorkspace.id, account_email: recoveryEmail.trim() });
+      if (error) throw error;
+      await refreshTeamData();
+      setRecoveryMessage(data === "already_active" ? "This account is already a workspace member. The directory has been refreshed." : "Added to Pending Approvals. Review the request below to activate this member.");
+      setRecoveryEmail("");
+    } catch (error) {
+      setRecoveryMessage((error as {message?: string}).message || "Could not recover registration. Run recover_registered_team_accounts.sql in Supabase first.");
+    } finally { setRecovering(false); }
+  };
 
   const handleGenerateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,6 +180,7 @@ export function TeamView() {
   return (
     <div className="flex flex-col h-full space-y-4">
       {canManageRoles && <button onClick={() => setActiveTab("roles")} className="self-end rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-xs font-semibold text-primary">Manage roles & access</button>}
+      {teamLoadError && canManageRoles && <div role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm"><p>{teamLoadError}</p><button onClick={() => void refreshTeamData()} className="mt-2 font-semibold text-primary">Retry loading team</button></div>}
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1">
         <div>
@@ -384,7 +405,13 @@ export function TeamView() {
             </div>
           </div>
 
-          {pendingApprovals.length === 0 ? (
+          <form onSubmit={recoverAccount} className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div><h3 className="text-sm font-semibold">Find an existing registration</h3><p className="text-xs text-muted-foreground mt-1">Already in Supabase Auth but missing here? Enter the account email to add it to this workspace’s approval queue. Access remains blocked until approved.</p></div>
+            <div className="flex flex-wrap gap-2"><input aria-label="Registered account email" type="email" required value={recoveryEmail} onChange={e => setRecoveryEmail(e.target.value)} placeholder="teammate@example.com" className="flex-1 min-w-48 rounded-lg border border-border bg-background p-2 text-sm"/><button disabled={recovering || !recoveryEmail.trim()} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold disabled:opacity-50">{recovering ? "Finding account…" : "Add to Pending Approvals"}</button></div>
+            {recoveryMessage && <p role="status" className="text-sm">{recoveryMessage}</p>}
+          </form>
+
+          {pendingApprovals.length === 0 && !teamLoadError ? (
             <EmptyState icon={UserCheck} title="You're all caught up" description="There are no registrations waiting for approval. New requests will appear here when teammates sign up." />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -200,4 +200,24 @@ assert.equal(
 console.log(
   "PASS: existing authenticated account with missing profile reaches pending queue without membership.",
 );
+await root();
+await db.exec(readFileSync("supabase/sql/recover_registered_team_accounts.sql", "utf8"));
+await db.exec(readFileSync("supabase/sql/recover_registered_team_accounts.sql", "utf8"));
+await db.query(`INSERT INTO auth.users VALUES($1,'lost@example.com','{"full_name":"Lost registration"}')`,[id(23)]);
+await db.query('DELETE FROM profiles WHERE id=$1',[id(23)]);
+await as(3);
+await assert.rejects(db.query("SELECT queue_registered_team_account($1,'lost@example.com')",[ws]));
+await as(1);
+assert.equal((await db.query("SELECT queue_registered_team_account($1,'lost@example.com') result",[ws])).rows[0].result,'pending');
+assert.equal((await db.query("SELECT queue_registered_team_account($1,'lost@example.com') result",[ws])).rows[0].result,'pending');
+await root();
+assert.equal((await db.query('SELECT count(*)::int n FROM workspace_members WHERE user_id=$1',[id(23)])).rows[0].n,0);
+assert.equal((await db.query('SELECT approval_status FROM profiles WHERE id=$1',[id(23)])).rows[0].approval_status,'pending');
+await as(1);
+await db.query('SELECT review_workspace_join($1,$2,true)',[ws,id(23)]);
+assert.equal((await db.query("SELECT queue_registered_team_account($1,'lost@example.com') result",[ws])).rows[0].result,'already_active');
+await root();
+await db.exec('SET ROLE anon');
+await assert.rejects(db.query("SELECT queue_registered_team_account($1,'lost@example.com')",[ws]));
+console.log('PASS: Owner recovery restores orphan profile into pending queue, never auto-enrolls, preserves active members, denies other-workspace members and anonymous callers, and is repeat-safe.');
 await db.close();
