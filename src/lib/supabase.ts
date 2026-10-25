@@ -12,9 +12,21 @@ export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
     supabaseKey &&
     supabaseUrl.startsWith("http") &&
-    !supabaseUrl.includes("your-project")
+    !supabaseUrl.includes("your-project"),
 );
 
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(supabaseUrl!, supabaseKey!)
   : null;
+
+// Invitation sign-in must not replace the admin's session or trigger app redirects.
+export function createInvitationClient(): SupabaseClient {
+  if (!isSupabaseConfigured) throw new Error("Supabase is not configured.");
+  return createClient(supabaseUrl!, supabaseKey!, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}

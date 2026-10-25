@@ -24,7 +24,9 @@ CREATE POLICY legacy_open ON workspace_members FOR ALL USING(true) WITH CHECK(tr
 await db.exec(readFileSync("supabase/sql/workspace_roles.sql", "utf8"));
 // Reproduce installations missing the entire invitations migration, not just a populated schema.
 if (process.env.TEST_LEGACY_INVITES !== "1") {
-  await db.exec("DROP TABLE workspace_invites; ALTER TABLE profiles DROP COLUMN username; ALTER TABLE profiles DROP COLUMN approval_status;");
+  await db.exec(
+    "DROP TABLE workspace_invites; ALTER TABLE profiles DROP COLUMN username; ALTER TABLE profiles DROP COLUMN approval_status;",
+  );
 }
 const sql = readFileSync("supabase/sql/team_approval_required.sql", "utf8");
 await db.exec(sql);
@@ -159,5 +161,43 @@ await assert.rejects(
 );
 console.log(
   "PASS: every invited role remains pending, metadata cannot grant access, direct enrollment and self-approval denied, admin approval assigns invited role, rejection blocks enrollment, invalid tokens fail, signup never joins an existing workspace, anonymous/member review denied.",
+);
+await root();
+await db.exec(
+  readFileSync("supabase/sql/fix_existing_account_invites.sql", "utf8"),
+);
+await db.query("DELETE FROM profiles WHERE id=$1", [id(22)]);
+await db.query(
+  "INSERT INTO workspace_invites(workspace_id,email,token,role) VALUES($1,'newworkspace@test.com','recover-existing','guest')",
+  [ws],
+);
+await as(22);
+await db.query("SELECT request_workspace_join('recover-existing')");
+await root();
+assert.equal(
+  (
+    await db.query(
+      "SELECT status FROM workspace_join_requests WHERE workspace_id=$1 AND user_id=$2",
+      [ws, id(22)],
+    )
+  ).rows[0].status,
+  "pending",
+);
+assert.equal(
+  (
+    await db.query(
+      "SELECT count(*)::int n FROM workspace_members WHERE user_id=$1",
+      [id(22)],
+    )
+  ).rows[0].n,
+  0,
+);
+assert.equal(
+  (await db.query("SELECT approval_status FROM profiles WHERE id=$1", [id(22)]))
+    .rows[0].approval_status,
+  "pending",
+);
+console.log(
+  "PASS: existing authenticated account with missing profile reaches pending queue without membership.",
 );
 await db.close();

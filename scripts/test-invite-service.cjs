@@ -22,3 +22,17 @@ function service(client){const exports={};vm.runInNewContext(code,{exports,conso
  assert.equal((await signupError.submitRegistration('valid','Name','name','new@example.com','secret')).success,false);
  console.log('PASS: approval/rejection failures propagate, invitation failure cannot report success, invalid tokens fail, signup queues via token without role claims, signup errors fail closed.');
 })();
+
+(async()=>{
+ let signedIn=false,queued=false,closed=false;
+ const client={auth:{signInWithPassword:async()=>{signedIn=true;return {error:null};},signOut:async()=>{closed=true;}},rpc:async(name,args)=>{assert(signedIn);assert.equal(name,'request_workspace_join');assert.equal(args.invite_token,'existing-token');queued=true;return {error:null};}};
+ const exports={};vm.runInNewContext(code,{exports,console,require:id=>id==='@/lib/supabase'?{supabase:null,createInvitationClient:()=>client}:require(id)});
+ assert.equal((await exports.inviteService.joinWithExistingAccount('existing-token','person@example.com','existing-password')).success,true);
+ assert(queued&&closed);
+ queued=false;client.auth.signInWithPassword=async()=>({error:{message:'Invalid login credentials'}});
+ assert.equal((await exports.inviteService.joinWithExistingAccount('existing-token','person@example.com','wrong')).success,false);
+ assert.equal(queued,false);
+ const existing=service({rpc:async()=>({data:{email:''}}),auth:{getUser:async()=>({data:{user:null}}),signUp:async()=>({error:{code:'user_already_exists',message:'User already registered'}})}});
+ assert.equal((await existing.submitRegistration('token','Name','name','person@example.com','password')).needsSignIn,true);
+ console.log('PASS: existing-account authentication queues approval, wrong passwords cannot queue, existing signup switches to sign-in.');
+})();

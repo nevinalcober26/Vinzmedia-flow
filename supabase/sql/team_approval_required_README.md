@@ -4,7 +4,9 @@ Run the complete `team_approval_required.sql` file in Supabase SQL Editor after 
 
 Owners and Admins create an invitation with the intended role. Registration creates a pending request for that specific workspace. It does not create membership or grant sidebar/project access. In **Team → Pending Approvals**, an Owner or Admin approves or rejects the applicant. Only successful approval activates the invited role, including Admin, Project Manager, Member and Guest. Ownership is not transferable by invitation.
 
-The signup trigger no longer joins new accounts to the first workspace. Creating your own independent workspace remains separate from joining someone else's team. Existing signed-in users can use an invitation to request membership without replacing their account. Previously registered users should sign in first and reopen the invitation.
+The signup trigger no longer joins new accounts to the first workspace. Creating your own independent workspace remains separate from joining someone else's team. Existing signed-in users can use an invitation to request membership without replacing their account. Previously registered users should choose **Already have an account** on the invitation page and enter their existing account password. This verifies identity and submits the same invitation for approval without creating a duplicate account. It uses an isolated session and does not replace an administrator’s current session.
+
+If the approval SQL is already installed, run `fix_existing_account_invites.sql` to support older Auth accounts with missing public profiles. The repair only recreates the signed-in user’s profile when needed; membership still requires administrator approval.
 
 The migration preserves approved members, including existing Owners/Admins. Applicants explicitly marked pending by the older system are moved into the new queue and any premature membership is removed. The actual workspace owner is excluded from that cleanup. Legacy accounts that are already marked approved are not retroactively rejected.
 

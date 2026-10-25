@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase, createInvitationClient } from "@/lib/supabase";
 import { WorkspaceInvite, User, Role } from "@/types";
 
 function database() {
@@ -50,7 +50,12 @@ export const inviteService = {
     username: string,
     email: string,
     password: string,
-  ): Promise<{ success: boolean; user?: User; error?: string }> {
+  ): Promise<{
+    success: boolean;
+    user?: User;
+    error?: string;
+    needsSignIn?: boolean;
+  }> {
     try {
       const db = database();
       const invite = await this.getInviteByToken(token);
@@ -79,11 +84,27 @@ export const inviteService = {
             },
           },
         });
+        if (
+          error &&
+          (error.code === "user_already_exists" ||
+            error.code === "email_exists" ||
+            /already registered/i.test(error.message))
+        ) {
+          return {
+            success: false,
+            needsSignIn: true,
+            error:
+              "This email already has an account. Use your existing password below to request workspace access.",
+          };
+        }
         if (error) throw error;
         if (!data.user || data.user.identities?.length === 0)
-          throw new Error(
-            "This email already has an account. Sign in first, then reopen the invitation to request access.",
-          );
+          return {
+            success: false,
+            needsSignIn: true,
+            error:
+              "This email already has an account. Use your existing password below to request workspace access.",
+          };
         // The signup trigger queues the request atomically, including when email confirmation is enabled.
         // Confirm the invite was consumed so an unapplied SQL migration cannot report false success.
         const remaining = await this.getInviteByToken(token);
@@ -101,6 +122,35 @@ export const inviteService = {
           (error as { message?: string }).message ||
           "Registration failed. Please try again.",
       };
+    }
+  },
+
+  async joinWithExistingAccount(
+    token: string,
+    email: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    const client = createInvitationClient();
+    try {
+      const { error: signInError } = await client.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      if (signInError) throw signInError;
+      const { error } = await client.rpc("request_workspace_join", {
+        invite_token: token,
+      });
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          (error as { message?: string }).message ||
+          "Unable to request access. Check your existing account password.",
+      };
+    } finally {
+      await client.auth.signOut({ scope: "local" });
     }
   },
 

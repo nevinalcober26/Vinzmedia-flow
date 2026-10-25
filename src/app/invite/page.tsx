@@ -26,6 +26,7 @@ function InviteContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
 
+  const [existingAccount, setExistingAccount] = useState(false);
   const [invite, setInvite] = useState<WorkspaceInvite | null>(null);
   const [isValidating, setIsValidating] = useState(true);
   const [fullName, setFullName] = useState("");
@@ -64,35 +65,41 @@ function InviteContent() {
     e.preventDefault();
     setErrorMsg("");
 
-    if (!fullName.trim() || !username.trim() || !email.trim() || !password) {
+    if (
+      (!existingAccount && (!fullName.trim() || !username.trim())) ||
+      !email.trim() ||
+      !password
+    ) {
       setErrorMsg("Please fill in all required fields.");
       return;
     }
 
-    if (username.length < 3) {
+    if (!existingAccount && username.length < 3) {
       setErrorMsg("Username must be at least 3 characters.");
       return;
     }
 
-    if (password.length < 6) {
+    if (!existingAccount && password.length < 6) {
       setErrorMsg("Password must be at least 6 characters.");
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (!existingAccount && password !== confirmPassword) {
       setErrorMsg("Passwords do not match.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const res = await inviteService.submitRegistration(
-        token,
-        fullName.trim(),
-        username.trim(),
-        email.trim(),
-        password
-      );
+      const res = existingAccount
+        ? await inviteService.joinWithExistingAccount(token, email, password)
+        : await inviteService.submitRegistration(
+            token,
+            fullName.trim(),
+            username.trim(),
+            email.trim(),
+            password,
+          );
 
       if (res.success) {
         try {
@@ -104,7 +111,14 @@ function InviteContent() {
         } catch {}
         setIsSubmitted(true);
       } else {
-        setErrorMsg(res.error || "Failed to submit registration. Please try again.");
+        if ("needsSignIn" in res && res.needsSignIn) {
+          setExistingAccount(true);
+          setPassword("");
+          setConfirmPassword("");
+        }
+        setErrorMsg(
+          res.error || "Failed to submit registration. Please try again.",
+        );
       }
     } catch (err: any) {
       setErrorMsg(err?.message || "An unexpected error occurred.");
@@ -126,7 +140,21 @@ function InviteContent() {
     );
   }
 
-  if (!invite) return <main className="min-h-screen flex items-center justify-center p-8"><div className="space-y-4 text-center"><h1 className="text-xl font-semibold">Invitation unavailable</h1><p>This link is invalid, expired, already used, or could not be verified. Ask your administrator for a new invitation.</p><Link href="/login" className="text-primary">Go to sign in</Link></div></main>;
+  if (!invite)
+    return (
+      <main className="min-h-screen flex items-center justify-center p-8">
+        <div className="space-y-4 text-center">
+          <h1 className="text-xl font-semibold">Invitation unavailable</h1>
+          <p>
+            This link is invalid, expired, already used, or could not be
+            verified. Ask your administrator for a new invitation.
+          </p>
+          <Link href="/login" className="text-primary">
+            Go to sign in
+          </Link>
+        </div>
+      </main>
+    );
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background px-4 py-12 relative overflow-hidden">
@@ -154,7 +182,9 @@ function InviteContent() {
                   Join VinzMedia Workspace
                 </h1>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  Set up your username and password below. Once submitted, an administrator will approve your account to activate your invited role.
+                  {existingAccount
+                    ? "Sign in with your existing account to request access. An administrator must approve your invited role before you join."
+                    : "Create an account to request access. Every invited role requires administrator approval."}
                 </p>
               </div>
 
@@ -171,46 +201,79 @@ function InviteContent() {
                   </motion.div>
                 )}
 
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary/40 p-1">
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    aria-pressed={!existingAccount}
+                    onClick={() => {
+                      setExistingAccount(false);
+                      setErrorMsg("");
+                    }}
+                    className={`rounded-lg p-2 text-xs font-semibold ${!existingAccount ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                  >
+                    Create account
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    aria-pressed={existingAccount}
+                    onClick={() => {
+                      setExistingAccount(true);
+                      setErrorMsg("");
+                    }}
+                    className={`rounded-lg p-2 text-xs font-semibold ${existingAccount ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                  >
+                    Already have an account
+                  </button>
+                </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Full Name */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground flex items-center space-x-1.5">
-                      <User className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>Full Name</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Jane Doe"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
-                    />
-                  </div>
+                  {!existingAccount && (
+                    <>
+                      {/* Full Name */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground flex items-center space-x-1.5">
+                          <User className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Full Name</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Jane Doe"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                        />
+                      </div>
 
-                  {/* Username */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground flex items-center space-x-1.5">
-                      <AtSign className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>Username</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">
-                        @
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        placeholder="janedoe"
-                        value={username}
-                        onChange={(e) =>
-                          setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))
-                        }
-                        className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono"
-                      />
-                    </div>
-                  </div>
-
+                      {/* Username */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground flex items-center space-x-1.5">
+                          <AtSign className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Username</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">
+                            @
+                          </span>
+                          <input
+                            type="text"
+                            required
+                            placeholder="janedoe"
+                            value={username}
+                            onChange={(e) =>
+                              setUsername(
+                                e.target.value
+                                  .toLowerCase()
+                                  .replace(/[^a-z0-9_]/g, ""),
+                              )
+                            }
+                            className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
                   {/* Email */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground flex items-center space-x-1.5">
@@ -244,26 +307,31 @@ function InviteContent() {
                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground flex items-center space-x-1.5">
-                        <Lock className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>Confirm Password</span>
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        placeholder="••••••••••••"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
-                      />
-                    </div>
+                    {!existingAccount && (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground flex items-center space-x-1.5">
+                          <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Confirm Password</span>
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          placeholder="••••••••••••"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="p-3 rounded-xl bg-secondary/50 border border-border/60 text-[11px] text-muted-foreground flex items-start space-x-2">
                     <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                     <span>
-                      After submitting, your profile will be placed in the <strong>Pending Approvals</strong> queue for Administrator review. Once approved, you can access the workspace with your approved role.
+                      After submitting, your profile will be placed in the{" "}
+                      <strong>Pending Approvals</strong> queue for Administrator
+                      review. Once approved, you can access the workspace with
+                      your approved role.
                     </span>
                   </div>
 
@@ -316,7 +384,9 @@ function InviteContent() {
                   Registration Submitted!
                 </h2>
                 <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-                  Welcome aboard, <strong className="text-foreground">{fullName}</strong> (<code>@{username}</code>). Your registration has been dispatched to the workspace administrator.
+                  Your access request for{" "}
+                  <strong className="text-foreground">{email}</strong> has been
+                  sent to the workspace administrator.
                 </p>
               </div>
 
@@ -326,7 +396,9 @@ function InviteContent() {
                   <span>Awaiting Administrator / Owner Approval</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-normal pl-6">
-                  Workspace Owner (Vinz Media) will verify and approve your request in the Team Panel. Once approved, your invited role will become active and you will be able to log in.
+                  Workspace Owner (Vinz Media) will verify and approve your
+                  request in the Team Panel. Once approved, your invited role
+                  will become active and you will be able to log in.
                 </p>
               </div>
 
