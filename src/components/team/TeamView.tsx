@@ -171,7 +171,7 @@ export function TeamView() {
           </p>
         </div>
 
-        {can("members:invite") && (
+        {canManageRoles && (
           <button
             onClick={() => {
               setGeneratedLink("");
@@ -203,7 +203,7 @@ export function TeamView() {
           </span>
         </button>
 
-        <button
+        {canManageRoles && <button
           onClick={() => setActiveTab("approvals")}
           className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer relative ${
             activeTab === "approvals"
@@ -222,7 +222,7 @@ export function TeamView() {
               0
             </span>
           )}
-        </button>
+        </button>}
 
         <button
           onClick={() => setActiveTab("invites")}
@@ -369,14 +369,14 @@ export function TeamView() {
       )}
 
       {/* TAB 2: PENDING APPROVALS */}
-      {activeTab === "approvals" && (
+      {activeTab === "approvals" && canManageRoles && (
         <div className="space-y-4 flex-1">
           <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-500 flex items-start space-x-3">
             <Clock className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
               <h4 className="font-bold">Administrator Review Queue</h4>
               <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                When new teammates register using an invitation link, their accounts remain in this queue. Once approved by an Admin or Owner, their default role becomes <strong>Member</strong> and they gain instant login access.
+                When new teammates register using an invitation link, their accounts remain in this queue. Once approved by an Admin or Owner, their invited role becomes active and they gain workspace access. This applies to every role, including Admin.
               </p>
             </div>
           </div>
@@ -413,7 +413,7 @@ export function TeamView() {
                           </p>
                           <span className="inline-flex items-center space-x-1 text-[10px] font-semibold text-amber-500 mt-2 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                             <Clock className="w-3 h-3" />
-                            <span>Awaiting Member Approval</span>
+                            <span>Awaiting approval · {applicant.role.replace(/_/g, " ")}</span>
                           </span>
                         </div>
                       </div>
@@ -433,7 +433,7 @@ export function TeamView() {
                         className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center space-x-1.5"
                       >
                         <Check className="w-3.5 h-3.5" />
-                        <span>Approve as Member</span>
+                        <span>Approve {applicant.role.replace(/_/g, " ")}</span>
                       </button>
                     </div>
                   </motion.div>
@@ -469,7 +469,7 @@ export function TeamView() {
           </div>
 
           {activeInvites.length === 0 ? (
-            <EmptyState icon={LinkIcon} title="Bring your team together" description="Create an invitation link when you're ready to welcome a new teammate." actionLabel={can("members:invite") ? "Create invitation link" : undefined} onAction={can("members:invite") ? () => { setGeneratedLink(""); setInviteEmail(""); setIsInviteModalOpen(true); } : undefined} />
+            <EmptyState icon={LinkIcon} title="Bring your team together" description="Create an invitation link when you're ready to welcome a new teammate." actionLabel={canManageRoles ? "Create invitation link" : undefined} onAction={canManageRoles ? () => { setGeneratedLink(""); setInviteEmail(""); setIsInviteModalOpen(true); } : undefined} />
           ) : (
             <div className="space-y-3">
               {activeInvites.map((inv) => {
@@ -590,7 +590,7 @@ export function TeamView() {
                       2. Their profile appears in your <strong>Pending Approvals</strong> tab.
                     </p>
                     <p>
-                      3. An Admin or Owner clicks <strong>Approve as Member</strong> to activate their account!
+                      3. An Admin or Owner clicks <strong>Approve</strong> to activate their account!
                     </p>
                   </div>
 

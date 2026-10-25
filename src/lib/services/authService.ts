@@ -19,6 +19,7 @@ export const authService = {
         full_name: data.full_name,
         avatar_url: data.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
         role: data.role as Role,
+        approval_status: data.approval_status,
         title: data.title || "Team Member",
         department: data.department || "General",
         status: data.status || "online",
@@ -69,14 +70,16 @@ export const authService = {
         email: data.email,
         full_name: data.full_name,
         avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
-        role: (data.role || "member") as Role,
+        role: "member",
         title: data.title || "Team Member",
         department: data.department || "General",
         status: "online",
         created_at: new Date().toISOString(),
       };
 
-      await supabase.from("profiles").upsert(userProfile);
+      // The database signup trigger creates the profile and controls its role.
+      const savedProfile = await this.getProfile(authData.user.id);
+      if (savedProfile) return { user: savedProfile, error: null };
 
       return { user: userProfile, error: null };
     } catch (err: any) {
@@ -108,18 +111,8 @@ export const authService = {
         return { user: profile, error: null };
       }
 
-      const fallbackUser: User = {
-        id: authData.user.id,
-        email: authData.user.email || email,
-        full_name: authData.user.user_metadata?.full_name || email.split("@")[0],
-        avatar_url: authData.user.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
-        role: (authData.user.user_metadata?.role as Role) || "member",
-        status: "online",
-        created_at: new Date().toISOString(),
-      };
-
-      await supabase.from("profiles").upsert(fallbackUser);
-      return { user: fallbackUser, error: null };
+      await supabase.auth.signOut();
+      return { user: null, error: "Your profile is unavailable. Contact the workspace administrator." };
     } catch (err: any) {
       return { user: null, error: err.message || "Failed to sign in." };
     }

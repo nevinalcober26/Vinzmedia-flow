@@ -87,7 +87,7 @@ function InviteContent() {
     setIsSubmitting(true);
     try {
       const res = await inviteService.submitRegistration(
-        token || "inv_direct",
+        token,
         fullName.trim(),
         username.trim(),
         email.trim(),
@@ -126,6 +126,8 @@ function InviteContent() {
     );
   }
 
+  if (!invite) return <main className="min-h-screen flex items-center justify-center p-8"><div className="space-y-4 text-center"><h1 className="text-xl font-semibold">Invitation unavailable</h1><p>This link is invalid, expired, already used, or could not be verified. Ask your administrator for a new invitation.</p><Link href="/login" className="text-primary">Go to sign in</Link></div></main>;
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background px-4 py-12 relative overflow-hidden">
       {/* Ambient background glow */}
@@ -152,7 +154,7 @@ function InviteContent() {
                   Join VinzMedia Workspace
                 </h1>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  Set up your username and password below. Once submitted, an administrator will approve your account to activate your Member role.
+                  Set up your username and password below. Once submitted, an administrator will approve your account to activate your invited role.
                 </p>
               </div>
 
@@ -261,7 +263,7 @@ function InviteContent() {
                   <div className="p-3 rounded-xl bg-secondary/50 border border-border/60 text-[11px] text-muted-foreground flex items-start space-x-2">
                     <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                     <span>
-                      After submitting, your profile will be placed in the <strong>Pending Approvals</strong> queue for Administrator review. Once approved, you can log in as a Member.
+                      After submitting, your profile will be placed in the <strong>Pending Approvals</strong> queue for Administrator review. Once approved, you can access the workspace with your approved role.
                     </span>
                   </div>
 
@@ -324,7 +326,7 @@ function InviteContent() {
                   <span>Awaiting Administrator / Owner Approval</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-normal pl-6">
-                  Workspace Owner (Vinz Media) will verify and approve your request in the Team Panel. Once approved, your default role will be set to <strong>Member</strong> and you will be able to log in.
+                  Workspace Owner (Vinz Media) will verify and approve your request in the Team Panel. Once approved, your invited role will become active and you will be able to log in.
                 </p>
               </div>
 

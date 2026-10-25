@@ -303,6 +303,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize dynamic data from Supabase & configure real-time updates
   useEffect(() => {
+    try {
+      localStorage.removeItem("vinzflow_workspace_invites");
+      localStorage.removeItem("vinzflow_pending_approvals");
+    } catch { /* Storage may be unavailable in private browsing. */ }
     // 1. Theme initialization
     try {
       const savedTheme = localStorage.getItem("vinzflow_theme") as "light" | "dark" | null;
@@ -329,6 +333,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             setIsAuthenticated(false);
             setIsInitialized(true);
             return;
+          }
+          const profile = await authService.getProfile(session.user.id);
+          if (!profile || profile.approval_status === "pending" || profile.approval_status === "rejected") {
+            await supabase.auth.signOut(); setIsAuthenticated(false); setIsInitialized(true); return;
           }
           setCurrentUserIdState(session.user.id);
           setIsAuthenticated(true);
@@ -403,7 +411,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         if (cancelled) return;
         const userId = session?.user.id || null;
-        setIsAuthenticated(Boolean(userId));
+        if (!userId) setIsAuthenticated(false);
         if (userId) setCurrentUserIdState(userId);
         if (userId === loadedUserId) return;
         loadedUserId = userId;
@@ -473,7 +481,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const merge = <T extends { workspace_id?: string }>(previous: T[], next: T[]) => [...previous.filter((item) => item.workspace_id !== workspaceId), ...next];
     setWorkspaceMemberIds([]);
     setPendingApprovals([]);
-    setActiveInvites(inviteService.getActiveInvites(workspaceId));
+    void inviteService.getActiveInvites(workspaceId).then(invites => { if (activeWsRef.current === workspaceId) setActiveInvites(invites); });
     setColumns((previous) => previous.some((column) => column.workspace_id === workspaceId) ? previous : [...previous, ...initialColumns.map((column) => ({ ...column, id: `${workspaceId}:${column.status_key}`, workspace_id: workspaceId, project_id: undefined }))]);
     const load = async () => {
       if (!supabase || !isSupabaseConfigured) return;
@@ -642,6 +650,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [timerStartedAt]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !activeWorkspaceId) return;
+    let cancelled = false;
+    const refresh = async () => {
+      const pending = await inviteService.getPendingApprovals(activeWorkspaceId);
+      if (!cancelled) setPendingApprovals(pending);
+    };
+    const interval = setInterval(() => { void refresh(); }, 30000);
+    window.addEventListener("focus", refresh);
+    return () => { cancelled = true; clearInterval(interval); window.removeEventListener("focus", refresh); };
+  }, [isAuthenticated, activeWorkspaceId]);
+
   // Derived Values
   const currentUser = useMemo((): User => {
     return (
@@ -791,7 +811,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // 2. Try Supabase Auth
       const res = await authService.signIn(cleanEmail, password);
       if (res.user) {
-        if (res.user.approval_status === "pending") {
+        if (res.user.approval_status === "pending" || res.user.approval_status === "rejected") {
+          await authService.signOut();
+          setIsAuthenticated(false);
           toast.warning(
             "Account Pending Approval",
             "An administrator must approve your account before you can sign in."
@@ -933,7 +955,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const setActiveWorkspaceId = useCallback((id: string) => {
     setPendingApprovals([]);
     setWorkspaceMemberIds([]);
-    setActiveInvites(inviteService.getActiveInvites(id));
+    void inviteService.getActiveInvites(id).then(invites => { if (activeWsRef.current === id) setActiveInvites(invites); });
     setActiveWorkspaceIdState(id);
     setActiveView("dashboard");
     setIsQuickNoteOpen(false);
@@ -2184,7 +2206,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const createInviteLink = useCallback(
     async (email: string, role: Role = "member") => {
-      if (!can("members:invite")) throw new Error("Your role cannot invite members");
+      if (!roleAccess.canManageRoles) throw new Error("Only Owners and Admins can invite members");
       const targetWsId = activeWorkspaceId || "b0000000-0000-0000-0000-000000000001";
       const res = await inviteService.createInvite(
         targetWsId,
@@ -2197,27 +2219,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       logActivity("invite_created", `Generated invitation link for ${email || "new teammate"}`);
       return res;
     },
-    [can, activeWorkspaceId, currentUser, logActivity]
+    [roleAccess.canManageRoles, activeWorkspaceId, currentUser, logActivity]
   );
 
   const approveMember = useCallback(
     async (applicant: User): Promise<boolean> => {
+      if (!roleAccess.canManageRoles) return false;
       const targetWsId = activeWorkspaceId || "b0000000-0000-0000-0000-000000000001";
       const success = await inviteService.approveUser(applicant, targetWsId);
       if (success) {
         const approved: User = {
           ...applicant,
-          role: "member",
+          role: applicant.role,
           status: "online",
           approval_status: "approved",
         };
+        setWorkspaceMemberIds(prev => Array.from(new Set([...prev, applicant.id])));
         setUsers((prev) => [approved, ...prev.filter((u) => u.id !== applicant.id)]);
         setPendingApprovals((prev) =>
           prev.filter((u) => u.id !== applicant.id && u.email !== applicant.email)
         );
         logActivity(
           "member_approved",
-          `Approved ${applicant.full_name} (@${applicant.username || applicant.email}) as Member`
+          `Approved ${applicant.full_name} (@${applicant.username || applicant.email}) as ${applicant.role}`
         );
         addNotification({
           id: `notif_new_team_${applicant.id}`,
@@ -2228,7 +2252,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
         toast.success(
           "Member Approved!",
-          `${applicant.full_name} is now an active Member with login access.`
+          `${applicant.full_name} now has approved workspace access.`
         );
         return true;
       } else {
@@ -2236,12 +2260,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [activeWorkspaceId, logActivity, toast]
+    [roleAccess.canManageRoles, activeWorkspaceId, logActivity, toast]
   );
 
   const rejectMember = useCallback(
     async (applicantId: string, email: string): Promise<boolean> => {
-      const success = await inviteService.rejectUser(applicantId, email);
+      if (!roleAccess.canManageRoles) return false;
+      const success = await inviteService.rejectUser(applicantId, activeWorkspaceId);
       if (success) {
         setPendingApprovals((prev) =>
           prev.filter((u) => u.id !== applicantId && u.email !== email)
@@ -2252,16 +2277,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       return false;
     },
-    [logActivity, toast]
+    [roleAccess.canManageRoles, activeWorkspaceId, logActivity, toast]
   );
 
   const revokeInvite = useCallback(
-    (inviteId: string) => {
-      inviteService.revokeInvite(inviteId);
+    async (inviteId: string) => {
+      if (!roleAccess.canManageRoles) return;
+      if (!await inviteService.revokeInvite(inviteId)) { toast.error("Could not revoke invitation", "Please try again."); return; }
       setActiveInvites((prev) => prev.filter((i) => i.id !== inviteId));
       toast.delete("Invite Revoked", "The invitation link has been cancelled.");
     },
-    [toast]
+    [roleAccess.canManageRoles, toast]
   );
 
   const inviteMember = useCallback(
