@@ -94,6 +94,8 @@ export const workspaceService = {
         full_name: u.full_name,
         avatar_url: u.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
         role: u.role || "member",
+        approval_status: u.approval_status,
+        username: u.username,
         title: u.title || "Team Member",
         department: u.department || "General",
         status: u.status || "online",

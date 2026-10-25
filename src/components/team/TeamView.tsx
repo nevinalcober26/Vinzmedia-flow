@@ -1,7 +1,7 @@
 "use client";
 
 import { EmptyState } from "@/components/common/EmptyState";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useStore } from "@/context/StoreContext";
 import { useToast, useConfirm } from "@/context/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -37,6 +37,7 @@ export function TeamView() {
     currentUser,
     tasks,
     pendingApprovals,
+    refreshTeamData,
     activeInvites,
     createInviteLink,
     approveMember,
@@ -50,6 +51,8 @@ export function TeamView() {
     activeWorkspace,
     removeMember,
   } = useStore();
+
+  useEffect(() => { void refreshTeamData(); }, [refreshTeamData]);
 
   const toast = useToast();
   const confirm = useConfirm();

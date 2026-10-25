@@ -108,6 +108,12 @@ export const authService = {
 
       const profile = await this.getProfile(authData.user.id);
       if (profile) {
+        if (profile.approval_status === "pending" || profile.approval_status === "rejected") {
+          await supabase.auth.signOut({ scope: "local" });
+          return { user: null, error: profile.approval_status === "pending"
+            ? "Your account is waiting for Owner/Admin approval. You can sign in once approved."
+            : "Your access request was not approved. Please contact the workspace owner." };
+        }
         return { user: profile, error: null };
       }
 

@@ -356,7 +356,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (dbUsers && dbUsers.length > 0) {
-            const approved = dbUsers.filter((u) => u.approval_status !== "pending");
+            const approved = dbUsers.filter((u) => u.approval_status !== "pending" && u.approval_status !== "rejected");
             setUsers(approved);
             // Identity comes from Supabase Auth, never the first profile row.
           }
@@ -649,18 +649,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }, 1000);
     return () => clearInterval(interval);
   }, [timerStartedAt]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !activeWorkspaceId) return;
-    let cancelled = false;
-    const refresh = async () => {
-      const pending = await inviteService.getPendingApprovals(activeWorkspaceId);
-      if (!cancelled) setPendingApprovals(pending);
-    };
-    const interval = setInterval(() => { void refresh(); }, 30000);
-    window.addEventListener("focus", refresh);
-    return () => { cancelled = true; clearInterval(interval); window.removeEventListener("focus", refresh); };
-  }, [isAuthenticated, activeWorkspaceId]);
 
   // Derived Values
   const currentUser = useMemo((): User => {
@@ -2185,24 +2173,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshTeamData = useCallback(async () => {
-    let targetWsId = activeWorkspaceId || "b0000000-0000-0000-0000-000000000001";
+    const targetWsId = activeWorkspaceId;
+    if (!supabase || !isAuthenticated || !targetWsId) return;
     try {
-      const [dbUsers, pending, invites] = await Promise.all([
+      const [dbUsers, pending, invites, members] = await Promise.all([
         workspaceService.getUsers(),
         inviteService.getPendingApprovals(targetWsId),
-        Promise.resolve(inviteService.getActiveInvites(targetWsId)),
+        inviteService.getActiveInvites(targetWsId),
+        supabase.from("workspace_members").select("user_id").eq("workspace_id", targetWsId),
       ]);
-
-      if (dbUsers && dbUsers.length > 0) {
-        const approved = dbUsers.filter((u) => u.approval_status !== "pending");
-        setUsers(approved);
-      }
-      setPendingApprovals(pending || []);
-      setActiveInvites(invites || []);
-    } catch (e) {
-      console.error("Failed to refresh team data:", e);
+      if (activeWsRef.current !== targetWsId) return;
+      if (!members.error) setWorkspaceMemberIds((members.data || []).map(member => member.user_id));
+      if (dbUsers.length) setUsers(dbUsers.filter(user => user.approval_status !== "pending" && user.approval_status !== "rejected"));
+      setPendingApprovals(pending);
+      setActiveInvites(invites);
+    } catch (error) {
+      console.error("Failed to refresh team data:", error);
     }
-  }, [activeWorkspaceId]);
+  }, [activeWorkspaceId, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const refresh = () => { void refreshTeamData(); };
+    refresh();
+    const interval = setInterval(refresh, 15000);
+    window.addEventListener("focus", refresh);
+    return () => { clearInterval(interval); window.removeEventListener("focus", refresh); };
+  }, [isAuthenticated, refreshTeamData]);
 
   const createInviteLink = useCallback(
     async (email: string, role: Role = "member") => {
