@@ -379,10 +379,6 @@
 
 /* Print Stylesheet for High-Quality PDF Invoicing & Time Reports */
 @media print {
-  body {
-    background: #0a1018 !important;
-    color: #f6f9fc !important;
-  }
   body * {
     visibility: hidden;
   }
@@ -392,8 +388,7 @@
   #timelog-printable-area * {
     visibility: visible;
   }
-  #invoice-printable-area,
-  #timelog-printable-area {
+  #invoice-printable-area {
     position: absolute;
     left: 0;
     top: 0;

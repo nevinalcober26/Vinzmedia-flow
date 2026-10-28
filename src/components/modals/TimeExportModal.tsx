@@ -180,7 +180,7 @@ export function TimeExportModal({
     onClose();
   };
 
-  // Execution: Trigger PDF Print dialog
+  // Execution: Trigger PDF Print dialog via isolated iframe
   const handlePrintPdf = async () => {
     if (exportDataset.length === 0) {
       toast.warning("No entries to export", "Try selecting 'All Recorded Time Logs' to export your entire history.");
@@ -189,17 +189,129 @@ export function TimeExportModal({
 
     if (activeTab !== "preview_pdf") {
       setActiveTab("preview_pdf");
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     }
 
-    // Wait for the render frame and images to resolve
-    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    const printableElement = document.getElementById("timelog-printable-area");
+    if (!printableElement) {
+      window.print();
+      return;
+    }
+
     try {
       await document.fonts.ready;
-      const images = Array.from(document.querySelectorAll<HTMLImageElement>("#timelog-printable-area img"));
+      const images = Array.from(printableElement.querySelectorAll<HTMLImageElement>("img"));
       await Promise.all(images.map((img) => img.decode().catch(() => undefined)));
     } catch {}
 
-    window.print();
+    // Clean up any old print iframe
+    const oldIframe = document.getElementById("timelog-print-frame");
+    if (oldIframe) oldIframe.remove();
+
+    // Create an isolated printing iframe attached to body
+    const iframe = document.createElement("iframe");
+    iframe.id = "timelog-print-frame";
+    iframe.style.position = "fixed";
+    iframe.style.top = "-9999px";
+    iframe.style.left = "-9999px";
+    iframe.style.width = "1024px";
+    iframe.style.height = "768px";
+    iframe.style.border = "none";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      window.print();
+      return;
+    }
+
+    // Collect all stylesheets from host document
+    const styleTags = Array.from(document.querySelectorAll("style, link[rel='stylesheet']"))
+      .map((el) => el.outerHTML)
+      .join("\n");
+
+    const isDark = pdfTheme === "dark";
+
+    iframeDoc.open();
+    iframeDoc.write(`
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>VinzMedia Timesheet Report - ${reportId}</title>
+          ${styleTags}
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 12mm 10mm;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              box-sizing: border-box !important;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background-color: ${isDark ? "#0a1018" : "#ffffff"} !important;
+              color: ${isDark ? "#f6f9fc" : "#0f172a"} !important;
+              font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            }
+            #timelog-printable-area {
+              width: 100% !important;
+              max-width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+              border-radius: 0 !important;
+              background-color: ${isDark ? "#0a1018" : "#ffffff"} !important;
+              color: ${isDark ? "#f6f9fc" : "#0f172a"} !important;
+            }
+            table {
+              width: 100% !important;
+              border-collapse: collapse !important;
+            }
+            tr {
+              page-break-inside: avoid !important;
+            }
+            .no-print {
+              display: none !important;
+            }
+          </style>
+        </head>
+        <body class="${isDark ? "dark" : ""}">
+          <div style="width: 100%; max-width: 850px; margin: 0 auto; padding: 4px;">
+            ${printableElement.outerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    iframeDoc.close();
+
+    // Ensure images and fonts inside the iframe are fully decoded before opening print dialog
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      if (iframe.contentWindow?.document?.fonts) {
+        await iframe.contentWindow.document.fonts.ready;
+      }
+      const frameImages = Array.from(iframe.contentDocument?.querySelectorAll<HTMLImageElement>("img") || []);
+      await Promise.all(frameImages.map((img) => img.decode().catch(() => undefined)));
+    } catch {}
+
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      window.print();
+    } finally {
+      setTimeout(() => {
+        iframe.remove();
+      }, 3000);
+    }
   };
 
   const reportId = useMemo(() => {
@@ -226,30 +338,46 @@ export function TimeExportModal({
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-        {/* Scoped Print Stylesheet */}
+        {/* Scoped Print Stylesheet for direct Cmd+P support */}
         <style
           dangerouslySetInnerHTML={{
             __html: `
               @media print {
+                html, body {
+                  overflow: visible !important;
+                  height: auto !important;
+                  background-color: ${pdfTheme === "dark" ? "#0a1018" : "#ffffff"} !important;
+                }
                 body * {
                   visibility: hidden !important;
                 }
+                /* Reset modal wrapper clipping and centering so content expands naturally */
+                .fixed, [role="dialog"], .overflow-y-auto, .overflow-hidden, .overflow-x-auto {
+                  position: static !important;
+                  overflow: visible !important;
+                  max-height: none !important;
+                  height: auto !important;
+                  transform: none !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  box-shadow: none !important;
+                  background: transparent !important;
+                }
                 #timelog-printable-area, #timelog-printable-area * {
                   visibility: visible !important;
-                }
-                #timelog-printable-area {
-                  position: absolute !important;
-                  left: 0 !important;
-                  top: 0 !important;
-                  width: 100% !important;
-                  max-width: 100% !important;
-                  margin: 0 !important;
-                  padding: 24px !important;
-                  box-shadow: none !important;
-                  border: none !important;
-                  border-radius: 0 !important;
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
+                }
+                #timelog-printable-area {
+                  position: static !important;
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  margin: 0 auto !important;
+                  padding: 8px !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                  background-color: ${pdfTheme === "dark" ? "#0a1018" : "#ffffff"} !important;
+                  color: ${pdfTheme === "dark" ? "#f6f9fc" : "#0f172a"} !important;
                 }
                 .no-print {
                   display: none !important;
