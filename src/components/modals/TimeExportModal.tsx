@@ -234,6 +234,16 @@ export function TimeExportModal({
 
     const isDark = pdfTheme === "dark";
 
+    const clonedContent = printableElement.cloneNode(true) as HTMLElement;
+    clonedContent.style.padding = "0";
+    clonedContent.style.margin = "0";
+    clonedContent.style.maxWidth = "100%";
+    clonedContent.style.width = "100%";
+    clonedContent.style.border = "none";
+    clonedContent.style.boxShadow = "none";
+    clonedContent.style.borderRadius = "0";
+    clonedContent.style.backgroundColor = "transparent";
+
     iframeDoc.open();
     iframeDoc.write(`
       <!DOCTYPE html>
@@ -242,24 +252,40 @@ export function TimeExportModal({
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <title>VinzMedia Timesheet Report - ${reportId}</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
           ${styleTags}
           <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+            *, *::before, *::after, html, body, div, p, span, h1, h2, h3, h4, th, td, strong, b, a, article {
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            }
+
+            .font-mono {
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            }
+
             @page {
               size: A4 portrait;
-              margin: 12mm 10mm;
+              margin: 14mm 12mm;
             }
+
             * {
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
               box-sizing: border-box !important;
             }
+
             html, body {
               margin: 0 !important;
               padding: 0 !important;
+              width: 100% !important;
               background-color: ${isDark ? "#0a1018" : "#ffffff"} !important;
               color: ${isDark ? "#f6f9fc" : "#0f172a"} !important;
-              font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
             }
+
             #timelog-printable-area {
               width: 100% !important;
               max-width: 100% !important;
@@ -268,24 +294,26 @@ export function TimeExportModal({
               border: none !important;
               box-shadow: none !important;
               border-radius: 0 !important;
-              background-color: ${isDark ? "#0a1018" : "#ffffff"} !important;
-              color: ${isDark ? "#f6f9fc" : "#0f172a"} !important;
+              background-color: transparent !important;
             }
+
             table {
               width: 100% !important;
               border-collapse: collapse !important;
             }
+
             tr {
               page-break-inside: avoid !important;
             }
+
             .no-print {
               display: none !important;
             }
           </style>
         </head>
         <body class="${isDark ? "dark" : ""}">
-          <div style="width: 100%; max-width: 850px; margin: 0 auto; padding: 4px;">
-            ${printableElement.outerHTML}
+          <div style="width: 100%; margin: 0; padding: 0;">
+            ${clonedContent.outerHTML}
           </div>
         </body>
       </html>
@@ -343,6 +371,13 @@ export function TimeExportModal({
           dangerouslySetInnerHTML={{
             __html: `
               @media print {
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+                *, *::before, *::after, html, body, div, p, span, h1, h2, h3, h4, th, td, strong, b, a, article {
+                  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+                }
+                .font-mono {
+                  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+                }
                 html, body {
                   overflow: visible !important;
                   height: auto !important;
@@ -373,7 +408,7 @@ export function TimeExportModal({
                   width: 100% !important;
                   max-width: 100% !important;
                   margin: 0 auto !important;
-                  padding: 8px !important;
+                  padding: 0 !important;
                   box-shadow: none !important;
                   border: none !important;
                   background-color: ${pdfTheme === "dark" ? "#0a1018" : "#ffffff"} !important;
@@ -741,17 +776,17 @@ export function TimeExportModal({
                 <div className="rounded-2xl border border-border/80 p-2 sm:p-6 bg-slate-900/40 overflow-x-auto">
                   <article
                     id="timelog-printable-area"
-                    className={`mx-auto max-w-[850px] rounded-xl border p-6 sm:p-10 shadow-xl transition-colors ${
+                    className={`mx-auto max-w-[850px] rounded-xl border p-6 sm:p-8 shadow-xl transition-colors ${
                       pdfTheme === "dark"
                         ? "bg-[#0a1018] text-[#f6f9fc] border-[#213545]"
                         : "bg-white text-slate-900 border-slate-200"
                     }`}
                     style={{
-                      fontFamily: "var(--font-inter), system-ui, sans-serif",
+                      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
                     }}
                   >
                     {/* Header: Company Logo & Details */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b pb-8 border-current/15">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b pb-6 mb-6 border-current/15">
                       <div className="flex items-center gap-4">
                         {workspace.logo_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -796,7 +831,7 @@ export function TimeExportModal({
                     </div>
 
                     {/* Metadata Strip */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-6 border-b border-current/15 text-xs">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4 mb-6 border-b border-current/15 text-xs">
                       <div>
                         <span className="text-[10px] uppercase font-bold tracking-wider opacity-60 block">Organization</span>
                         <strong className="text-sm font-semibold mt-0.5 block">{workspace.name}</strong>
@@ -818,7 +853,7 @@ export function TimeExportModal({
                     </div>
 
                     {/* Executive Summary Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 my-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-6">
                       <div
                         className={`p-4 rounded-xl border ${
                           pdfTheme === "dark"
@@ -916,7 +951,7 @@ export function TimeExportModal({
                     )}
 
                     {/* Itemized Table: Details of Time spent and all */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 mb-8">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">
                           Itemized Time Sessions & Work Details
@@ -926,20 +961,22 @@ export function TimeExportModal({
                         </span>
                       </div>
 
-                      <div className="rounded-xl border overflow-hidden border-current/15">
+                      <div className={`rounded-xl border overflow-hidden ${pdfTheme === "dark" ? "border-[#213545]" : "border-slate-200"}`}>
                         <table className="w-full text-left text-xs border-collapse">
                           <thead>
                             <tr
-                              className={`border-b border-current/15 text-[10px] font-bold uppercase tracking-wider ${
-                                pdfTheme === "dark" ? "bg-[#13202e]" : "bg-slate-100"
+                              className={`border-b text-[10px] font-bold uppercase tracking-wider ${
+                                pdfTheme === "dark"
+                                  ? "bg-[#13202e] text-slate-200 border-[#213545]"
+                                  : "bg-slate-100 text-slate-800 border-slate-200"
                               }`}
                             >
-                              <th className="py-2.5 px-3 w-24">Date</th>
-                              <th className="py-2.5 px-3 w-36">Project</th>
-                              <th className="py-2.5 px-3 w-40">Task</th>
-                              <th className="py-2.5 px-3">Work Summary & Notes</th>
-                              <th className="py-2.5 px-3 w-24 text-right">Duration</th>
-                              <th className="py-2.5 px-3 w-20 text-center">Type</th>
+                              <th className="py-3 px-3.5 w-24">Date</th>
+                              <th className="py-3 px-3.5 w-36">Project</th>
+                              <th className="py-3 px-3.5 w-40">Task</th>
+                              <th className="py-3 px-3.5">Work Summary & Notes</th>
+                              <th className="py-3 px-3.5 w-24 text-right">Duration</th>
+                              <th className="py-3 px-3.5 w-20 text-center">Type</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-current/10">
@@ -968,24 +1005,24 @@ export function TimeExportModal({
                                         : ""
                                     }`}
                                   >
-                                    <td className="py-2.5 px-3 font-mono text-[11px] align-top whitespace-nowrap">
+                                    <td className="py-3 px-3.5 font-mono text-[11px] align-top whitespace-nowrap">
                                       {dateFormatted}
                                     </td>
-                                    <td className="py-2.5 px-3 font-semibold align-top truncate max-w-[140px]">
+                                    <td className="py-3 px-3.5 font-semibold align-top truncate max-w-[140px]">
                                       {project?.name || entry.project_name || "—"}
                                     </td>
-                                    <td className="py-2.5 px-3 align-top font-medium truncate max-w-[160px]">
+                                    <td className="py-3 px-3.5 align-top font-medium truncate max-w-[160px]">
                                       {task?.title || entry.task_title || "General Initiative"}
                                     </td>
-                                    <td className="py-2.5 px-3 align-top leading-relaxed text-[11px] opacity-90">
+                                    <td className="py-3 px-3.5 align-top leading-relaxed text-[11px] opacity-90">
                                       {entry.work_summary || entry.description || (
                                         <span className="opacity-40 italic">No notes recorded</span>
                                       )}
                                     </td>
-                                    <td className="py-2.5 px-3 text-right font-mono font-bold align-top whitespace-nowrap">
+                                    <td className="py-3 px-3.5 text-right font-mono font-bold align-top whitespace-nowrap">
                                       {formatDuration(entry.duration_seconds)}
                                     </td>
-                                    <td className="py-2.5 px-3 text-center align-top">
+                                    <td className="py-3 px-3.5 text-center align-top">
                                       <span
                                         className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                                           entry.is_billable
@@ -1003,17 +1040,19 @@ export function TimeExportModal({
                           </tbody>
                           <tfoot>
                             <tr
-                              className={`border-t-2 border-current/25 font-bold ${
-                                pdfTheme === "dark" ? "bg-[#13202e]" : "bg-slate-100"
+                              className={`border-t-2 font-bold ${
+                                pdfTheme === "dark"
+                                  ? "bg-[#13202e] text-slate-100 border-[#294051]"
+                                  : "bg-slate-100 text-slate-900 border-slate-300"
                               }`}
                             >
-                              <td colSpan={4} className="py-3 px-3 text-right uppercase tracking-wider text-[11px]">
+                              <td colSpan={4} className="py-3.5 px-3.5 text-right uppercase tracking-wider text-[11px]">
                                 Total Accumulated Time:
                               </td>
-                              <td className="py-3 px-3 text-right font-mono text-sm text-indigo-400 font-extrabold whitespace-nowrap">
+                              <td className="py-3.5 px-3.5 text-right font-mono text-sm text-indigo-400 font-extrabold whitespace-nowrap">
                                 {formatDuration(summary.totalSeconds)}
                               </td>
-                              <td className="py-3 px-3 text-center text-[10px] opacity-75 font-mono">
+                              <td className="py-3.5 px-3.5 text-center text-[10px] opacity-75 font-mono">
                                 ({summary.totalHours}h)
                               </td>
                             </tr>
@@ -1023,18 +1062,18 @@ export function TimeExportModal({
                     </div>
 
                     {/* Verification and Signatures */}
-                    <div className="mt-10 pt-8 border-t border-current/15 grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs">
+                    <div className={`pt-6 border-t ${pdfTheme === "dark" ? "border-[#213545]" : "border-slate-200"} grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs`}>
                       <div>
-                        <p className="text-[10px] uppercase font-bold tracking-wider opacity-60 mb-6">
+                        <p className="text-[10px] uppercase font-bold tracking-wider opacity-60 mb-5">
                           Timesheet Certification
                         </p>
-                        <div className="border-b border-current/30 pb-1 mb-2 w-48" />
-                        <p className="font-semibold">{currentUser?.full_name || "Vinz Media"}</p>
+                        <div className={`border-b ${pdfTheme === "dark" ? "border-slate-600" : "border-slate-400"} pb-1 mb-2 w-48`} />
+                        <p className="font-semibold text-sm">{currentUser?.full_name || "Vinz Media"}</p>
                         <p className="text-[11px] opacity-60">Operations & Workspace Lead</p>
                       </div>
 
                       <div className="text-left sm:text-right">
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold mb-3">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold mb-2">
                           <ShieldCheck className="w-4 h-4" /> Vinzmedia Verified Timesheet
                         </div>
                         <p className="text-[10px] opacity-60 leading-relaxed max-w-xs sm:ml-auto">
