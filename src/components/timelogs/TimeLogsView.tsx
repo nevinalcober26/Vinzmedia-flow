@@ -30,6 +30,7 @@ import {
   Trash2,
   History,
   FileSpreadsheet,
+  Download,
   Target,
   Edit2,
   X,
@@ -56,6 +57,7 @@ import { exportTimeEntriesCsv } from "@/lib/exportTimeEntries";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { ClientAvatar } from "@/components/common/ClientAvatar";
 import { getDepartmentBadge, getTaskTypeBadge } from "@/lib/taskTypes";
+import { TimeExportModal } from "@/components/modals/TimeExportModal";
 
 export function TimeLogsView() {
   const {
@@ -72,6 +74,7 @@ export function TimeLogsView() {
     deleteTimeEntry,
     updateTask,
     currentUser,
+    activeWorkspace,
     setSelectedProjectId,
     setActiveView,
     setIsCreateTaskModalOpen,
@@ -80,6 +83,7 @@ export function TimeLogsView() {
 
   // View & Filter states: Default to weekly table timesheet view
   const [viewMode, setViewMode] = useState<"timesheet" | "project_columns" | "detailed_logs">("timesheet");
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedProjectFilter, setSelectedProjectFilter] = useState<string>("all");
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState<string>("all");
@@ -416,9 +420,13 @@ export function TimeLogsView() {
             </button>
           </div>
 
-          {/* Quick Manual Log Button */}
-          <button type="button" onClick={exportTimeLogs} className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-xs hover:border-primary/40 hover:text-primary">
-            <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+          {/* Export Button (CSV / PDF Modal) */}
+          <button
+            type="button"
+            onClick={() => setIsExportModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-xs hover:border-primary/40 hover:text-primary transition-colors cursor-pointer"
+          >
+            <Download className="h-3.5 w-3.5" /> Export
           </button>
           <button
             onClick={openManualTime}
@@ -1271,6 +1279,21 @@ export function TimeLogsView() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Export Modal (CSV & Premium PDF) */}
+      <TimeExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        entries={timeEntries}
+        projects={projects}
+        tasks={tasks}
+        users={users}
+        workspace={activeWorkspace}
+        currentUser={currentUser}
+        activeProjectFilter={selectedProjectFilter}
+        dateRangeLabel={`${format(weekStart, "MMM d")} – ${format(weekEnd, "MMM d, yyyy")}`}
+        weekInterval={{ start: weekStart, end: weekEnd }}
+      />
     </div>
   );
 }
